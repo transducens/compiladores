@@ -1,0 +1,311 @@
+
+\section{Soluciones a los ejercicios del capítulo 2}
+
+\stepcounter{contcapitulo}
+\setcounter{contsoleje}{0}
+\begin{soleje} 
+Dise\~nar
+un analizador l\'exico que utilice un DT construido a partir de
+las expresiones regulares de los patrones de los tokens involucrados
+en expresiones algebraicas (los operadores son ``\verb!*!'',
+``\verb!+!'', ``\verb!-!'', ``\verb!/!'', ``\verb!(!'' y ``\verb!)!'')
+en las que intervengan n\'umeros enteros y reales (en notaci\'on
+no exponencial) sin signo y variables expresadas mediante
+identificadores.
+
+Las expresiones regulares no triviales son:
+
+\begin{tabular}{ll}
+N\'umeros enteros:  &   d\'{\i}gito\(^{+}\) \\
+N\'umeros reales:   &   d\'{\i}gito\(^{+}\)( . d\'{\i}gito\(^{+}\))? \\
+Identificadores:    &   letra ( letra \hbox{$|$} d\'{\i}gito )*
+\end{tabular}
+
+\solucion
+%\come { % cacho por procesar 
+%Soluci\'on (ejercicio 2.1):
+
+Se pueden calcular los AFD a partir de las definiciones de los
+operadores (cadenas espec\'{\i}ficas) y de las expresiones regulares
+(cadenas no espec\'{\i}ficas) y luego se combinan todos, 
+a partir de un mismo estado inicial, de manera que se obtiene el diagrama de 
+transiciones de la figura~\ref{fg:td1}.
+
+\begin{figure}
+\begin{center}
+\includegraphics{scap2f1.pdf}
+\end{center}
+Notaci\'on: {\em d} = d\'{\i}gito; {\em l} = letra; {\em f}
+= alfanum\'erico (d\'{\i}gito \hbox{$|$} letra); {\em t} = otro.
+\caption{Diagrama de transiciones}\label{fg:td1}
+\end{figure}
+
+\begin{table}[htp]  
+\begin{center}
+\begin{tabular}{|r|rrrrrrrrrr|l|c|}\hline
+\multicolumn{1}{|c|}{ } & \multicolumn{1}{c}{*} &
+\multicolumn{1}{c}{/} & \multicolumn{1}{c}{+} & 
+\multicolumn{1}{c}{-} & \multicolumn{1}{c}{(} & 
+\multicolumn{1}{c}{)} & \multicolumn{1}{c}{{\em l}} & 
+\multicolumn{1}{c}{{\em d}} & \multicolumn{1}{c}{.} & 
+\multicolumn{1}{c}{t} & \multicolumn{1}{|c|}{Token} & 
+\multicolumn{1}{|c|}{Dev} \\\hline\hline
+0  & 1  & 2  & 4  & 3  & 5  & 6  & 7  & 9  & 0  & 0  & -    & - \\\hline
+1  & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & MUL  & 0 \\\hline
+2  & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & DIV  & 0 \\\hline
+3  & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & RES  & 0 \\\hline
+4  & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & SUM  & 0 \\\hline
+5  & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & PARI & 0 \\\hline
+6  & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & PARD & 0 \\\hline
+7  & 8  & 8  & 8  & 8  & 8  & 8  & 7  & 7  & 8  & 8  & -    & - \\\hline
+8  & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & ID   & 1 \\\hline
+9  & 10 & 10 & 10 & 10 & 10 & 10 & 10 & 9  & 11 & 10 & -    & - \\\hline
+10 & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & NENT & 1 \\\hline
+11 & 14 & 14 & 14 & 14 & 14 & 14 & 14 & 12 & 14 & 14 & -    & - \\\hline
+12 & 13 & 13 & 13 & 13 & 13 & 13 & 13 & 12 & 13 & 13 & -    & - \\\hline
+13 & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & NREA & 1 \\\hline
+14 & -  & -  & -  & -  & -  & -  & -  & -  & -  & -  & NENT & 2 \\\hline
+\end{tabular}
+\end{center}
+\caption{Tabla de transiciones (los $0$ son error)} \label{tb:diagtra}
+\end{table}
+
+
+Como se observa en la figura~\ref{fg:td1} el patr\'on de los enteros es un 
+prefijo del
+patr\'on de los reales, por lo que se puede construir para ambos
+una misma rama del aut\'omata en la que aparecer\'a un
+estado de aceptaci\'on que surge de un estado intermedio para
+los enteros ($10$) y otro final para los reales ($13$). En este caso, todos
+los estados de aceptaci\'on llevan asociado el reconocimiento de
+un {\em token} distinto. Aquellos que est\'an marcados con ``*''
+se debe a que el reconocimiento para esos {\em tokens} se produce
+cuando se ha le\'{\i}do uno o m\'as caracteres m\'as all\'a
+del final del lexema correspondiente a dicho patr\'on, por lo
+que llevan aparejada como acci\'on asociada el retroceso de la
+marca de an\'alisis sobre el {\em buffer} de entrada.
+
+
+En la tabla de transiciones~\ref{tb:diagtra}, las celdas marcadas con  ``0''
+son transiciones que dan error. Se puede observar la poca eficiencia
+del almacenamiento en la tabla.
+
+%} % come
+
+\end{soleje}
+
+\begin{soleje}
+ Hacer lo mismo que en el ejercicio anterior pero implement\'andolo
+ ``a mano'' en C.
+
+\solucion
+
+Se supone que \verb+lexema+ es una variable global de tipo \verb+char[]+.
+\begin{footnotesize}
+\begin{verbatim}
+int analex(void)
+{
+ int cl=0;
+ do
+ {
+  c = obtenercaracter();
+  switch (c) 
+  {
+   case ' ' :
+   case '\t':
+   case '\n': /* blancos */  break;
+   case '*' : strcpy(lexema,"*");
+              return(MUL);
+   case '/' : strcpy(lexema,"/");
+              return(DIV);
+   case '-' : strcpy(lexema,"-");
+              return(RES);
+   case '+' : strcpy(lexema,"+");
+              return(SUM);
+   case '(' : strcpy(lexema,"(");
+              return(PARI);
+   case ')' : strcpy(lexema,")");
+              return(PARD);
+   default: 
+       if (ESNUMERO(c))
+         { 
+           while (ESNUMERO(c))
+            {
+               lexema[cl]=c;
+               cl++;
+               c=obtenercaracter();
+            }
+           if (c=='.')
+            {
+               lexema[cl]=c;
+               cl++;
+               c=obtenercaracter();
+               if (ESNUMERO(c))
+                {
+                  while (ESNUMERO(c))
+                    {
+                      lexema[cl]=c;
+                      cl++;
+                      c=obtenercaracter();
+                    }
+                  devolvercaracter(c);
+                  lexema[cl]='\0';
+                  return(NREA); 
+                }
+               else
+                {
+                  devolvercaracter(lexema[cl-1]); /* devuelvo el '.' */
+                  devolvercaracter(c); /* devuelvo el siguiente 
+                                          carácter leído */
+                  lexema[cl-1]='\0';
+                  return(NENT);
+                }
+            }
+           else
+            {
+              devolvercaracter(c); /* devuelvo el punto */
+              lexema[cl]='\0';
+              return(NENT);
+            }
+         }
+       else if (ESLETRA(c))
+         { 
+           while((ESLETRA(c)) || (ESNUMERO(c)))
+            {
+              lexema[cl]=c;
+              cl++;
+              c=obtenercaracter();
+            }  
+           devolvercaracter(c);
+           lexema[cl]='\0';
+           return(ID);
+         }
+  }  /* del switch */
+ } while (1); /* bucle infinito para eliminar blancos */
+}  /* de analex */
+\end{verbatim}
+\end{footnotesize}
+\end{soleje}
+
+\begin{soleje}
+Dise\~nar un diagrama de transiciones determinista para reconocer los
+siguientes componentes l\'exicos:
+
+\labelsep1em
+\settowidth{\maxim}{{\bf opersum}}
+\addtolength{\maxim}{\labelsep}
+
+\begin{list}{}{ %\raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{{\bf #1}\hfill}}
+
+   \item[while] la palabra reservada ``{\tt while}'' (en min\'usculas).
+   \item[when] la palabra reservada ``{\tt when}'' (en min\'usculas).
+   \item[ident] cualquier secuencia de letras (may\'usculas y min\'usculas) y
+     d\'igitos que empiece por una letra, y que no coincida con ninguna de las
+     palabras reservadas.
+   \item[opersum] el s\'{\i}mbolo `{\tt +}'.
+   \item[opermul] el s\'{\i}mbolo `{\tt *}'.
+   \item[operinc] el s\'{\i}mbolo `{\tt ++}'.
+\end{list}
+%
+\solucion
+
+\begin{center}
+\includegraphics{scap2f2.pdf}
+\end{center}
+Notaci\'on: {\em l} = letra (mayúscula o minúscula); 
+{\em f} = alfanum\'erico (d\'{\i}gito \hbox{$|$} letra); {\em t} = otro.
+
+\end{soleje}
+
+
+\begin{soleje}
+Dise\~nar un diagrama de transiciones determinista para reconocer los
+siguientes componentes l\'exicos:
+\labelsep1em 
+\settowidth{\maxim}{{\bf opersum}}
+\addtolength{\maxim}{\labelsep}
+
+\begin{small}
+\begin{list}{}{ %\raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{{\bf #1}\hfill}}
+
+   \item[letras] cualquier secuencia de una o m\'{a}s
+                  letras (may\'{u}sculas y
+                  min\'{u}sculas);
+   \item[entero]  cualquier secuencia de uno o m\'{a}s d\'{\i}gitos;
+   \item[explos1] la palabra reservada ``{\tt bang}'' (en min\'usculas)
+   \item[explos2] la palabra reservada ``{\tt boom}'' (en min\'usculas)
+   \item[true] la secuencia ``{\tt :-)}''
+   \item[false] la secuencia ``{\tt :-(}''
+   \item[asignar] la secuencia ``{\tt :=}''
+\end{list}
+\end{small}
+\solucion
+
+\begin{center}
+\includegraphics{scap2f3.pdf}
+\end{center}
+Notaci\'on: {\em d} = d\'{\i}gito; {\em l} = letra (mayúscula o minúscula); 
+{\em f} = alfanum\'erico (d\'{\i}gito \hbox{$|$} letra); {\em t} = otro.
+
+\end{soleje}
+
+\begin{soleje}
+Dise\~nar un diagrama de transiciones determinista para reconocer los
+siguientes componentes l\'exicos:
+
+\labelsep1em \settowidth{\maxim}{{\bf opersum}}
+\addtolength{\maxim}{\labelsep}
+
+\begin{list}{}{ %\raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{{\bf #1}\hfill}}
+
+   \item[read] la palabra reservada `{\tt read}'.
+   \item[print] la palabra reservada `{\tt print}'.
+   \item[pradir] la palabra reservada `{\tt pradir}'.
+   \item[redir] la palabra reservada `{\tt redir}'.
+   \item[ident] cualquier secuencia de letras y d\'{\i}gitos que empiece por una
+    letra y no coincida con ninguna de las palabras reservadas.
+   \item[raya] el s\'{\i}mbolo `{\tt -}'.
+   \item[punto] el s\'{\i}mbolo `{\tt .}'.
+   \item[uno] el s\'{\i}mbolo `{\tt .----}'.
+   \item[dos] el s\'{\i}mbolo `{\tt ..---}'.
+\end{list}
+%
+E indíquese c\'{o}mo separa este analizador la secuencia de entrada \\
+``{\tt pradir6dire..--.-}''.
+
+\solucion
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.95\textwidth]{scap2f4.pdf}
+\end{center}
+Notaci\'on: {\em d} = d\'{\i}gito; {\em l} = letra (mayúscula o minúscula); 
+{\em f} = alfanum\'erico (d\'{\i}gito \hbox{$|$} letra); {\em t} = otro.
+\caption{Diagrama de transiciones}\label{fg:td4}
+\end{figure}
+
+La secuencia de entrada ``{\tt pradir6dire..--.-}'' se tokeniza siguiendo el
+diagrama de transiciones de la figura~\ref{fg:td4} como:
+\begin{quote}
+\begin{tabular}{lcl}
+ {\tt pradir6dire} & $\rightarrow$ & IDENT \\
+ {\tt . }          & $\rightarrow$ & PUNTO \\
+ {\tt . }          & $\rightarrow$ & PUNTO \\
+ {\tt - }          & $\rightarrow$ & RAYA \\
+ {\tt - }          & $\rightarrow$ & RAYA \\
+ {\tt . }          & $\rightarrow$ & PUNTO \\
+ {\tt - }          & $\rightarrow$ & RAYA \\
+\end{tabular}
+\end{quote}
+\end{soleje}
+
+

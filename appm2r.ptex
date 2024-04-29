@@ -1,0 +1,226 @@
+
+El lenguaje es un ensamblador para una m\'aquina virtual
+({\tt m2r}), que
+s\'olo tiene dos registros, {\tt A} y {\tt B}, que act\'uan como
+acumulador y registro base respectivamente. Tiene un espacio de memoria
+para el c\'odigo lo suficientemente grande como para almacenar un 
+programa t\'{\i}pico, y otro espacio de 16384 posiciones de memoria
+para datos (de la 0 a la 16383). Este espacio de datos debe ser
+gestionado por el compilador seg\'un el criterio de quien lo dise\~ne.
+Los tipos de datos b\'asicos, entero y real, se pueden
+almacenar en {\em una\/} posici\'on de memoria (aunque internamente se
+representan de distinta manera y por tanto un valor entero no puede
+utilizarse como si fuera real sin una conversi\'on expl\'{\i}cita, por
+ejemplo).
+
+El int\'erprete de la m\'aquina objeto entiende texto ASCII compuesto 
+por instrucciones, una por l\'{\i}nea, tomadas del conjunto que se describe 
+seguidamente. Las instrucciones pueden ir
+precedidas de un n\'umero de l\'{\i}nea, de una etiqueta o de nada. El
+intérprete admite comentarios que empiezan por `{\tt ;}' y terminan con el
+final de la línea.
+
+El repertorio de instrucciones de \texttt{m2r} es:
+%
+\labelsep1em
+%\newlength{\maxim}
+\settowidth{\maxim}{{\tt mvetq} {\em etiqueta destino}}
+\addtolength{\maxim}{\labelsep}
+%
+\begin{list}{}{ \raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{#1\hfill}
+}
+
+\item[{\tt mov} {\em fuente destino}] Copia en {\em destino} el valor {\em fuente}.
+\item[{\tt addi} {\em fuente}] Suma a {\tt A} el valor {\em fuente}. Se supone
+                            que tanto el acumulador como el valor
+                            {\em fuente} son enteros, y el resultado
+                            es tambi\'en entero.
+\item[{\tt addr} {\em fuente}] Igual que {\tt addi}, pero todos los
+                               operandos y el resultado son reales.
+\item[{\tt subi} {\em fuente}] Resta de {\tt A} (entero) el valor {\em fuente} (entero),
+                            y deja el resultado (entero) en A.
+\item[{\tt subr} {\em fuente}] Igual que {\tt subi} pero con reales.
+\item[{\tt muli} {\em fuente}] Multiplica {\tt A} (entero)
+                               por el valor {\em fuente} (entero) y
+                               guarda el resultado (entero) en {\tt A}.
+\item[{\tt mulr} {\em fuente}] Igual que {\tt muli} pero con reales.
+\item[{\tt divi} {\em fuente}] Divide {\tt A} (entero) por el valor
+                              {\em fuente} (entero) y
+                              guarda el cociente de la divisi\'on entera
+                              en {\tt A} (que es entero).
+\item[{\tt divr} {\em fuente}] Igual que {\tt divi} pero con reales.
+\item[{\tt modi} {\em fuente}] Igual que {\tt divi}, pero en lugar de
+guardar el cociente guarda el resto de la divisi\'{o}n (también entero).
+\item[{\tt andi} {\em fuente}] Deja en {\tt A}
+                              un 1 si el valor (entero) de {\tt A} y el
+                              valor (entero) de {\em fuente}
+                              son iguales a 1, y deja un 0 en otro caso.
+                              El resultado, que queda en A, es entero.
+\item[{\tt andr} {\em fuente}] Igual que {\tt andi} pero se supone que
+                            {\tt A} y {\em fuente} son reales, aunque el
+                            resultado es entero.
+\item[{\tt ori} {\em fuente}] Deja en {\tt A}
+                            un 0 si el valor (entero) de {\tt A} y el
+                            valor (entero) de {\em fuente} son
+                            iguales a 0, y deja un 1 en otro caso.
+                            Como con {\tt andi}, el resultado es entero.
+\item[{\tt orr} {\em fuente}] Igual que {\tt ori} pero se supone que
+                            {\tt A} y {\em fuente} son reales, aunque el
+                            resultado es entero.
+\item[{\tt noti}] Deja en {\tt A} un 1 si el valor (entero) de {\tt A} es
+                 cero, y deja un 0 en otro caso. El resultado es entero.
+\item[{\tt notr}] Igual que {\tt noti}, pero el valor de {\tt A} debe ser
+                 real y el resultado es entero.
+\item[{\tt itor}] Convierte el valor entero de {\tt A} en un valor real y
+                 lo deja en el acumulador.
+\item[{\tt rtoi}] Toma la parte entera del valor real de {\tt A} y la
+                 deja como entero en el acumulador. Es equivalente a la
+                sentencia en C ``\verb+A = (int)A+''.
+\item[{\tt halt}] Detiene la m\'aquina (el int\'erprete).
+\item[{\tt wri} {\em fuente}]  Imprime el valor (entero) de {\em fuente}.
+\item[{\tt wrr} {\em fuente}]  Imprime el valor (real) de {\em fuente}.
+\item[{\tt wrc} {\em fuente}]  Imprime el car\'acter representado por los
+                               8 bits m\'as bajos
+                               del valor entero {\em fuente}.
+\item[{\tt wrl}]  Imprime un salto de l\'{\i}nea.
+\item[{\tt rdi} {\em destino}]  Lee un entero de la consola y lo carga
+                                en {\em destino}.
+\item[{\tt rdr} {\em destino}]  Lee un real de la consola y lo carga
+                                en {\em destino}.
+\item[{\tt rdc} {\em destino}]  Lee un car\'acter de la consola y carga
+                                su c\'odigo ASCII en {\em destino}.
+%\item[{\tt rdl}]  Lee caracteres hasta agotar la l\'{\i}nea actual.
+\item[{\tt eqli} {\em fuente}] Deja un 1 en {\tt A} si el valor (entero) de
+                   {\tt A} es igual que el valor (entero) {\em fuente},
+                   y deja un 0 en otro caso. El resultado es entero.
+\item[{\tt eqlr} {\em fuente}] Igual que {\tt eqli}, pero los operandos son reales.
+                  El resultado también es entero.
+\item[{\tt neqi} {\em fuente}] Deja un 1 en {\tt A} si el valor (entero)
+                   de {\tt A} es distinto del valor (entero) {\em fuente},
+                    y deja un 0 en otro caso. El resultado es entero.
+\item[{\tt neqr} {\em fuente}] Igual que {\tt neqi}, pero los operandos son reales.
+                  El resultado también es entero.
+\item[{\tt gtri} {\em fuente}] Deja un 1 en {\tt A} si el valor (entero)
+                de {\tt A} es mayor que el valor (entero) {\em fuente},
+                y deja un 0 en otro caso. El resultado es entero.
+\item[{\tt gtrr} {\em fuente}] Igual que {\tt gtri}, pero los operandos son reales.
+                  El resultado también es entero.
+\item[{\tt geqi} {\em fuente}] Deja un 1 en {\tt A} si el valor (entero)
+                  de {\tt A} es mayor o igual que el valor (entero)
+                  {\em fuente}, y deja un 0 en otro caso. El resultado es entero.
+\item[{\tt geqr} {\em fuente}] Igual que {\tt geqi}, pero los operandos son reales.
+                  El resultado también es entero.
+\item[{\tt lssi} {\em fuente}] Deja un 1 en {\tt A} si el valor (entero) de
+                    {\tt A} es menor que el valor  (entero) {\em fuente},
+                    y deja un 0 en otro caso. El resultado es entero.
+\item[{\tt lssr} {\em fuente}] Igual que {\tt lssi}, pero los operandos son reales.
+                  El resultado también es entero.
+\item[{\tt leqi} {\em fuente}] Deja un 1 en {\tt A} si el valor (entero)
+                  de {\tt A} es menor o igual que el valor (entero)
+                  {\em fuente}, y deja un 0 en otro caso. El resultado es entero.
+\item[{\tt leqr} {\em fuente}] Igual que {\tt leqi}, pero los operandos son reales.
+                  El resultado también es entero.
+\item[{\tt jmp} {\em posprog}] Salta a la posici\'on de programa indicada
+                  por el valor {\em posprog}.
+\item[{\tt jz} {\em posprog}] Salta a la posici\'on de programa indicada
+                  por el valor {\em posprog} si en {\tt A} hay un cero.
+                  El valor de {\tt A} debe ser entero.
+\item[{\tt jnz} {\em posprog}] Salta a la posici\'on de programa indicada
+                por el valor {\em posprog} si en {\tt A} hay un n\'umero
+                entero distinto de cero.
+\item[{\tt mvetq} {\em etiqueta destino}] Copia en {\em destino} la
+         posición de programa asociada a la {\em etiqueta}. Esta instrucción
+        sirve para almacenar la posición de programa a la que hay que volver
+        después de una llamada a una función. 
+\end{list}
+%
+\vspace{0.3cm}
+Las clases posibles de {\em destino\/} son:
+\settowidth{\maxim}{{\tt @B+n}}
+\addtolength{\maxim}{\labelsep}
+%
+\begin{list}{}{ \raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{#1\hfill}
+}
+\item[{\tt n}] la direcci\'on de memoria {\tt n}.
+\item[{\tt A}] el acumulador.
+\item[{\tt @A}] la direcci\'on de memoria que representa el valor que hay en {\tt A}.
+\item[{\tt @B+n}] la direcci\'on que se obtiene de sumar {\tt n} al contenido
+de {\tt B}.
+\item[{\tt @B-n}] la direcci\'on que se obtiene de restar {\tt n} al contenido
+de {\tt B}. 
+\item[{\tt B}] el registro base.
+\end{list}
+%
+\newpage
+Las clases posibles de {\em fuente\/} son:
+\begin{list}{}{ \raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{#1\hfill}
+}
+\item[{\tt \#i}] el valor num\'erico entero {\tt i}.
+\item[{\tt \$r}] el valor num\'erico real {\tt r}.
+\item[{\tt n}] el valor almacenado en la direcci\'on de memoria {\tt n}.
+\item[{\tt A}] el valor almacenado en el acumulador.
+\item[{\tt @A}] el valor almacenado en la direcci\'on que representa el
+                valor que hay en {\tt A}.
+\item[{\tt @B+n}] el valor almacenado en la direcci\'on que se obtiene de
+                sumar {\tt n} al contenido de {\tt B}.
+\item[{\tt @B-n}] el valor almacenado en la direcci\'on que se obtiene de
+                restar {\tt n} al contenido de {\tt B}.
+\item[{\tt B}] el valor almacenado en el registro base.
+\end{list}
+%
+\vspace{1cm}
+Las clases posibles de {\em posprog\/} son:
+%
+\begin{list}{}{ \raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{#1\hfill}
+}
+\item[{\tt n}] la posici\'on de programa {\tt n}.
+\item[{\tt Ln}] una etiqueta, compuesta por la letra {\tt L}
+              seguida de un n\'umero: por ejemplo, {\tt L25}.
+\item[{\tt @A}] la posici\'on de programa contenida en {\tt A}.
+\item[{\tt @B+n}] la posicion de programa contenida en la direcci\'on
+            que se obtiene de sumar {\tt n} al contenido de {\tt B}.
+\item[{\tt @B-n}] la posicion de programa contenida en la direcci\'on
+            que se obtiene de restar {\tt n} al contenido de {\tt B}.
+\end{list}
+
+\vspace{1cm}
+Un ejemplo de programa objeto correcto (aunque no necesariamente
+traducci\'on de un programa fuente determinado) ser\'{\i}a el siguiente:
+%
+\begin{small}
+\begin{verbatim}
+mov #2 A    ; guarda 2 en A
+addi #3     ; suma 3 a A
+mov A 23    ; guarda el valor de A (5) en la direccion 23
+mov 23 A    ; guarda el contenido de la direccion 23 (5) en A
+subi #3     ; resta 3 de A
+wri A       ; imprime el valor almacenado en A (2)
+wrl         ; imprime un salto de linea
+mov #7 A    ; guarda 7 en A
+itor        ; convierte el 7 que en A en real (7.0)
+divr $3.5   ; divide el valor que hay en A (7.0) por 3.5
+wrr A       ; imprime el valor real que hay en A (2.0)
+wrl         ; imprime un salto de linea
+halt        ; termina el programa
+\end{verbatim}
+\end{small}
+%
+El texto que sigue a `{\tt ;}' en cada l\'{\i}nea es un comentario.
+
+
+\newpage
+\thispagestyle{empty}
+~~
+

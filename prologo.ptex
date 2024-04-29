@@ -1,0 +1,103 @@
+
+ Actualmente, la materia ``Procesadores de Lenguaje'' es troncal 
+(con 9 créditos) en todas las titulaciones de ciclo largo de Ingeniería 
+en Informática en España. Esta materia se suele denominar en la bibliografía
+en inglés {\em Compiler Design\/}, de ahí el título de este libro. Debido a
+que el diseño de compiladores es un tema muy complejo y muy amplio para
+los 9 créditos que suele tener asignados en los planes de estudios, normalmente
+no se profundiza mucho en los aspectos más complicados del proceso de 
+compilación, como pueden ser la optimización o la generación de código 
+objeto. En la mayoría de las asignaturas dedicadas a esta materia no se
+llega mucho más allá de la implementación de un compilador ``de juguete''
+para un lenguaje fuente reducido y un lenguaje objeto parecido al
+ensamblador para una máquina virtual. Este libro pretende contener las
+técnicas y fundamentos básicos para enseñar a construir compiladores
+en las titulaciones de Ingeniería en Informática, teniendo en cuenta que
+para diseñar un compilador de envergadura sería necesario profundizar mucho 
+más en prácticamente todos los aspectos de su diseño.
+
+Aunque existen muchos libros sobre este tema 
+en inglés, muy pocos de ellos se han traducido al castellano. Entre
+estos últimos destaca el libro clásico de~Aho, Sethi y Ullman (1990), 
+un excelente libro que
+trata en profundidad todos los aspectos del proceso de la compilación,
+aunque su traducción al castellano no es todo lo correcta que
+podría ser y en algunos aspectos se ha quedado un poco
+obsoleto (se publicó en 1986).
+Recientemente, se ha publicado un excelente libro en inglés \cite{Lou97} del
+que no existe hasta el momento traducción al castellano. Nuestro libro no
+pretende ser tan completo como éstos pero sí pretende
+recoger aquéllos conocimientos mínimos que deberían conocer los
+ingenieros en Informática en nuestro país. Por este motivo, algunos temas
+como la optimización o la generación de código objeto no se tratan o se
+tratan muy superficialmente.
+En este libro se asume que el lector tiene unos conocimientos
+sólidos de programación en C y que conoce razonablemente al menos 
+los conceptos básicos de la teoría de lenguajes, gramáticas y autómatas. 
+También es conveniente tener conocimientos de Pascal y de algún lenguaje 
+ensamblador para entender mejor algunos pasajes del libro, aunque
+no se asume que el lector tenga conocimientos profundos en estos aspectos.
+
+ Como sucede en muchos otros aspectos de la informática, la mejor manera
+de aprender a diseñar compiladores es implementando un compilador con la
+ayuda y guía de un buen libro. Por este motivo hemos incluido
+una serie de ejercicios prácticos que permiten aprender mediante la práctica
+los conocimientos y las técnicas que se desarrollan a lo largo del 
+libro\footnote{La mayoría de los libros sobre 
+compiladores incluyen la construcción de un compilador ``de juguete'' que
+sirve para ilustrar las técnicas expuestas en el libro.}. Estos ejercicios
+prácticos provienen de prácticas reales propuestas a los alumnos de esta
+materia en la Universidad de Alicante.
+
+\section*{Organización del libro}
+
+ Después de un primer capítulo introductorio en el que se trata de definir
+qué es un compilador y cómo se estructura, se dedica un
+capítulo al análisis léxico y tres al análisis 
+sintáctico. Posteriormente, los
+capítulos~6 y~7 tratan sobre la traducción dirigida por la sintaxis, las
+técnicas que se suelen utilizar y cómo se pueden implementar en la práctica.
+Finalmente, los capítulos~8 y~9 tratan de la compilación de las construcciones
+más comunes en los lenguajes de programación de alto nivel como C o Pascal.
+Al final de cada capítulo se proponen unos ejercicios cuyas soluciones pueden
+encontrarse en el apéndice~\ref{app:soleje}. Además, se mencionan los
+epígrafes de los libros más importantes (siempre según nuestra opinión)
+en los que se tratan los conceptos estudiados en el capítulo. 
+
+Además del apéndice con las soluciones de los ejercicios, se incluyen
+dos apéndices más. El primero contiene un conjunto de ejercicios prácticos 
+que sirven para reforzar el aprendizaje mediante la
+práctica de los conceptos explicados en el texto. El segundo y último
+apéndice incluye una descripción del lenguaje intermedio que se utiliza en
+los ejercicios prácticos y en los capítulos~8 y 9.
+Finalmente, el libro incluye una bibliografía en la que se comentan algunos 
+aspectos de los libros más interesantes.
+
+\section*{Agradecimientos}
+
+Este libro es el fruto de más de ocho años de experiencia impartiendo 
+esta materia en las universidades de Alicante y Jaume I de Castellón.
+Durante estos años muchos alumnos y alumnas han colaborado en nuestro 
+aprendizaje acerca de esta materia y de su enseñanza con 
+sugerencias muy interesantes que han servido para mejorar este libro, por
+lo que no podemos dejar de agradecer su entusiasmo por aprender y su
+colaboración. 
+
+También debemos agradecer a nuestros compañeros de los departamentos de 
+Lenguajes y Sistemas Informáticos de la Universidad de Alicante y de la
+Jaume I su colaboración y sus sugerencias, 
+especialmente a aquellos que han colaborado de manera más directa
+con nosotros: Pedro García e Isabel Gracia de la Universidad Jaume I, y
+Manuel Marco, Mikel L. Forcada, Jorge Calera, Ramón Ñeco y Javier Traver
+de la Universidad de Alicante. 
+Finalmente, debemos agradecer muy especialmente a Mikel L. Forcada todo lo que
+hemos aprendido junto a él no sólo sobre esta materia\footnote{Muchos
+de los planteamientos y ejercicios que aparecen en este libro provienen
+directamente de él.}, sino también sobre
+los aspectos relacionados con su docencia y con la docencia en general; 
+además, ha conseguido transmitirnos su entusiasmo por la docencia como un 
+aspecto esencial de este servicio público que es la universidad. 
+
+\begin{flushright}
+{\em Los autores}
+\end{flushright}

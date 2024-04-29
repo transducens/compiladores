@@ -1,0 +1,1465 @@
+
+\section{Introducción}
+
+
+Las fases de análisis semántico y generación de código intermedio
+están fuertemente entrelazadas, y normalmente son coordinadas por el
+analizador sintáctico. El proceso de análisis semántico y el de 
+traducción se dice que están dirigidos por la sintaxis, ya que es
+el analizador sintáctico el que va invocando rutinas que realizan
+el análisis semántico y la traducción a la vez que va analizando
+sintácticamente el programa fuente.
+
+En el lenguaje humano, mediante el an\'alisis del
+significado (de la sem\'antica) de las frases 
+las comprendemos y obramos en consecuencia. Los compiladores
+analizan sem\'anticamente los programas para ver si son
+compatibles con las especificaciones sem\'an\-ticas del lenguaje
+al cual pertenecen y as\'{\i} poder {\em comprenderlos}, lo
+cual permite su traducción a otro lenguaje.
+As\'{\i} pues, el compilador verifica la coherencia sem\'antica de un
+programa y a la vez lo traduce al lenguaje de la m\'aquina o a una
+representaci\'on intermedia. Es importante resaltar que, salvo casos
+excepcionales, el análisis semántico y la traducción se realizan de
+forma simultánea. 
+Por todo ello, en este capítulo
+hablaremos del significado (sem\'antica) de los s\'{\i}mbolos
+gramaticales pero tambi\'en de cómo traducirlos a código intermedio.
+
+ Para que los s\'{\i}mbolos de una gramática puedan
+adquirir significado, se les asocia informaci\'on
+({\em atributos}) y a las producciones gramaticales se les asocian
+{\em acciones sem\'anticas}, que ser\'an
+c\'odigo en un lenguaje de programaci\'on (o pseudo-c\'odigo
+algor\'{\i}tmico) y cuya misi\'on es evaluar los atributos y
+manipular dicha informaci\'on para llevar a cabo las tareas de
+traducci\'on.
+
+\come{ % recortao
+Para el an\'alisis sem\'antico se deben haber llevado a
+cabo los siguientes pasos:
+\begin{itemize}
+\item An\'alisis l\'exico del texto fuente.
+\item An\'alisis sint\'actico de la secuencia de {\em tokens\/} 
+  producida por el analizador l\'exico.
+\item Construcci\'on del \'arbol de an\'alisis sint\'actico.
+\item Recorrido del \'arbol por el analizador sem\'antico para ejecutar las
+        acciones sem\'anticas
+\end{itemize}
+
+La cadena de {\em tokens\/} de la entrada se analiza sint\'acticamente,
+construyendo su \'arbol de an\'alisis sint\'actico, y
+el recorrido del \'arbol lleva impl\'{\i}cito la ejecuci\'on
+en sus nodos de las reglas sem\'anticas y de traducci\'on.
+Como resultado se obtendr\'a la traducci\'on a lenguaje
+objeto (en el caso de la traducci\'on) de la cadena de elementos
+l\'exicos que fue suministrada por el analizador l\'exico y
+supervisada en su orden por el sint\'actico.
+} % come
+
+Desde un punto de vista te\'orico las distintas fases de
+an\'alisis son independientes entre sí, pero en la
+pr\'actica se hace todo de manera simultánea. Veremos que el concepto de
+{\em gram\'atica con atributos\/} y la inclusi\'on de las
+acciones sem\'anticas en las producciones lleva a que, conforme
+se va haciendo el an\'alisis sint\'actico (que es el
+encargado de ir pidiendo {\em tokens\/} conforme los va necesitando),
+se vayan evaluando las acciones sem\'anticas. De esta forma, los
+analizadores sint\'actico y sem\'antico y el generador de
+código intermedio se implementar\'an
+como un \'unico subprograma, imposible de disociar por un
+programador no experto en el dise\~no de compiladores.
+
+La raz\'on de este hecho es el {\em principio de la traducci\'on
+dirigida por la sintaxis\/} que dice que el significado (la sem\'antica)
+de una frase est\'a directamente relacionado por su estructura
+sint\'actica, seg\'un se representa en su \'arbol de
+an\'alisis sint\'actico. Por tanto, la traducción de un programa
+(una frase en un lenguaje de programación) está íntimamente
+ligada a la sintaxis concreta de ese programa, como lo está su semántica.
+
+\begin{ejemplo}
+
+Vamos a utilizar la gram\'atica de las expresiones
+aritm\'eticas para ver c\'omo se van haciendo traducciones
+parciales en cada nodo del \'arbol de an\'alisis sint\'actico
+para llegar a obtener la traducción a una notación prefija de la frase 
+de entrada ``\verb!2+3*5!'' en el nodo ra\'{\i}z. En la figura siguiente 
+se muestra el \'arbol con el valor de la traducción parcial 
+correspondiente a la
+parte del \'arbol que queda por debajo de cada nodo.
+
+\begin{center}
+\includegraphics[width=0.9\textwidth]{cap6f1.pdf}
+\end{center}
+\end{ejemplo}
+
+\begin{ejemplo}
+
+Vamos a ver ahora otro ejemplo orientado hacia la
+traducci\'on entre lenguajes de programaci\'on en el que
+declaraciones de variables de tipo real o entero en C van a ir
+traduci\'endose a las equivalentes declaraciones en Pascal
+conforme se va recorriendo el \'arbol de an\'alisis
+sint\'actico en un recorrido en profundidad por la izquierda. La
+gram\'atica de las declaraciones en C vamos a suponer que es la
+siguiente:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \ter{id} \nter{L} \tertt{;} \\
+\nter{L} \der \tertt{,} \ter{id} \nter{L} \opt \epsilon \\
+\nter{T} \der \ter{float} \opt \ter{int} \\
+\end{array}
+$$
+De manera que, por ejemplo, la cadena ``\verb!float a,b,c;!''
+ser\'a traducir\'a como ``\verb!var a,b,c:real;!''.
+La figura~\ref{ffinf} muestra el \'arbol con las traducciones
+parciales que se obtienen en cada nodo. Tambi\'en se indica con
+flechas el flujo de informaci\'on (c\'omo ``viajan''
+esas traducciones parciales por el \'arbol) desde las hojas
+hasta el nodo ra\'{\i}z, donde se obtiene la traducci\'on de
+la entrada analizada.
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.70\textwidth]{cap6f2.pdf}
+\end{center}
+\caption{Flujo de la información en un proceso de traducción.} \label{ffinf}
+\end{figure}
+
+Veremos que estas
+operaciones de traducci\'on son propias de cada nodo del \'arbol
+(de cada regla). El comportamiento de la informaci\'on siempre
+es el mismo en cada regla.
+\end{ejemplo}
+
+\section{Gramáticas de atributos}
+
+En el apartado
+anterior hemos visto que cuando la sem\'antica y la traducci\'on
+entran en juego, a los \'arboles de an\'alisis sint\'actico
+se les a\~nade informaci\'on en cada nodo. Estos \'arboles
+reciben el nombre por parte de algunos autores de ``\'arboles
+con adornos''. Para que esa informaci\'on pueda viajar a
+trav\'es del \'arbol durante el an\'alisis hace falta
+un ``almac\'en'' para ella. Estos almacenes se llaman
+{\em atributos}.
+
+Los atributos son propiedades de los s\'{\i}mbolos del lenguaje que
+almacenan contenidos relacionados con el significado de los s\'{\i}mbolos
+a los que pertenecen; por ejemplo: tipos de datos, 
+direcciones de memoria, traducciones parciales, etc. As\'{\i}
+pues,  cada s\'{\i}mbolo de la gram\'atica tiene sus propios
+atributos en los que almacena la informaci\'on sem\'antica.
+
+La existencia de atributos para los s\'{\i}mbolos de la gram\'atica
+conduce al concepto de {\em gram\'atica de atributos}, en donde
+a la gram\'atica se le a\~naden atributos para sus s\'{\i}mbolos
+y {\em reglas sem\'anticas\/} para calcular sus valores. Veremos
+m\'as adelante la importancia de que estas reglas sem\'anticas
+se limiten a manipular y calcular atributos, evitando la aparici\'on
+de efectos laterales. En una gram\'atica de atributos, cada
+s\'{\i}mbolo (terminal o no terminal) puede contemplarse como un
+registro, cada uno de cuyos campos es un atributo distinto:
+
+\begin{center}
+$A = ( A.tipo , A.traduccion, A.direccion , \ldots )$
+\end{center}
+
+Cualquier producci\'on de la
+gram\'atica tiene asociado un sub\'arbol sint\'actico. \newline 
+Si $A \flecha c_1 c_2 \ldots c_n$  su \'arbol ser\'a:
+
+\begin{center}
+\includegraphics{cap6f3.pdf} 
+\end{center}
+
+La evaluaci\'on
+de los atributos de los s\'{\i}mbolos que aparecen en este
+sub\'arbol se realiza mediante operaciones que reciben el
+nombre de {\em reglas o acciones sem\'anticas}\footnote{También reciben el
+nombre de {\em ecuaciones de atributos}.}.
+Estas operaciones se realizan sobre los valores de los atributos de
+los s\'{\i}mbolos de esa misma regla (sub\'arbol). As\'{\i}
+pues, el valor de cualquiera de los atributos de un s\'{\i}mbolo de
+una regla ser\'a funci\'on de los valores de (como m\'aximo)
+todos los atributos de todos los s\'{\i}mbolos de la regla
+(sub\'arbol):
+\begin{center}
+\begin{footnotesize}
+$A.a_i =  f(c_1.a_{11}, \ldots, c_1.a_{k1}, c_2.a_{12}, \ldots, c_2.a_{k2}, \ldots\ldots, 
+         c_n.a_{1n}, \ldots, c_n.a_{kn}, A.a_1, \ldots, A.a_k)$
+\end{footnotesize}
+\end{center}
+
+Es decir, pueden aparecer uno o m\'as atributos de uno o m\'as s\'{\i}mbolos,
+pero no tienen porqu\'e aparecer todos los atributos de todos
+los s\'{\i}mbolos, y {\em no pueden aparecer\/} atributos de
+s\'{\i}mbolos que no aparezcan en la producci\'on. As\'{\i}
+pues, los atributos de un \'arbol s\'olo se pueden calcular
+de un nivel al adyacente o en el mismo nivel.
+	
+\begin{center}
+\includegraphics[width=0.60\textwidth]{cap6f4.pdf}
+\end{center}
+
+Las gram\'aticas de atributos suelen escribirse como tablas de
+dos columnas: la columna izquierda contiene las producciones de la
+gram\'atica y la de la derecha las reglas sem\'anticas
+asociadas a cada producci\'on, expresando as\'{\i} la relaci\'on
+entre sintaxis (producciones) y sem\'antica asociada (reglas).
+
+\newpage
+\begin{ejemplo}
+
+En el ejemplo
+anterior, vamos a asociar a cada producci\'on una regla
+sem\'antica de traducci\'on que va a calcular la traducci\'on
+parcial que corresponde a cada nodo del \'arbol en funci\'on
+de los valores de los nodos hijos (seg\'un el flujo de
+informaci\'on que se dibuj\'o en aquel \'arbol) y de
+acuerdo con la notaci\'on que acabamos de definir para representar
+los atributos de los s\'{\i}mbolos como campos de un registro. En el
+metalenguaje de las reglas sem\'anticas
+``$:=$'' es la asignaci\'on y ``$||$'' representa un operador de
+concatenaci\'on de cadenas.
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|}\hline
+Producción &  Regla sem\'antica asociada \\\hline\hline
+$S \flecha \nter{T} \ter{id} \nter{L} \tertt{;}$ & $S.trad := $``\verb!var!''$ ||\; \textbf{id}.lexema \;||\; L.trad \;|| $``\verb!:!''$ ||\; T.trad \;|| $``\verb!;!'' \\
+$L \flecha \tertt{,} \ter{id} \nter{$L_1$}$ & $L.trad := $``\verb!,!''$ ||\; \textbf{id}.lexema \;||\; L_1.trad$ \\
+$L \flecha \epsilon          $  & $L.trad := $``'' \\
+$T \flecha \ter{float}       $  & $T.trad := $``\verb!real!'' \\
+$T \flecha \ter{int}         $  & $T.trad := $``\verb!integer!'' \\ \hline
+\end{tabular}
+\paragraph{Nota:} El símbolo $L_1$ en realidad es $L$, pero se le pone un
+subíndice para distinguirlo de la parte izquierda de la regla en la 
+acción semántica.
+\end{small}
+\end{center}
+\end{ejemplo}
+
+\section{Tipos de atributos}
+
+Los atributos que se asignan a terminales y no terminales pueden ser
+de cualquier tipo de datos y dependen exclusivamente de lo que se
+pretenda hacer en el an\'alisis sem\'antico y en la traducción a
+código intermedio. Los atributos
+asociados pueden ser de dos clases dependiendo de qui\'en les
+suministra sus valores:
+\begin{description}
+\item [Atributos sintetizados:] se calculan a partir de los valores de 
+      los nodos hijos en cualquier sub\'arbol en el que aparezcan. Por tanto,
+        un atributo sintetizado (cuando recibe valor) siempre ser\'a
+        del no terminal de la izquierda en una producci\'on. 
+     En $A \flecha c_1 c_2 \ldots c_n$ , el
+      el atributo $A.a = f(c_1.a_{i1}, c_2.a_{i2}, \ldots, c_n.a_{in})$
+      ser\'a sintetizado. Se trata de informaci\'on que
+        asciende por el \'arbol durante el recorrido del mismo.
+     Por ejemplo,  $A \flecha c_1 c_2 \ldots c_n$
+
+\begin{center}
+\includegraphics[width=0.9\textwidth]{cap6f5.pdf}
+\end{center}
+	
+\item [Atributos heredados:] son los atributos que no son sintetizados; 
+  su valor se calcula a partir de los atributos del nodo padre o de los
+        hermanos del nodo del s\'{\i}mbolo al que pertenece. Por tanto, un
+        atributo heredado (cuando recibe valor) siempre ser\'a el de un
+        s\'{\i}mbolo de la derecha en una producci\'on. En la
+        producci\'on $A \flecha c_1 c_2 \ldots c_n$, el atributo
+        $c_i.a = g( A.a , c_1.a_{i1}, c_2.a_{i2}, \ldots, c_n.a_{in})$
+	ser\'a heredado. Se trata de informaci\'on descendente o
+        ``en tr\'ansito horizontal'' de un lado a otro del
+        sub\'arbol.
+
+\begin{center}
+\includegraphics[width=0.9\textwidth]{cap6f6.pdf}
+\end{center}
+	
+\end{description}
+
+Los atributos mantienen este car\'acter a lo largo de toda la
+gram\'atica. Si un atributo es heredado (o sintetizado) debe ser
+siempre heredado (o sintetizado) en todas las producciones. As\'{\i}
+pues, si en una regla se le asigna un valor a un atributo heredado de
+un s\'{\i}mbolo, en todas las dem\'as reglas en las que
+aparezca ese s\'{\i}mbolo en la parte derecha se le debe asignar un
+valor a ese atributo.
+
+Los atributos de los terminales ({\em tokens}) son siempre
+sintetizados y sus valores vienen siempre suministrados por el
+analizador l\'exico. Los atributos heredados suelen ser
+``herramientas para la comunicaci\'on'' entre diferentes
+partes del \'arbol. Sirven a menudo para expresar la
+dependencia, con respecto al contexto en el que aparece (que viene de
+arriba por el \'arbol), de una construcci\'on de un
+lenguaje de programaci\'on.
+
+
+\begin{ejemplo}
+
+Vamos a ver de nuevo el ejemplo las expresiones aritm\'eticas
+con la traducción a notación prefija de la cadena de entrada expresada como una
+gram\'atica de atributos. Todos sus atributos son sintetizados.
+
+\begin{minipage}[c]{0.35\textwidth}
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \\
+\nter{E} \der \nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \ter{num} \\
+\end{array}
+$$
+\end{minipage}
+\begin{minipage}[c]{0.55\textwidth}
+\begin{small}
+$E$, $T$ y $F$ tienen un atributo al que llamamos {\em trad} (cadena) \\
+\textbf{num} tiene un atributo llamado {\em valex} (valor léxico o lexema)
+\end{small}
+\end{minipage}
+
+En la tabla que se
+ofrece a continuaci\'on, la columna de la izquierda corresponde
+a las distintas producciones que la forman y la de la derecha describe la
+regla sem\'antica que hay que llevar a cabo para cada producci\'on.
+En la figura~\ref{farboldosmastres}
+aparece el \'arbol de an\'alisis sint\'actico
+de una frase, con los correspondientes valores calculados para los
+atributos.
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|}\hline
+Producción &  Regla sem\'antica asociada \\\hline\hline
+$E \flecha \nter{$E_1$} \tertt{+} \nter{T}$ & { $E.trad := $``\verb+s[+''$||\;E_1.trad\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''} \\
+$E \flecha \nter{T}$                    & { $E.trad := T.trad$} \\
+$T \flecha \nter{$T_1$} \tertt{*} \nter{F}$ & { $T.trad := $``\verb!p[!''$||\;T_1.trad\;||$``\verb!,!''$||\;F.trad\;||$``\verb!]!''} \\
+$T \flecha \nter{F}$                    & { $T.trad := F.trad$} \\
+$F \flecha \ter{num}$                   & { $F.trad := \textbf{num}.valex$} \\ \hline
+\end{tabular}
+\end{small}
+\end{center}
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.85\textwidth]{cap6f7.pdf}
+\end{center}
+\caption{Árbol con los atributos calculados para ``\texttt{2+3*5}''.} \label{farboldosmastres}
+\end{figure}
+
+\begin{small}															
+\paragraph{Notaci\'on de los sub\'{\i}ndices sem\'anticos:} $E$ 
+y $E_1$ son el mismo s\'{\i}mbolo (una expresión),
+como tambi\'en lo son $T$ y $T_1$ (un término),
+pero como los valores de los atributos de una ocurrencia y de la otra
+pueden ser distintos (compru\'ebese f\'acilmente en el
+\'arbol) hay que distinguirlos. En estos casos los s\'{\i}mbolos
+iguales se numeran en orden creciente de izquierda a derecha, pero sin
+numerar el símbolo en el lado izquierdo de la producci\'on y asignando
+1, 2, $\ldots$ para las
+ocurrencias de la parte derecha. Es \'unicamente una estrategia
+para distinguir los valores de los atributos, no los s\'{\i}mbolos
+sint\'acticos.
+\end{small}
+\end{ejemplo}
+
+
+\begin{ejemplo}
+
+Vamos a ver ahora una gram\'atica de atributos que utiliza
+atributos sintetizados y heredados para procesar las declaraciones
+sencillas de variables de tipos real o entero en C. El atributo tipo
+del no terminal $T$ es sintetizado pero el atributo inherente a la lista
+de identificadores $L$ es heredado. $D$ no tiene atributos pues no los
+usa. En el \'arbol de la figura~\ref{farboldecl} se indica el flujo de 
+la informaci\'on:
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|}\hline
+Producción &  Regla sem\'antica asociada \\\hline\hline
+$D \flecha \nter{T} \nter{L} \tertt{;}$ & { $L.hered := T.tipo$} \\
+$T \flecha \ter{float}       $  & { $T.tipo := real$} \\
+$T \flecha \ter{int}         $  & { $T.tipo := entero$} \\ 
+$L \flecha \nter{$L_1$} \tertt{,} \ter{id}$ & { $L_1.hered := L.hered$} \\
+                                & { $AsignaTipo(\textbf{id}.lexema,L.hered)$} \\
+$L \flecha \ter{id} $           & { $AsignaTipo(\textbf{id}.lexema,L.hered)$} \\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.85\textwidth]{cap6f8.pdf}
+\end{center}
+\caption{Árbol para ``\texttt{float a,b;}''.} \label{farboldecl}
+\end{figure}
+									
+\begin{small}
+\paragraph{Nota:} El procedimiento {\em AsignaTipo\/} se supone (aunque su
+implementaci\'on no importa ahora) que inserta en la tabla de
+s\'{\i}mbolos del compilador la informaci\'on relativa al tipo
+que acarrea el atributo $L.tipo$ para el identificador que se le pasa
+como par\'ametro.
+\end{small}
+
+Obs\'ervese que, al tratarse de atributos heredados, las flechas
+que indican el flujo de la informaci\'on siempre van de padres a
+hijos o entre hermanos. Los atributos $lexema$ de los
+identificadores y $T.tipo$ son sintetizados en esta gram\'atica de
+atributos.
+\end{ejemplo}
+
+
+\section{Grafos de dependencias}
+
+Hasta ahora no
+hemos hecho ninguna consideraci\'on acerca del orden en el que
+deben ejecutarse las reglas sem\'anticas y retrasaremos esta
+discusi\'on hasta el apartado siguiente, pero es evidente que
+los atributos no se pueden calcular en cualquier orden. Para que un
+atributo pueda recibir valor es necesario que todos los atributos de
+los que depende hayan sido previamente calculados. Para verificar que
+este requisito se cumple se recurre al grafo de dependencias, que
+adem\'as es \'util para analizar como fluye la informaci\'on
+cuando se dibuja sobre el \'arbol de an\'alisis sint\'actico.
+
+El grafo de dependencias se construye para cada producci\'on $A \flecha X_1 X_2 \ldots X_n$ 
+y luego se unen todos para el an\'alisis
+de una cadena en concreto. Se suelen dibujar sobre el \'arbol de
+an\'alisis sint\'actico de cada producci\'on. Para
+ello se siguen los siguientes pasos:
+\begin{enumerate}
+\item Se crea un nodo por cada atributo $X_i.a_j$ de cada
+        s\'{\i}mbolo de la producci\'on.
+\item Para cada regla sem\'antica de la forma 
+       $X_i.a_j := f( \ldots, X_k.a_l, \ldots)$
+        asociada a esa producci\'on se crea un arco desde cada nodo
+        correspondiente a los distintos $X_k.a_l$
+	que intervienen en la regla hasta el $X_i.a_j$
+	expresando as\'{\i} la dependencia que tiene el valor que tomar\'a
+        $X_i.a_j$ del valor suministrado por $X_k.a_l$,
+        repitiendo esto para cada $k$ y cada $l$.
+\end{enumerate}
+
+\begin{ejemplo} \label{ejgd}
+
+Sea la siguiente
+gram\'atica de atributos para traducir declaraciones de variables de tipo
+entero o real de Pascal a C situando cada variable en una declaración
+distinta. A la derecha de cada regla sem\'antica
+dibujamos el grafo de dependencias que le corresponde, superpuesto al
+\'arbol de an\'alisis sint\'actico de esa producci\'on:
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|l|l|c|}\hline
+Producción &  Regla sem\'antica & Grafo de dependencias \\\hline\hline
+\begin{minipage}{0.21\textwidth}
+  $S \flecha \ter{var} \nter{L} \tertt{:} \nter{T} \tertt{;}$ 
+\end{minipage} & 
+\begin{minipage}{0.21\textwidth}
+     {\scriptsize $L.th := T.ts \\ S.cs := L.cs$}
+\end{minipage} &
+\begin{minipage}{0.4\textwidth}
+   \begin{center}
+   \includegraphics[height=7em]{cap6f9uno.pdf}
+   \end{center}
+\end{minipage} \\ \hline
+\begin{minipage}{0.21\textwidth}
+$L \flecha \nter{$L_1$} \tertt{,} \ter{id}$ 
+\end{minipage} & 
+\begin{minipage}{0.21\textwidth}
+{\scriptsize $L.cs := L_1.cs || L.th \\
+       \mbox{$\;\;\;\;\;\;\;\;\;\;$} || \textbf{id}.valex || $``\verb!;!'' \\ 
+       $L_1.th := L.th$}
+\end{minipage} &
+\begin{minipage}{0.4\textwidth}
+  \begin{center}
+   \includegraphics[height=7em]{cap6f9dos.pdf}
+  \end{center}
+\end{minipage} \\ \hline
+\begin{minipage}{0.21\textwidth}
+$L \flecha \ter{id} $ 
+\end{minipage} & 
+\begin{minipage}{0.21\textwidth}
+    {\scriptsize $L.cs := L.th || \\ 
+     \mbox{$\;\;\;\;\;\;\;\;\;\;$} \textbf{id}.valex ||$ ``\verb!;!''} 
+\end{minipage} &
+\begin{minipage}{0.4\textwidth}
+  \begin{center}
+   \includegraphics[height=7em]{cap6f9tres.pdf}
+  \end{center}
+\end{minipage} \\ \hline
+$T \flecha \ter{real}       $  & {\scriptsize $T.ts := $``\verb!float!''} & {\scriptsize Estas dos reglas asignan }\\
+                               &                                          & {\scriptsize constantes a los atributos}\\
+$T \flecha \ter{integer}    $  & {\scriptsize $T.ts := $``\verb!int!''} & {\scriptsize   y por tanto no existen}\\ 
+                               &                                        & {\scriptsize   dependencias.}\\
+\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+Vamos ahora a ver el grafo de dependencias
+completo superpuesto sobre el \'arbol de an\'alisis
+sint\'actico de la sentencia  ``\verb!var a,b:integer;!'':
+
+\begin{center}
+\includegraphics[width=0.65\textwidth]{cap6f10.pdf}
+\end{center}
+
+Obs\'ervese que a la hora de dibujar el grafo hemos indicado
+s\'olo la parte del nombre del atributo que viene despu\'es
+del punto, puesto que el s\'{\i}mbolo al que pertenece es evidente
+al figurar a su lado, as\'{\i} ponemos $th$ o $valex$ para indicar $L.th$
+o \textbf{id}.$valex$. 
+\end{ejemplo}
+
+A la hora de calcular los atributos, el grafo de dependencias impone
+una serie de restricciones sobre el orden en el cual se pueden
+evaluar. Si encontramos un orden topológico en los nodos del grafo, ése
+será el orden en que se deben evaluar los atributos\footnote{Es posible
+que existan ciclos en el grafo, lo cual impide evaluar la gramática de
+atributos.}.
+Si el recorrido de \'arbol sobre el cual se superpone
+el grafo es, como hemos asumido desde el principio, en profundidad
+por la izquierda, la condici\'on que necesita el analizador
+sem\'antico para poder evaluar todos sus atributos en una sola
+pasada es que no existan arcos desde nodos que se visiten despu\'es
+de los nodos a los cuales se dirigen (es decir, arcos de derecha a
+izquierda en el \'arbol).
+
+Como podemos observar en el ejemplo anterior, esta restricci\'on
+no se cumple por culpa de la asignaci\'on $L.th := T.ts$ y, por
+tanto, dicha gram\'atica de atributos no se podr\'{\i}a
+implementar en una sola pasada. Cuando en
+la producci\'on $S \flecha  \ter{var} \nter{L} \tertt{:} \nter{T} \tertt{;}$  se quiere dar 
+valor a $L.th$, todav\'{\i}a no se ha dado valor
+a $T.ts$ pues todav\'{\i}a no se ha visitado su nodo y, por tanto, no
+se puede ejecutar. 
+
+
+\section{Especificación de un traductor}
+
+
+Existen dos tipos de notaciones para especificar el dise\~no de un traductor:
+\begin{enumerate}
+\item {\bf Definiciones
+        Dirigidas por Sintaxis (DDS):}
+        son un formalismo de alto nivel para
+        describir traducciones, pero en el que se ocultan los detalles de la
+        implementaci\'on. No se impone un orden en la ejecuci\'on
+        de las reglas sem\'anticas, s\'olo que se calculen los
+        atributos de acuerdo con la producci\'on en la que aparecen.
+\item {\bf Esquemas de
+        Traducci\'on (ETDS):}
+        son una notaci\'on de bajo nivel para especificar un {\em traductor
+       de una sola pasada} (traduce a la vez que analiza),
+        explicitando, por tanto, todos los detalles de la traducci\'on,
+        incluido el orden en el que se deben ejecutar las reglas (ahora
+        acciones) sem\'anticas.
+\end{enumerate}
+
+Los ETDS son {\em front end\/} o traductores de una sola pasada, mientras 
+que las  definiciones dirigidas por la sintaxis (y las gramáticas de atributos) 
+se utilizan cuando no es posible diseñar un ETDS, y por tanto se necesita que 
+el {\em front end\/} realice más de una pasada. Normalmente, suele ser más
+rápido un {\em front end\/} de una pasada que uno de varias pasadas, pero a
+veces el lenguaje fuente es demasiado complejo y no es posible diseñarlo;
+en estos casos es necesario emplear una DDS.
+
+
+\subsection{Definiciones dirigidas por sintaxis}
+
+Las DDS son una
+generalizaci\'on del concepto de gram\'atica de atributos
+que hemos visto al principio de este tema. La diferencia entre ambos
+conceptos es que una gram\'atica de atributos es un tipo
+concreto de DDS en el que las reglas sem\'anticas se limitan
+exclusivamente al c\'alculo y manipulaci\'on de atributos,
+no teniendo, por tanto, efectos laterales (entendiendo por \'estos,
+toda instrucci\'on que no sea c\'alculo de atributos, como
+escritura de valores o modificaci\'on de variables globales). Se
+procurar\'a que las reglas sem\'anticas calculen o
+manipulen atributos o, en el peor de los casos, que act\'uen
+sobre estructuras globales del traductor.
+
+En una DDS, si una producci\'on $A \flecha X_1 X_2 \ldots X_n$
+lleva asociada una regla $ b = f(a_1, \ldots, a_k)$,
+hay dos posibilidades:
+\begin{enumerate}
+\item que $b$ sea atributo sintetizado de A y los atributos 
+    $a_1, \ldots, a_k$ pertenezcan a cualesquiera símbolos de la
+     producción;
+\item que $b$
+	sea atributo heredado de un s\'{\i}mbolo de la parte derecha
+  de la producción y
+        $a_1, \ldots, a_k$ pertenezcan a
+        cualesquiera s\'{\i}mbolos de la producci\'on.
+\end{enumerate}
+
+Cualquiera de los
+ejemplos vistos en este capítulo es una DDS (pues las gram\'aticas
+de atributos que hemos visto son un caso concreto de DDS). En la
+columna de la izquierda se indica cada producci\'on y en la
+columna de la derecha las reglas sem\'anticas que cada una lleva
+asociadas.
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|c|ll|}\hline
+Producción & \multicolumn{2}{|c|}{Regla semántica} \\\hline
+$E \flecha \nter{$E_1$} \ter{addop} \nter{T}$ & $\textrm{if} \;\; \textbf{addop}.valex = $``\verb!+!'' & $\textrm{then} \;\; E.valor := E_1.valor + T.valor$ \\
+                                          &                                                        & $\textrm{else} \;\; E.valor := E_1.valor - T.valor$ \\
+                                          & $\textrm{escribir}\;\; E.valor$ & \\ \hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+La DDS especifica lo que
+hay que hacer para cada producci\'on, pero no el orden de
+ejecuci\'on de las reglas o acciones semánticas. Como se puede
+observar, cada producci\'on
+puede llevar asociada una o varias acciones sem\'anticas.
+
+
+\subsubsection{Gram\'aticas con atributos por la izquierda}
+
+Existe un subconjunto de las gram\'aticas de atributos que son
+las que pueden ser implementadas mediante un traductor de una sola
+pasada. En este tipo de traductores, toda la informaci\'on
+manipulada por las reglas sem\'anticas est\'a disponible en
+el momento de la ejecuci\'on de cada una de ellas. De esta
+forma, es posible construir un programa que, con una \'unica
+pasada mientras realiza el an\'alisis sint\'actico, sea
+capaz de llevar a cabo la traducci\'on.
+
+Este tipo de gram\'aticas de atributos recibe el nombre de
+{\em gram\'aticas con atributos por la izquierda} (GAI)\footnote{En la
+bibliografía en inglés se las denomina {\em L-attributed grammars\/}.}.
+En ellas, la informaci\'on de los atributos siempre fluye de
+abajo a arriba, de arriba a abajo o de izquierda a derecha, pero
+{\em nunca de derecha a izquierda}. Este \'ultimo sentido del
+flujo de la informaci\'on sem\'antica implicar\'{\i}a, en
+un recorrido en profundidad por la izquierda del \'arbol de
+an\'alisis sint\'actico, que para evaluar alg\'un
+atributo es necesario recibir informaci\'on desde zonas del
+\'arbol que todav\'{\i}a no han sido recorridas por el
+an\'alisis (no hay valores calculados all\'{\i} todav\'{\i}a).
+
+Una DDS es una GAI si es una gramática de atributos en la que
+para cada atributo heredado que pueda
+aparecer $X_i.h,\;\; 1 \leq i \leq n$, en una
+producci\'on cualquiera $A \flecha X_1 X_2 \ldots X_n$, $X_i.h$
+depende s\'olo de:
+\begin{enumerate}
+\item los atributos
+        de $X_1 X_2 \ldots X_{i-1}$
+	(los de los s\'{\i}mbolos a su izquierda en la producci\'on);
+\item los atributos heredados de $A$.
+\end{enumerate}
+
+Evidentemente, si todos los atributos son sintetizados, la DDS ser\'a
+siempre una GAI.
+
+Existen, por tanto una serie de limitaciones en el dise\~no de
+un traductor para que tengamos una GAI. Estas limitaciones tienen
+que ver con el hecho estudiado anteriormente de que el orden de
+recorrido del grafo de dependencias sea compatible con el orden de
+recorrido en profundidad por la izquierda del \'arbol de
+an\'alisis sint\'actico (que es el que realizan los analizadores
+sintácticos LL y LR). Esto se traduc\'{\i}a en que no
+existieran arcos dibujados de derecha a izquierda. En el siguiente
+apartado describiremos con detalle estas restricciones.
+
+\begin{ejemplo}
+
+Consideremos la
+siguiente definici\'on dirigida por sintaxis para contar el
+n\'umero de aes en una cadena y vamos a construir los grafos de
+dependencias para las tres producciones de dicha gram\'atica. Se
+muestran en la tabla siguiente, en la columna derecha.
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|c|} \hline
+Producción &  Regla sem\'antica & Grafo de dependencias \\\hline\hline
+\begin{minipage}{0.15\textwidth}
+  $L \flecha \nter{A} \nter{$L_1$}$ 
+\end{minipage} & 
+\begin{minipage}{0.25\textwidth}
+ $L.s := L_1.s \\ A.h := L_1.s$
+\end{minipage} &
+\begin{minipage}{0.35\textwidth}
+   \begin{center}
+   \includegraphics[height=8em]{cap6f11uno.pdf}
+   \end{center}
+\end{minipage} \\ \hline
+\begin{minipage}{0.15\textwidth}
+$L \flecha \nter{A}$ 
+\end{minipage} & 
+\begin{minipage}{0.25\textwidth}
+ $A.h := 0 \\ L.s := A.s$
+\end{minipage} &
+\begin{minipage}{0.35\textwidth}
+  \begin{center}
+   \includegraphics[height=8em]{cap6f11dos.pdf}
+  \end{center}
+\end{minipage} \\ \hline
+\begin{minipage}{0.15\textwidth}
+$A \flecha \ter{a} $ 
+\end{minipage} & 
+\begin{minipage}{0.25\textwidth}
+ $A.s := A.h + 1$
+\end{minipage} &
+\begin{minipage}{0.35\textwidth}
+  \begin{center}
+   \includegraphics[height=8em]{cap6f11tres.pdf}
+  \end{center}
+\end{minipage} \\ \hline
+\end{tabular}
+\end{small}
+\end{center}
+
+Como se observa en
+el primero de los tres grafos la flecha de derecha a izquierda impide
+la implementaci\'on de esta DDS como un traductor en una sola
+pasada y no es una GAI, lo cual se ve mucho m\'as claramente
+as\'{\i} que analizando las reglas sem\'anticas, adem\'as
+de ser \'util para comprender como circula la informaci\'on
+por el \'arbol.
+\end{ejemplo}
+
+\begin{ejemplo}
+
+Consideremos de
+nuevo el ejemplo de traducci\'on de declaraciones de Pascal a C
+con el que ilustramos la construcci\'on de grafos de
+dependencias (ejemplo~\refej{ejgd}). Aquella DDS no era una GAI 
+como se demostr\'o all\'{\i}, pero la gram\'atica puede modificarse 
+para que s\'{\i} lo sea. Se puede comprobar muy f\'acilmente que la 
+siguiente DDS cumple los requisitos para ser una GAI:
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|} \hline
+Producción &  Regla sem\'antica \\\hline\hline
+\begin{minipage}{0.25\textwidth}
+  $S \flecha \ter{var} \nter{D} \tertt{;}$ 
+\end{minipage} & 
+\begin{minipage}[t]{0.55\textwidth}
+  $S.cs := D.cs \vspace{0.6em} $
+\end{minipage} \\ \hline
+\begin{minipage}{0.25\textwidth}
+$D \flecha \ter{id} \tertt{,} \nter{$D_1$}$ 
+\end{minipage} & 
+\begin{minipage}[t]{0.55\textwidth}
+ $D.cs := D.ts || \textbf{id}.valex || $``\verb!;!''$ || D_1.cs \\
+  D.ts := D_1.ts \vspace{0.6em}$
+\end{minipage} \\ \hline
+\begin{minipage}{0.25\textwidth}
+$D \flecha \ter{id} \tertt{:} \nter{T}$ 
+\end{minipage} & 
+\begin{minipage}[t]{0.55\textwidth}
+ $D.cs := T.ts || \textbf{id}.valex || $``\verb!;!''$ \\
+  D.ts := T.ts \vspace{0.6em}$
+\end{minipage} \\ \hline
+\begin{minipage}{0.25\textwidth}
+$T \flecha \ter{integer}$ 
+\end{minipage} & 
+\begin{minipage}[t]{0.55\textwidth}
+ $T.ts := $``\verb!int!''
+\end{minipage} \\ \hline
+\begin{minipage}{0.25\textwidth}
+$T \flecha \ter{real}$ 
+\end{minipage} & 
+\begin{minipage}[t]{0.55\textwidth}
+ $T.ts := $``\verb!float!''
+\end{minipage} \\ \hline
+\end{tabular}
+\end{small}
+\end{center}
+
+
+\end{ejemplo}
+
+
+\subsection{Esquemas de traducción}
+
+
+Un ETDS es una
+notaci\'on para construir traductores de una sola pasada. Es un analizador
+sem\'antico escrito en papel, una gram\'atica de
+atributos en la que se insertan acciones sem\'anticas
+encerradas entre llaves (``\verb!{!'' y ``\verb!}!'') en las partes derechas 
+de las producciones (con lo que se especifica explícitamente el orden
+de evaluación de las acciones semánticas) que son fragmentos de c\'odigo
+en un lenguaje de programaci\'on o en un lenguaje
+algor\'{\i}tmico.
+
+\begin{ejemplo}
+
+El siguiente ETDS
+transforma expresiones con sumas y restas escritas en notaci\'on infija
+en las equivalentes en postfija. La gram\'atica est\'a
+basada en la que resulta de eliminar la recursividad
+por la izquierda de las producciones de las expresiones aritm\'eticas
+con sumas y restas.
+
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{T} \;\{\;E'.th := T.ts\;\} \nter{$E'$} \;\{\;E.ts := E'.ts\;\}\\
+\nter{$E'$} \der \ter{op} \nter{T} \;\{ {E'}_1.th := E'.th\;||\;T.ts\;||\;\textbf{op}\texttt{.lexema} \}\; \\
+            & &  \;\;\;\;\nter{${E'}_1$} \;\{\;E'.ts := {E'}_1.ts\;\} \\
+\nter{$E'$} \der \epsilon \;\{E'.ts := E'.th\;\}\\
+\nter{T} \der \ter{num} \;\{ T.ts:=\textbf{num}\texttt{.lexema} \}\; \\
+\end{array}
+$$
+\end{small}
+
+Para ver su funcionamiento, supondremos el ejemplo ``\verb!9-5+2!''
+y construiremos el \'arbol de an\'alisis sint\'actico
+con adornos. Cuando se plantea el dibujo de estos \'arboles con
+las acciones definidas en un ETDS, se dibujan las acciones sem\'anticas
+consideradas como si fueran s\'{\i}mbolos terminales de la
+gram\'atica (aunque se les suele distinguir por el trazo de la
+rama).
+
+\begin{center}
+\includegraphics[width=0.9\textwidth]{cap6f12.pdf}
+\end{center}
+
+Al recorrer este
+\'arbol por la izquierda en profundidad, llevando a cabo las
+acciones cuando son encontradas, se puede comprobar que se obtiene el
+resultado ``\verb!9 5 - 2 +!'',
+que es lo que se pretend\'{\i}a.
+\end{ejemplo}
+
+
+\subsubsection{Dise\~no de un esquema de traducci\'on}
+
+Como se ha dicho anteriormente,
+para especificar traductores {\em de una sola pasada}, en las
+acciones sem\'anticas no se deben utilizar atributos de s\'{\i}mbolos
+que est\'en m\'as a la derecha en la producci\'on que
+dicha acci\'on, pues a\'un no habr\'an recibido valor.
+Este tipo de propiedades se observar\'a a trav\'es de unas
+reglas a seguir durante el dise\~no de un ETDS y que vamos a ver
+a continuaci\'on.
+
+\subsubsection{Pasos para el dise\~no de un ETDS a partir de una gramática}
+
+\begin{enumerate}
+\item Decidir qué 
+        atributos son necesarios, en funci\'on del problema a resolver y de
+        la informaci\'on que para ello debe acarrear cada s\'{\i}mbolo
+        de la gram\'atica. Conviene hacer un \'arbol de an\'alisis
+        de una cadena representativa para analizar el comportamiento de la
+        informaci\'on.
+\item A\~nadir
+        a la gram\'atica las acciones sem\'anticas que calculen
+        los valores de los atributos.
+\item Estudiar de
+        qu\'e tipo es cada atributo (heredado o sintetizado).
+\item ¿Se cumplen las restricciones de dise\~no para que el ETDS se pueda
+        implementar como un traductor de una sola pasada? Si todos los
+        atributos son sintetizados seguro que s\'{\i} y se pueden colocar
+        las acciones sem\'anticas al final del lado derecho de las
+        producciones, pero si hay tambi\'en heredados, hay que tenerlas
+        en cuenta (ver el grafo de dependencias).
+\end{enumerate}
+
+
+\begin{ejemplo} \label{cseis:ejDDSETDS}
+
+Si s\'olo hay
+atributos sintetizados se pueden colocar las acciones al final del
+lado derecho de la posici\'on asociada. Como la siguiente DDS:
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|}\hline
+Producción &  Regla sem\'antica asociada \\\hline\hline
+$E \flecha \nter{$E_1$} \tertt{+} \nter{T}$ & { $E.trad := $``\verb+s[+''$||\;E_1.trad\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''} \\
+$E \flecha \nter{T}$                    & { $E.trad := T.trad$} \\
+$T \flecha \nter{$T_1$} \tertt{*} \nter{F}$ & { $T.trad := $``\verb!p[!''$||\;T_1.trad\;||$``\verb!,!''$||\;F.trad\;||$``\verb!]!''} \\
+$T \flecha \nter{F}$                    & { $T.trad := F.trad$} \\
+$F \flecha \ter{num}$                   & { $F.trad := \textbf{num}.valex$} \\ \hline
+\end{tabular}
+\end{small}
+\end{center}
+que en la notaci\'on de ETDS se puede escribir como:
+
+\begin{center}
+\begin{small}
+$$
+\begin{array}{lcll}
+\nter{E} \der \nter{$E_1$} \tertt{+} \nter{T} & \{\; E.trad := $``\verb+s[+''$||\;E_1.trad\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''$ \;\} \\
+\nter{E} \der \nter{T}                            & \{\; E.trad = T.trad \;\} \\
+\nter{T} \der \nter{$T_1$} \tertt{*} \nter{F} & \{\; T.trad := $``\verb!p[!''$||\;T_1.trad\;||$``\verb!,!''$||\;F.trad\;||$``\verb!]!''$ \;\} \\
+\nter{T} \der \nter{F}                            & \{\; T.trad = F.trad \;\} \\
+\nter{F} \der \ter{num}                           & \{\; F.trad := \textbf{num}.valex \;\} \\
+\end{array}
+$$
+\end{small}
+\end{center}
+\end{ejemplo}
+
+Surge ahora la
+siguiente cuesti\'on: no siempre las acciones sem\'anticas
+se han de situar al final de las reglas porque no siempre todos los
+atributos son sintetizados. Cuando hay herencia vimos que hay que
+tener en cuenta unas normas para que una DDS se pueda implementar
+como un compilador en una sola pasada. Pero un ETDS realmente ya es
+el dise\~no de un compilador por lo tanto para que una DDS se
+pueda convertir en un ETDS deben darse dos condiciones:
+\begin{enumerate}
+\item En el caso de que la DDS no sea una gramática de atributos,
+el orden de ejecución de las acciones semánticas tiene que estar
+claramente definido, y debe ser compatible con el recorrido del
+árbol sintáctico que se hace al ejecutar las acciones del ETDS,
+ya que el ETDS solamente realiza una pasada.
+\item Sea o no una gramática de atributos, debe cumplirse la misma
+restricción de las GAI, es decir, que no exista herencia desde
+la derecha en el árbol hacia la izquierda. Si no se cumple esta
+condición no es posible evaluar la DDS en una única pasada, y por
+tanto no se puede convertir en ETDS.
+\end{enumerate}
+
+\begin{ejemplo}
+La DDS del ejemplo~\refej{ejgd} es una gramática de atributos, pero no
+es una GAI; la siguiente DDS es otro ejemplo de una DDS que no
+puede transformarse en ETDS sin información adicional:
+\begin{center}
+\begin{tabular}{|l|l|}\hline
+Producción &  Regla sem\'antica asociada \\\hline\hline
+$E \flecha \nter{E} \tertt{+} \nter{T}$ & Escribir(``\verb!+!'') \\
+$E \flecha \nter{T}$                    &  \\
+$T \flecha \nter{T} \tertt{*} \nter{F}$ & Escribir(``\verb!*!'') \\
+$T \flecha \nter{F}$                    &  \\
+$F \flecha \ter{num}$                   & Escribir(\textbf{num}.valex) \\ \hline
+\end{tabular}
+\end{center}
+
+Tal como está planteada, y sin más información, esta DDS puede servir
+para traducir expresiones aritméticas en notación infija a notación prefija,
+pero también para traducirlas a notación postfija (e incluso para dejarlas
+en notación infija). Por tanto, esta DDS no tiene información suficiente
+para ser evaluada, lo cual impide además transformarla en ETDS.
+En este caso habría que rediseñar la DDS para explicitar el tipo 
+de traducción que se desea (transformándola en una gramática de
+atributos, por ejemplo) y, una vez hecho esto, estudiar si se puede
+o no transformar en ETDS. 
+\end{ejemplo}
+
+Vamos a ver las precauciones que hay que tener en cuenta al dise\~nar
+un ETDS para que estas condiciones se verifiquen.
+
+\subsubsection{Restricciones en el dise\~no de un ETDS}
+
+\begin{enumerate}
+\item  {\em Si s\'olo existen
+        atributos sintetizados\/}: hay que poner las acciones sem\'an\-ticas
+        despu\'es de todos los s\'{\i}mbolos implicados. Su valor
+        s\'olo se debe calcular tras haber calculado todos los
+        atributos a los que hace referencia. Lo m\'as sencillo es
+        situar la acci\'on o acciones que los calcula al final del lado
+        derecho de la producci\'on.
+\item  {\em Si existen atributos heredados\/}:
+  \begin{enumerate}	
+    \item Un atributo heredado $X_i.h$ debe calcularse antes de que
+        aparezca el s\'{\i}mbolo $X_i$.
+     \begin{center}
+     \includegraphics[width=0.8\textwidth]{cap6f13.pdf}
+     \end{center}
+%
+    \item  Un atributo sintetizado $X_i.s$
+	no debe usarse antes de que aparezca el s\'{\i}mbolo $X_i$.
+     \begin{center}
+     \includegraphics[width=0.45\textwidth]{cap6f14.pdf}
+     \end{center}
+%
+  \item Un atributo
+        sintetizado $A.s$ s\'olo puede calcularse despu\'es
+        de que hayan tomado valor todos los atributos que intervienen en su
+        c\'alculo. Mejor poner este c\'alculo al final de la
+        producci\'on. 
+
+   \end{enumerate}
+\item {\em Si existen acciones con efectos laterales\/}: deben situarse en
+el punto exacto de la parte derecha de la regla en el que deberían 
+evaluarse, y además habría que verificar que no utilizan atributos de
+símbolos situados a la derecha de dicho punto.
+\end{enumerate}
+
+
+\begin{ejemplo}
+
+A partir de la gram\'atica
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \opt \nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \opt \nter{F} \\
+\nter{F} \der \ter{num} \opt \tertt{(} \nter{E} \tertt{)} \\
+\end{array}
+$$
+vamos a ver c\'omo se ejecutan los
+pasos indicados anteriormente para dise\~nar un ETDS que traduzca a
+notación prefija expresiones como ``\verb!2+3*5!''.
+
+\begin{enumerate}
+\item ¿Qu\'e atributos son necesarios?
+ \begin{itemize}
+  \item Para los terminales, s\'olo
+        necesitamos saber cu\'ales son, y en particular para \textbf{num}
+	nos interesa conocer qu\'e n\'umero ha aparecido en la
+        expresi\'on, y eso nos lo devolver\'a el AL en
+        \textbf{num}.lexema.
+  \item Para los no terminales
+        necesitaremos un atributo para almacenar la traducción parcial
+        asociada a la subexpresión correspondiente: $F.trad$, \newline
+        $T.trad$, $E.trad$.
+  \end{itemize}
+
+As\'{\i} ya est\'an estudiados todos los s\'{\i}mbolos para
+los que son necesarios atributos.
+
+\item A\~nadir las acciones sem\'anticas:
+ \begin{itemize}
+  \item En una producci\'on s\'olo
+        se pueden utilizar atributos de los s\'{\i}mbolos que aparecen en
+        ella.
+  \item Para $F \flecha \ter{num}$, al analizar \textbf{num}
+	se conoce su lexema (es decir, la cadena encontrada en la entrada
+        que contiene su valor num\'erico), por lo que simplemente tendremos 
+        que transmitir ese lexema al factor:
+         $$\{\; F.trad:=\textbf{num}.lexema\;\}$$
+  \item Una vez se haya analizado una
+        expresi\'on, el atributo $E.trad$ contendr\'a la traducción de
+        dicha expresi\'on, por lo tanto en la producci\'on 
+        $F \flecha \tertt{(} \nter{E} \tertt{)}$        
+	lo \'unico que hay que hacer es
+        transmit\'{\i}rsela a $F.trad$; entonces: $$\{\; F.trad:=E.trad \;\}$$
+  \item Una vez analizado el factor, en $T \flecha F$
+	debe transmitir su traducción al t\'ermino, por
+        tanto ser\'{\i}a: $$\{\; T.trad:=F.trad \;\}$$
+  \item Lo mismo sucede en $E \flecha T$,
+	luego ser\'{\i}a: $$\{\; E.trad:=T.trad \;\}$$
+  \item El significado de la producci\'on 
+        $T \flecha \nter{$T_1$} \tertt{*} \nter{F}$
+	lleva a dise\~nar una acci\'on sem\'antica
+        en la que el atributo del t\'ermino $T$ sea la traducción a prefija
+        de la multiplicaci\'on del t\'ermino $T_1$
+	y del factor $F$.
+        Por tanto, la acci\'on ser\'a: 
+        $$
+        \begin{array}{l}
+         \{\; T.trad:= $``\verb!p[!''$||\;T_1.trad\;||$``\verb!,!''$||\;F.trad\;||$``\verb!]!''$ \;\}
+        \end{array}
+        $$
+  \item Y lo equivalente para $E \flecha \nter{$E_1$} \tertt{+} \nter{T}$: 
+         $$
+         \begin{array}{l}
+          \{\; E.trad := $``\verb+s[+''$||\;E_1.trad\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''$  \;\}
+        \end{array}
+         $$
+\end{itemize}
+
+\item Ahora hay que estudiar si los atributos son heredados o sintetizados,
+en funci\'on de los otros atributos a partir de los cuales se calculan.
+\begin{description}
+\item[$F.trad$]:  Se le da valor en las dos siguientes producciones:
+ \begin{description}	
+  \item{$F \flecha \ter{num} \;\{\; F.trad := \textbf{num}.lexema \;\}$} \newline
+  $F.trad$ es sintetizado en esta producci\'on, por tanto deber\'a
+  aparecer siempre como sintetizado.
+ \item{$F \flecha \tertt{(} \nter{E} \tertt{)} \;\{\; F.trad := E.trad \;\}$} \newline
+  Igualmente, en esta producción $F.trad$ también es sintetizado (como debería
+  ser).
+ \end{description}
+\item[$T.trad$]: Se le da valor en las dos siguientes producciones:
+ \begin{description}
+  \item $T \flecha \nter{$T_1$} \tertt{*} \nter{F} \;\{\; T.trad:= $``\verb!p[!''$||\;T_1.trad\;||$``\verb!,!''$||\;F.trad\;||$``\verb!]!''$ \;\}$ \newline
+	Como $T.trad$ depende de $T_1.trad$ y $F.trad$, se puede decir que
+      $T.trad$ es sintetizado.
+  \item{$T \flecha F \;\{\; T.trad:=F.trad \;\}$} \newline
+     De igual manera que en la producción anterior, $T.trad$ es sintetizado.
+ \end{description}
+\item[$E.trad$]: Los razonamientos para $T.trad$ son
+ equivalentes para el caso del atributo de $E$.
+\end{description}
+
+Luego todos los atributos son sintetizados en este caso.
+
+\item Ver si se cumplen las condiciones que tienen que cumplir las acciones
+sem\'an\-ti\-cas para que el esquema de traducci\'on lo podamos
+implementar sin problemas como traductor en una sola pasada. Pero en
+este caso es sencillo: como todos los
+        atributos son sintetizados, basta con poner todas las acciones
+        sem\'anticas en el extremo derecho de las producciones, para
+        que se cumplan todas las condiciones sin problemas.
+\end{enumerate}
+
+Una vez llevados a cabo estos pasos, que nos aseguran la correcta
+construcci\'on del esquema de traducci\'on, podemos
+utilizarlo para evaluar la cadena propuesta. Lo haremos mediante la
+aplicaci\'on de las acciones sem\'anticas en el recorrido
+del \'arbol, como muestra la figura~\ref{fetds}.
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.65\textwidth]{cap6f15.pdf}	
+\end{center}
+
+\begin{small}
+$$
+\begin{array}{|lcl|}\hline
+$A$ & \equiv & \{\; E.trad := $``\verb+s[+''$||\;E_1.trad\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''$ \;\} \\
+$B$ & \equiv & \{\; E.trad := T.trad \;\} \\
+$C$ & \equiv & \{\; T.trad:= $``\verb!p[!''$||\;T_1.trad\;||$``\verb!,!''$||\;F.trad\;||$``\verb!]!''$ \;\} \\
+$D$ & \equiv & \{\; T.trad := F.trad \;\} \\
+$E$ & \equiv & \{\; F.trad := \textbf{num}.lexema \;\} \\
+\hline
+\end{array}
+$$
+\end{small}
+\caption{\'Arbol sint\'actico de ``\texttt{2+3*5}''
+con las acciones sem\'anticas (indicadas como referencias a la
+tabla que aparece debajo del árbol). Se indican las traducciones 
+parciales en cada nodo
+y el \'orden de ejecuci\'on de las acciones.} \label{fetds}
+\end{figure}
+
+Cada vez que pasamos
+por una acci\'on sem\'antica la aplicamos (este an\'alisis
+se har\'a empezando por las hojas). De esta forma conseguimos
+traducir la expresi\'on, quedando la traducción en $E.trad$ al
+llegar a la ra\'{\i}z.
+\end{ejemplo}
+
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{6.1, 6.2.1, 6.2.2 y 6.2.6}
+\refb{\cite{ASU90}}{5.1 y 5.4}
+\refb{\cite{Ben90}}{3.3}
+\refb{\cite{FL91}}{7.1.1, 7.1.3 y 14.1}
+\end{rbib}
+
+\clearpage
+%\section{Ejercicios}
+\Ejercicios
+
+\begin{ejercicio}
+ Dise\~nar un esquema de traducci\'on
+para asignar tipo a una lista de variables declaradas en Pascal,
+siendo la sintaxis la siguiente.
+$$
+\begin{array}{lcl}
+\nter{Variables} \der \ter{var} \nter{Declaración} \\
+\nter{Declaración} \der \ter{identificador} \nter{Lista} \\
+\nter{Lista} \der \ter{coma} \ter{identificador} \nter{Lista} \\
+\nter{Lista} \der \ter{dosptos} \nter{Tipo} \ter{ptocoma} \\
+\nter{Tipo} \der \ter{integer} \opt \ter{real} \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+Dise\~nar un esquema de traducci\'on
+para asignar tipo a una lista de variables declaradas en C, siendo la
+sintaxis la siguiente.
+$$
+\begin{array}{lcl}
+\nter{Declaración} \der \nter{Tipo} \ter{identificador} \nter{Lista} \ter{ptocoma} \\
+\nter{Lista} \der \ter{coma} \ter{identificador} \nter{Lista} \\
+\nter{Lista} \der \epsilon \\
+\nter{Tipo} \der \ter{int} \opt \ter{float} \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+Dise\~nar un ETDS para traducir
+declaraciones de arrays de tipos simples de C a Pascal, como en los
+siguientes ejemplos:
+\begin{small}
+\begin{verbatim}
+int c[10];             var c: array [0..9] of integer;
+float d[5][6];         var d: array [0..4,0..5] of real;
+char e;                var e: char;
+char f[3][5][7];       var f: array [0..2,0..4,0..6] of char;
+\end{verbatim}
+\end{small}
+
+El lenguaje fuente est\'a generado
+por la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \nter{V} \tertt{;} \\
+\nter{V} \der \ter{id} \nter{$V'$} \\
+\nter{$V'$} \der \tertt{[} \ter{nint} \tertt{]} \nter{$V'$} \\
+\nter{$V'$} \der \epsilon \\
+\nter{T} \der \ter{int} \opt \ter{float} \opt \ter{char} \\
+\end{array}
+$$
+\end{ejercicio}
+
+
+\begin{ejercicio}  \label{cseis:ejerDR}
+Dise\~nar un ETDS para traducir
+secuencias de declaraciones de variables en C a otro lenguaje de alto
+nivel, como se especifica en los siguientes ejemplos de traducciones:
+\begin{small}
+\begin{verbatim}
+int a,b[10],c[5][4];      variables
+                             enteras : a;
+                             tabla[10] : enteras : b;
+                             tabla[5] : tabla[4] : enteras : c
+                          fvar
+
+int **a[10][5];           variables
+                             tabla[10] : tabla[5] : puntero :
+                                  puntero : enteras : a
+                          fvar
+
+float **a;                variables
+                             puntero : puntero : reales : a
+                          fvar
+\end{verbatim}
+\end{small}
+El lenguaje fuente est\'a generado por la siguiente gram\'atica:
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{T} \nter{D} \tertt{;} \\
+\nter{D} \der \nter{D} \tertt{,} \nter{V} \\
+\nter{D} \der \nter{V} \\
+\nter{V} \der \nter{E} \\
+\nter{V} \der \nter{V} \tertt{[} \ter{nint} \tertt{]} \\
+\nter{E} \der \tertt{*} \nter{E} \\
+\nter{E} \der \ter{id} \\
+\nter{T} \der \ter{int} \opt \ter{float} \opt \ter{char} \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio} 
+Dise\~nar e implementar un ETDS para la traducci\'on de los siguientes ejemplos:
+\begin{small}
+\begin{verbatim}
+   int a,b;             a,b : integer; 
+
+   struct s {           d,e : registro [
+      int a,b;                  a(s),b(s):integer;
+      float c;                  c(s):real;
+   } d,e;                     ];
+
+   struct s1 {          h : registro [
+      int a,b,b2;             a(s1),b(s1),b2(s1):integer;
+      struct s2 {             e(s1),f(s1):registro [
+         float c,d;                         c(s2),d(s2):real;
+      } e,f;                              ];
+   } h;                     ];
+
+\end{verbatim}
+\end{small}
+El lenguaje fuente est\'a generado por la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{D} \\
+\nter{D} \der \nter{T} \ter{id} \nter{L} \tertt{;} \\
+\nter{T} \der \ter{int} \opt \ter{float} \opt \ter{char} \\
+\nter{T} \der \ter{struct} \ter{id} \tertt{\{} \nter{D} \nter{M} \tertt{\}} \\
+\nter{M} \der \nter{D} \nter{M} \\
+\nter{M} \der \epsilon \\
+\nter{L} \der \tertt{,} \ter{id} \nter{L} \\
+\nter{L} \der \epsilon \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+?`Por qu\'e no se puede escribir un ETDS directamente a partir
+de la siguiente DDS (sin modificarla, solamente introduciendo las acciones
+sem\'anticas en la parte derecha de las reglas)?
+
+\begin{center}
+\begin{tabular}{l|l}
+\hline\hline
+{\sc Producci\'on} &
+{\sc Regla Sem\'antica}
+\\
+\hline
+$\nter{A} \longrightarrow \nter{B} \nter{C}$     &  $\nter{B.h := C.s}$ \\
+$\nter{B} \longrightarrow \nter{$B_1$} \ter{b}$  &  $\ter{if}~~B.h >= 0~~\ter{then}$ \\
+                                                 &  $~~~~B_1.h := B.h - 1;$\\
+                                                 &  $~~~~mark(\ter{b}.dir);$\\
+                                                 &  $\ter{endif}$ \\
+$\nter{B} \longrightarrow \epsilon$              &             \\
+$\nter{C} \longrightarrow \ter{c} \nter{$C_1$}$  &  $C.s := C_1.s + 1$ \\
+$\nter{C} \longrightarrow \epsilon$              &  $C.s := 0$ \\
+\hline
+\end{tabular}
+\end{center}
+\end{ejercicio}
+
+\begin{ejercicio}
+Transformar la siguiente DDS en un ETDS, situando las acciones
+sem\'anticas en los lugares apropiados en las partes derechas de las 
+reglas. 
+
+\begin{center}
+\begin{tabular}{l|l}
+\hline\hline
+{\sc Producci\'on} &
+{\sc Regla Sem\'antica}
+\\
+\hline
+$\nter{S} \longrightarrow \ter{\{} \nter{B} \ter{\}}$     &  $\nter{B.bh := {\rm NULL}; S.cs := B.cs;}$\\
+                                                          &  $\nter{B.ch := {\rm NULL};}$ \\
+\hline
+$\nter{B} \longrightarrow \nter{I} \ter{;} \nter{$B_1$}$  &  $\nter{$B_1$.bh := B.bh; B.cs := I.cs $\parallel$ $B_1$.cs;}$ \\
+                                                          &  $\nter{I.bh := B.bh; $B_1$.ch := B.ch;}$ \\
+                                                          &  $\nter{I.ch := B.ch;}$\\
+\hline
+$\nter{B} \longrightarrow \epsilon$                       &  $\nter{B.cs := {\rm NULL};}$ \\
+\hline
+$\nter{I} \longrightarrow \ter{\{} \nter{B} \ter{\}}$     &  $\nter{B.bh := I.bh; I.cs := B.cs;}$\\
+                                                          &  $\nter{B.ch := I.ch;}$ \\
+\hline
+$\nter{I} \longrightarrow \ter{while} \ter{(} \nter{E} \ter{)} \nter{$I_1$}$ &  $\nter{$I_1$.bh := e1; e1 := {\rm etiqnueva}();}$\\
+                                                          &  $\nter{$I_1$.ch := e2; e2 := {\rm etiqnueva}();}$\\
+                                                          &  $\nter{I.cs := {\rm gen}(e2 ":") $\parallel$ E.cs}$\\
+                                                          &  $\nter{~~~$\parallel$ {\rm gen}("jumpz~" e1) $\parallel$ $I_1$.cs}$\\
+                                                          &  $\nter{~~~$\parallel$ {\rm gen}(e1 ":");}$\\
+\hline
+$\nter{I} \longrightarrow \ter{print} \nter{E}$           &  $\nter{I.cs := {\rm gen}("print~") $\parallel$ E.cs;}$\\ 
+\hline
+$\nter{I} \longrightarrow \ter{break}$                    &  $\ter{if} I.bh~!=~{\rm NULL}~~\ter{then}$ \\ 
+                                                          &  $\nter{~~~~I.cs := {\rm gen}("jump~" I.bh)}$\\
+                                                          &  $\ter{else} error()$ \\
+                                                          &  $\ter{endif}$\\
+\hline
+$\nter{I} \longrightarrow \ter{continue}$                 &  $\ter{if} I.ch~!=~{\rm NULL}~~\ter{then}$ \\ 
+                                                          &  $\nter{~~~~I.cs := {\rm gen}("jump~" I.ch)}$\\
+                                                          &  $\ter{else} error()$ \\
+                                                          &  $\ter{endif}$\\
+\hline
+$\nter{E} \longrightarrow \ter{a} $                       &  $\nter{E.cs := {\rm gen}("~a~");}$ \\
+\hline
+\end{tabular}
+\end{center}
+\end{ejercicio}
+
+\begin{ejercicio}
+Explicar si la siguiente DDS se puede convertir en un ETDS (situando
+las acciones sem\'{a}nticas donde corresponda sin
+modificar la gram\'{a}tica en absoluto). 
+\begin{center}
+\begin{tabular}{l|l}
+\hline\hline
+{\sc Producci\'{o}n} & {\sc Reglas sem\'{a}nticas} \\\hline
+$D\rightarrow T\; L$ & $\begin{array}{rcl}
+                   L.tip & := & T.tip\\
+                   \end{array}$\\[3mm]
+$T\rightarrow {\bf int}$ & $\begin{array}{rcl}
+                   T.tip & := & \mbox{integer}\\
+                   \end{array}$\\[3mm]
+$T\rightarrow {\bf real}$ & $\begin{array}{rcl}
+                   T.tip & := & \mbox{real}\\
+                   \end{array}$\\[3mm]
+$L\rightarrow L_1\; {\bf ,} \; I$ & $\begin{array}{rcl}
+                   L_1.tip & :=& L.tip \;\;;\;\; I.tip  := L.tip \\
+                   \end{array}$\\[3mm]
+$L\rightarrow I$ & $\begin{array}{rcl}
+                   I.tip & :=& L.tip \\
+                   \end{array}$\\[3mm]
+$I\rightarrow I_1\;{\bf [}\;{\bf num}\;{\bf ]}$ &
+                   $\begin{array}{rcl}
+                   I_1.tip & :=& {\rm array}({\bf num}.val,I.tip) \\
+                   \end{array}$\\[3mm]
+$I\rightarrow {\bf id}$ & $\begin{array}{rcl}
+                           {\rm introtip}({\bf id}.valex,I.tip) \\
+                           \end{array}$\\ \hline
+
+\end{tabular} 
+\end{center}
+\end{ejercicio}
+
+%-------------------------------------------------------------
+\come{ % guardar para ejercicios propuestos ?
+\begin{ejercicio}
+Dise\~nar un ETDS para traducir
+declaraciones de arrays y punteros de C como en los siguientes
+ejemplos:
+
+\begin{small}
+\begin{verbatim}
+int *a[7];          var a: array [0..6] of pointer of integer;
+
+float **b[5][6];    var b: array [0..4,0..5] of 
+                             pointer of pointer of real;
+
+char *c;            var c: pointer of char;
+
+char d;             var d: char;
+\end{verbatim}
+\end{small}
+
+El lenguaje fuente est\'a generado por la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \nter{V} \nter{$V'$} \tertt{;} \\
+\nter{V} \der \tertt{*} \nter{V} \\
+\nter{V} \der \ter{id} \\
+\nter{$V'$} \der \tertt{[} \ter{nint} \tertt{]} \nter{$V'$} \\
+\nter{$V'$} \der \epsilon \\
+\nter{T} \der \ter{int} \opt \ter{float} \opt \ter{char} \\
+\end{array}
+$$
+\end{ejercicio}
+} % come
+
+\come{ % guardar para ejercicios propuestos ?
+\begin{ejercicio} 
+Dise\~nar un ETDS para traducir
+secuencias de declaraciones de arrays y tipos simples de C como en
+los siguientes ejemplos:
+\begin{small}
+\begin{verbatim}
+int a,b,c[10];      var a:integer;
+                        b:integer;
+                        c:array [0..9] of integer;
+
+float d[5][6],e;    var d:array [0..4] of array[0..5] of real;
+                        e:real;
+\end{verbatim}
+\end{small}
+El lenguaje fuente est\'a generado por la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \nter{V} \nter{L} \ter{;} \\
+\nter{L} \der \ter{,} \nter{V} \nter{L} \\
+\nter{L} \der \epsilon \\
+\nter{V} \der \ter{id} \nter{$V'$}\\
+\nter{$V'$} \der \ter{[} \ter{nint} \ter{]} \nter{$V'$} \\
+\nter{$V'$} \der \epsilon \\
+\nter{T} \der \ter{int} \opt \ter{float} \opt \ter{char} \\
+\end{array}
+$$
+\end{ejercicio}
+} % come
+
+
+\newpage
+\thispagestyle{empty}
+~~
+

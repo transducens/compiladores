@@ -1,0 +1,945 @@
+\section{El papel del analizador léxico}
+
+El analizador l\'exico (AL) es la primera fase de un programa traductor. Es, 
+por otra parte, el \'unico que gestiona el fichero de entrada. Es la
+parte del compilador que lee los caracteres del programa fuente y que
+construye unos s\'{\i}mbolos intermedios ({\em elementos l\'exicos},
+que llamaremos ``{\em tokens}'') que ser\'an
+posteriormente utilizados por el analizador sint\'actico como
+entrada. 
+
+El analizador sint\'actico debe obtener una representaci\'on
+de la estructura (sintaxis) del programa fuente. Para realizar esta
+tarea deber\'{\i}a concentrarse solamente en la estructura y no en
+otros aspectos menos importantes, como los espacios en blanco o
+tabuladores, los cambios de l\'{\i}nea, los comentarios, etc.
+Adem\'as, los \'arboles sint\'acticos construidos con
+una gram\'atica que genere los programas car\'acter a
+car\'acter no son \'utiles para construir una traducci\'on.
+
+¿Por qu\'e separar el an\'alisis l\'exico del sint\'actico?
+\begin{itemize}
+\item El dise\~no de las partes posteriores dedicadas al an\'alisis queda
+        simplificado.
+\item Con fases separadas, se pueden aplicar t\'ecnicas espec\'{\i}ficas y
+        diferenciadas para cada fase, que son m\'as eficientes en sus
+        respectivos dominios.
+\item Se facilita la adaptación del compilador a sistemas con distintos
+      juegos de caracteres, o bien a distintas formas de la entrada.
+\end{itemize}
+
+Si tomamos por ejemplo las expresiones ``\verb!6-2*30/7!''
+y ``\verb!6 -   2* 30/7!'', podemos comprobar que la estructura de
+ambas expresiones es equivalente; sin embargo, los caracteres que
+componen ambas cadenas no son los mismos. Si tuvieramos que trabajar
+directamente con los caracteres estar\'{\i}amos dificultando la
+tarea de obtener la misma representaci\'on para ambas cadenas.
+Si consideramos adem\'as la cadena ``\verb!8-2*3/5!'',
+la estructura de esta cadena es de nuevo la misma que la de las
+cadenas anteriores, lo \'unico que cambia son los valores
+concretos de los n\'umeros. Por estos motivos (y tambi\'en
+por eficiencia), el procesamiento de los caracteres se deja en manos
+del analizador l\'exico que entregar\'a a las sucesivas
+etapas del compilador los componentes l\'exicos ({\em tokens})
+significativos.
+
+\begin{ejemplo}
+Usando la cadena mencionada anteriormente, ``\verb!6-2*30/7!''
+(o la otra igual salvo el n\'umero de espacios), ambas ser\'{\i}an
+representadas por el analizador l\'exico como la siguiente
+cadena de elementos l\'exicos:
+
+\begin{center}
+\begin{footnotesize}
+\begin{verbatim}
+entero,6  resta,-  entero,2  por,*  entero,30  div,/  entero,7
+\end{verbatim}
+\end{footnotesize}
+\end{center}
+
+donde cada {\em token} ha sido
+representado por un par en el que la primera componente de cada par
+es el tipo de {\em token} y la segunda componente es el {\em lexema}
+(el valor concreto de ese {\em token}). La tercera cadena del
+ejemplo anterior tendr\'{\i}a la misma estructura que las otras
+dos, pero con distintos valores de los {\em lexemas}.
+\end{ejemplo}
+
+
+En definitiva, el an\'alisis l\'exico agrupar\'a los
+caracteres de la entrada por categor\'{\i}as l\'exicas,
+establecidas por la especificaci\'on l\'exica del lenguaje
+fuente como veremos m\'as adelante. Esta especificaci\'on
+tambi\'en establecer\'a el alfabeto con el que se escriben
+los programas v\'alidos en el lenguaje fuente y, por tanto, el
+analizador l\'exico tambi\'en deber\'a rechazar
+cualquier texto en el que aparezcan caracteres ilegales (no recogidos
+en ese alfabeto) o combinaciones ilegales (no permitidas por las
+especificaciones l\'exicas) de caracteres del alfabeto.
+
+Veremos que los
+componentes l\'exicos se especifican mediante {\em expresiones
+regulares} que generan lenguajes regulares, m\'as sencillos
+de reconocer que los lenguajes independientes del contexto, y
+permiten hacer un an\'alisis m\'as r\'apido. Adem\'as,
+una gram\'atica que represente la sintaxis de un lenguaje de
+alto nivel car\'acter a car\'acter ser\'{\i}a mucho m\'as
+compleja (para implementar un proceso de traducci\'on a partir
+de ella) que otra que representase la misma sintaxis en funci\'on
+de sus componentes l\'exicos.
+
+\section{Errores léxicos}
+
+Pocos son los
+errores caracter\'{\i}sticos de esta etapa, pues el compilador
+tiene todav\'{\i}a una visi\'on muy local del programa. Por
+ejemplo, si el analizador l\'exico encuentra y a\'{\i}sla la
+cadena ``\verb+wihle+''
+creer\'a que es un identificador, cuando posiblemente se tratara
+de un \verb+while+
+mal escrito y no ser\'a \'el el que informe del error, sino
+que lo har\'an sucesivas etapas del an\'alisis del texto.
+
+Los errores que t\'{\i}picamente detecta el analizador l\'exico
+son:
+\begin{itemize}
+\item Utilizar
+        caracteres que no pertenecen al alfabeto del lenguaje (p. ej.: '\~n'
+        o 'ª').
+\item Se encuentra
+        una cadena que no coincide con ninguno de los patrones de los {\em tokens}
+	posibles (p. ej.: en un lenguaje ``\verb+:=+''
+        puede ser la asignaci\'on pero el símbolo ``\verb+:+'' no puede
+        aparecer solo).
+\end{itemize}
+
+Cuando el analizador l\'exico encuentra un error, lo habitual es
+parar su ejecuci\'on e informar, pero hay una serie de posibles
+acciones por su parte para anotar los errores, recuperarse de ellos y
+seguir trabajando:
+\begin{itemize}
+\item Ignorar los
+        caracteres no v\'alidos hasta formar un {\em token} seg\'un
+        los patrones dados;
+\item Borrar los caracteres extra\~nos;
+\item Insertar un car\'acter que pudiera faltar;
+\item Reemplazar un
+        car\'acter presuntamente incorrecto por uno correcto;
+\item Conmutar las
+        posiciones de dos caracteres adyacentes.
+\end{itemize}
+
+Estas transformaciones se realizan sobre el prefijo de entrada que no
+concuerda con el patr\'on de ning\'un {\em token},
+intentando conseguir un lexema v\'alido. No obstante, todas son
+complicadas de llevar a cabo y peligrosas por lo equivocadas que
+pueden resultar para el resto del an\'alisis.
+
+\section{Funcionamiento del analizador léxico}
+
+
+La principal funci\'on del analizador l\'exico es procesar la
+cadena de caracteres y devolver pares ({\em token} , lexema ).
+Debe funcionar como una subrutina del analizador sint\'actico
+(véase la figura~\ref{figALAS}).
+
+\begin{figure}
+\begin{center}
+\includegraphics{cap2f1.pdf}
+\end{center}
+\caption{Analizador Léxico como subrutina del A.Sintáctico}\label{figALAS}
+\end{figure}
+
+Las operaciones que realiza el analizador l\'exico son:
+\begin{itemize}
+\item Procesado
+        l\'exico del programa fuente: identificaci\'on de {\em tokens}
+	y de sus lexemas que deber\'a entregar al analizador sint\'actico
+        así como interaccionar con la tabla de s\'{\i}mbolos.
+\item Manejo del
+        fichero del programa fuente; es decir: abrirlo, leer sus caracteres
+        y cerrarlo. Tambi\'en deber\'{\i}a ser capaz de gestionar
+        posibles errores de lectura.
+\item Ignora los
+        comentarios y, en los lenguajes de formato libre, ignora los
+        separadores (espacios en blanco, tabuladores, retornos de carro,
+        etc.).
+\item Cuando se
+        produzca una situaci\'on de error ser\'a el analizador
+        l\'exico el que sit\'ue el error en el programa fuente.
+        Lleva, por lo tanto, la cuenta de las
+        l\'{\i}neas y columnas procesadas.
+\item Preproceso de
+        macros, definiciones, constantes y \'ordenes de inclusi\'on
+        de otros ficheros.
+\end{itemize}
+
+Cada vez que el analizador sint\'actico llame al l\'exico
+\'este debe leer caracteres desde donde se qued\'o en la
+anterior llamada hasta conseguir completar un nuevo {\em token}, y
+en ese momento debe devolver el par ({\em token }, lexema). Cuando
+el analizador l\'exico intenta reconocer algunos tipos de {\em tokens}
+como los identificadores o los n\'umeros se produce una
+circunstancia especial: el analizador l\'exico debe leer
+caracteres hasta que lea uno que no pertenece a la categor\'{\i}a
+del {\em token} que est\'a leyendo; ese \'ultimo car\'acter
+(que no tiene por qu\'e ser un espacio en blanco) no puede
+perderse, y debe devolverse a la entrada para ser le\'{\i}do
+en primer lugar la pr\'oxima vez que se llame al analizador
+l\'exico.
+
+\begin{ejemplo}
+En la cadena ``\verb+Grande / 307>=+'' marcamos las posiciones a las que 
+tiene que llegar el analizador l\'exico para decidir qu\'e {\em tokens}
+ha reconocido:
+
+\begin{center}
+\begin{tabular}{l @{} l @{} l @{} l @{} l @{} l}
+\verb+Grande+&\verb+ +   & \verb+/+    & \verb+307+ & \verb+>+   & \verb+=+\\
+             &$\uparrow$ & $\uparrow$  &            & $\uparrow$ & $\uparrow$ \\
+\end{tabular}
+\end{center}
+
+Como se puede observar, para el caso
+del identificador ``\verb+Grande+'',
+ha tenido que ir una posici\'on m\'as all\'a del final
+del mismo, pues s\'olo all\'{\i}, al encontrar el espacio en
+blanco puede saber que el nombre del identificador ha concluido. Para
+encontrar el s\'{\i}mbolo ``\verb+/+''
+basta con ponerse sobre \'el y {\em verlo\/} si consideramos que
+no es prefijo de ningún otro (para este lenguaje). Para
+el n\'umero ``\verb+307+''
+sucede lo mismo que con el identificador: hay que llegar hasta un
+car\'acter que no sea un n\'umero para saber que el n\'umero
+ha terminado. Ese s\'{\i}mbolo en este caso es el signo ``\verb+>+''
+de ``\verb+>=+'' (mayor o igual que). Despu\'es, para reconocer este 
+nuevo {\em token} el l\'exico avanzar\'a para ver si es el ``\verb+=+''
+lo que sigue al ``\verb+>+''.
+Como s\'{\i} que lo es y suponemos que ``\verb+>=+''
+no es prefijo de ning\'un otro, el analizador devolver\'a
+el {\em token} ``mayor o igual''; si no hubiera aparecido el
+``\verb+=+'' al avanzar,  hubiera tenido que retroceder una posici\'on
+y devolver el {\em token} ``mayor''.
+\end{ejemplo}
+
+El analizador l\'exico debe intentar leer siempre el {\em token}
+m\'as largo posible. Puede ocurrir que haya le\'{\i}do ya un
+{\em token} correcto y al intentar leer un {\em token} m\'as
+largo no sea posible; en este caso no se debe producir un error, sino
+que el analizador l\'exico debe devolver el {\em token}
+correcto y debe retroceder en la entrada hasta el
+final de ese {\em token}. 
+
+\begin{ejemplo}
+Si el operador ``\verb+!=+''
+({\em distinto}) pertenece al lenguaje pero el car\'acter ``\verb+!+''
+no, cuando aparezca en la entrada este car\'acter, el analizador
+debe leer el siguiente car\'acter; si es un ``\verb!=!'',
+devolver\'a el {\em token} correspondiente al operador
+{\em distinto}, pero si no es un ``\verb!=!'',
+debe producir un error l\'exico si el car\'acter ``\verb+!+''
+por s\'{\i} solo no perteneciera al lenguaje.
+\end{ejemplo}
+
+\section{Especificación de un analizador léxico}
+
+
+\subsection{Definiciones de t\'erminos comunes en esta fase}
+
+\begin{itemize}	
+\item 
+{\bf {\em Tokens}}:
+        desde el punto de vista l\'exico son los elementos l\'exicos
+        del lenguaje mientras que para el resto de las fases de un
+        compilador son los s\'{\i}mbolos terminales de la gram\'atica
+        (por ejemplo: palabras reservadas, identificadores, signos de
+        puntuaci\'on, constantes num\'ericas, operadores, cadenas
+        de caracteres, etc.). Es posible, dependiendo del lenguaje, que
+        varios signos formen un solo {\em token\/} (``\verb!:=!'',
+        ``\verb!==!'', ``\verb!+=!'', ``\verb!||!'', etc.).
+\item {\bf Patr\'on}:
+        expresi\'on regular que define el conjunto de cadenas que 
+        cada uno de los {\em tokens} representa.
+\item {\bf Lexema}:
+        secuencia de caracteres del c\'odigo fuente que concuerda con
+        el patr\'on de un {\em token}. Es decir, cuando analizamos el
+        texto fuente y encontramos una cadena de caracteres que representa
+        un {\em token\/} determinado diremos que esa cadena es su lexema. 
+\item {\bf Atributos}:
+        El an\'alisis l\'exico debe proporcionar informaci\'on
+        adicional sobre los {\em tokens\/} en sus atributos asociados. El
+        n\'umero de atributos depende de cada {\em token}. En la
+        pr\'actica, se puede considerar que los {\em tokens\/} tienen un
+        \'unico atributo, un registro que contiene toda la informaci\'on
+        propia de cada caso (por ejemplo, lexema, tipo de {\em token\/} y
+        l\'{\i}nea y columna en la que fue encontrado). Lo normal es que
+        toda esa informaci\'on se entregue a los analizadores
+        sint\'actico y sem\'antico para que la usen como convenga.
+\end{itemize}
+
+\begin{ejemplo}
+\begin{center}
+\begin{tabular}{|c|c|c|}\hline
+{\bf Token} & {\bf Lexemas} & {\bf Patr\'on} \\\hline\hline
+Identificador & \verb+Pepe+, \verb+cons1+, $\ldots$     & Letra$\cdot$(Letra$|$D\'{\i}gito)$^\ast$ \\\hline
+Num\_Entero   & \verb+10+, \verb+-105+, \verb!+24!, $\ldots$  & $(+|\epsilon)\cdot$D\'{\i}gito$^{+}$ \\\hline
+PR\_IF        & \verb+If+, \verb+if+, \verb+IF+, \verb+iF+ & $(i|I)\cdot(f|F)$ \\\hline						
+\end{tabular}
+\end{center}			
+
+Cuando el analizador l\'exico encuentra un lexema devuelve como
+informaci\'on a qu\'e {\em token} pertenece y todo lo que
+sabe de \'el, incluido el propio lexema. En el \'ultimo
+caso, se supone que esa palabra pertenece a un lenguaje en el que
+may\'usculas y min\'usculas son equivalentes.
+\end{ejemplo}
+
+Para especificar correctamente el funcionamiento de un analizador
+l\'exico se debe utilizar una m\'aquina de estados, llamada
+{\em diagrama de transiciones\/} (DT), muy parecida a un
+aut\'omata finito determinista, con las siguientes diferencias:
+\begin{itemize}
+\item Un AFD s\'olo
+        dice si la cadena de caracteres pertenece al lenguaje o no; un DT
+        debe funcionar como un analizador l\'exico; es decir, debe leer
+        caracteres hasta que complete un {\em token}, y en ese momento debe
+        retornar (en los estados de aceptaci\'on) el {\em token\/} que
+        ha le\'{\i}do y dejar la entrada preparada para
+        la siguiente llamada.
+\item Un DT no puede
+        tener estados de absorci\'on (para cadenas incorrectas en AFDs)
+        ni de error (se considerar\'a que las entradas para las que no
+        hay una transici\'on desde cada estado son error).
+\item De los estados
+        de aceptaci\'on de un DT no deben salir transiciones.
+\item En el caso de
+        las cadenas no espec\'{\i}ficas, necesitamos otro estado al que ir
+        cuando se lea un car\'acter que no pueda formar parte del
+        patr\'on. En este \'ultimo estado (al que se llega con la
+        transici\'on especial {\bf otro}) se debe devolver a la
+	entrada el car\'acter le\'{\i}do (que puede ser parte del
+        siguiente {\em token\/}), lo cual se indica marcando el estado con un
+        asterisco, y se debe retornar el {\em token\/} correspondiente a ese
+        estado de aceptaci\'on. Por ejemplo, para reconocer n\'umeros
+        enteros, con un AFD son necesarios solamente dos estados; con un DT
+        necesitamos ese otro estado al que ir cuando se lea un car\'acter
+        que no pueda formar parte del n\'umero.
+\end{itemize}
+
+En el caso m\'as general, se suelen utilizar estos diagramas de
+transiciones para reconocer los {\em tokens\/} de entrada, construidos
+a partir de sus patrones correspondientes, expresados mediante las
+respectivas expresiones regulares. Estos aut\'omatas se combinan
+en una m\'aquina \'unica que, partiendo de un \'unico
+estado inicial, sigue un recorrido u otro por los estados hasta
+llegar a alguno de los estados de aceptaci\'on. En funci\'on
+de en cu\'al se detenga devolver\'a un {\em token\/} u otro.
+Si no llega a un estado de aceptaci\'on o recibe una entrada que
+no le permite hacer una transici\'on a otro estado, entonces
+dar\'a error.
+
+\begin{ejemplo}
+A continuaci\'on
+se muestra un ejemplo de reconocedor de n\'umeros enteros sin
+signo mediante la expresi\'on regular \verb![0-9]+!.
+
+El AFD ser\'{\i}a\footnote{En el AFD, el estado 1 reconoce números enteros.}:
+\begin{center}
+\includegraphics{cap2f2.pdf}
+\end{center}
+
+%\newpage
+El DT sería\footnote{En el DT, el estado 2 devuelve el {\em token\/} Num\_entero
+y devuelve un carácter a la entrada.}:
+
+\begin{center}
+\includegraphics{cap2f3.pdf}
+\end{center}
+	
+Como se observa, en el DT surge un nuevo estado, que es realmente el
+de aceptaci\'on y que est\'a marcado con un asterisco que
+indica que se llega a \'el leyendo un car\'acter m\'as
+de los necesarios para reconocer ese {\em token}, y por tanto hay
+que devolver ese car\'acter a la entrada. La transici\'on a
+ese estado se hace mediante la entrada {\bf otro} que significa
+cualquier otro car\'acter del alfabeto del lenguaje que no est\'e
+en el rango \verb![0-9]!.
+\end{ejemplo}
+
+Si durante el recorrido del aut\'omata se produce una transici\'on
+no autorizada o la cadena de entrada finaliza en un estado que no es de
+aceptaci\'on, el analizador informar\'a del error. Este
+tipo de m\'aquinas es \'util para lenguajes con grandes
+conjuntos de elementos l\'exicos distintos y las matrices de
+transici\'on resultantes tienen grandes zonas vac\'{\i}as que
+conviene comprimir y resumir mediante algoritmos adecuados. Cuando
+los lenguajes son poco extensos es mejor redactar los analizadores ``a
+mano'', tratando de tomar decisiones adecuadas en funci\'on
+de los caracteres que van apareciendo en la entrada (ver apartado de
+implementaci\'on m\'as adelante).
+
+El analizador suele tener unos subprogramas auxiliares encargados de
+gestionar la entrada (t\'ecnicas de doble {\em buffer\/},
+saltos de l\'{\i}nea, \verb+<EOF>+, etc.) y de ir devolviendo
+caracteres a la entrada cada vez que el procedimiento
+de reconocimiento y aislamiento de {\em tokens\/} lo requiera.
+
+\subsection{Identificaci\'on de palabras reservadas}
+
+Las palabras
+reservadas son aquellas que los lenguajes de programaci\'on
+reservan para usos particulares. El problema que surge es: ¿c\'omo
+reconocer las palabras reservadas si responden al mismo patr\'on
+que los identificadores, pero son {\em tokens\/} diferentes 
+al {\em token\/} ``\emph{identificador}'' ?
+
+Existen dos enfoques para resolver este problema: 
+\begin{enumerate}
+\item {\bf Resoluci\'on impl\'{\i}cita}: considerar que todas son 
+identificadores y buscarlas en una tabla. Implica saltarse el formalismo 
+para buscar una soluci\'on pr\'actica (factible si se implementa el
+analizador léxico ``a mano'' y preferible si el lenguaje tiene
+muchas palabras reservadas); 
+\item {\bf Resoluci\'on expl\'{\i}cita}:
+se indican todas las expresiones regulares de todas las palabras
+reservadas y se integran los DT resultantes de sus especificaciones
+l\'exicas en la m\'aquina reconocedora (los analizadores
+resultan mucho m\'as complejos, pero es necesario si usamos
+programas de generaci\'on de autom\'atica de analizadores a
+partir de especificaciones).
+\end{enumerate}
+
+La primera soluci\'on citada consiste en considerar que las
+palabras reservadas son en principio identificadores, y entonces el
+analizador leer\'a letras y d\'{\i}gitos hasta completar un
+identificador, e inmediatamente antes de retornar el {\em token\/}
+``\emph{identificador}'', comparará el lexema le\'{\i}do con una
+lista de las palabras reservadas para ver si coincide con alguna de
+ellas.
+
+En definitiva, se procede normalmente tratando las palabras
+reservadas como lexemas particulares del patr\'on del
+identificador y cuando se encuentra una cadena que responde a dicho
+patr\'on, se analiza si es una palabra reservada o un
+identificador.
+
+Una posible soluci\'on para ello es:
+\begin{itemize}
+\item Primero
+        inicializar la tabla de s\'{\i}mbolos con todas las palabras
+        reservadas (lo normal es hacerlo por orden alfab\'etico para
+        facilitar la posterior b\'usqueda y acceso).
+\item Cuando
+        encuentre un identificador se ir\'a a mirar la tabla de
+        s\'{\i}mbolos:
+    \begin{itemize}
+     \item Si lo encuentra en la zona
+        reservada para ellas entonces es una palabra reservada
+     \item Si no, ser\'a un
+        identificador, que, como tal, ser\'a a\~nadido a la tabla
+        de s\'{\i}mbolos.
+    \end{itemize}
+\end{itemize}
+
+
+\begin{ejemplo}
+Si se encuentra el identificador ``\verb!Cont!''
+en la entrada, antes de que el analizador léxico devuelva el \emph{token}
+``\emph{identificador}''
+deber\'a comprobar si se trata de una palabra reservada. Si el
+n\'umero de palabras reservadas es muy grande lo mejor es
+tenerlas almacenadas desde el principio de la compilaci\'on en
+la tabla de s\'{\i}mbolos, para ver si all\'{\i} ya se encuentra
+definida esa cadena como tal. Aqu\'{\i} hemos supuesto que no es
+as\'{\i} y ``\verb!Cont!'' queda registrado como un identificador:
+
+\begin{center}
+
+
+\begin{tabular}{|l|l|c}
+\multicolumn{2}{c}{\bf Tabla de Símbolos} & \\\cline{1-2}
+\verb+do+    & Pal.Reservada &\\\cline{1-2}
+\verb+end+   & Pal.Reservada & Zona\\\cline{1-2}
+\verb+for+   & Pal.Reservada & de\\\cline{1-2}
+\verb+while+ & Pal.Reservada & palabras\\\cline{1-2}
+$\ldots$     & $\ldots$ & reservadas\\\hline\hline
+\verb+Cont+  & Identificador & Zona de \\\cline{1-2}
+$\ldots$     & $\ldots$      & identificadores \\\cline{1-2}
+\end{tabular}
+\end{center}
+\end{ejemplo}
+																						
+La disposici\'on de una tabla ordenada con las palabras
+reservadas es \'util cuando el n\'umero de \'estas es
+grande. Cuando el lenguaje tiene s\'olo unas pocas puede ser m\'as
+pr\'actico realizar la identificaci\'on ``directamente''
+mediante una serie de sentencias ``\verb+if+''
+que comparen con las cadenas correspondientes a esas palabras.
+
+Cuando la detecci\'on de palabras reservadas se hace, en cambio,
+expl\'{\i}\-cita\-mente, entonces los patrones de la especificaci\'on
+l\'exica del lenguaje tendr\'an su correspondencia en el
+diagrama de transiciones global a partir del cual se implementar\'a
+el analizador l\'exico. Las especificaciones l\'exicas de
+las palabras reservadas, como cadenas espec\'{\i}ficas que son,
+constar\'an de concatenaciones de caracteres y pueden ser
+siempre prefijos de identificadores (como por ejemplo ``\verb!do!''
+-palabra reservada- y ``\verb!dos!'' -identificador-). Aparecer\'an
+en estos casos los problemas de prefijos y cadenas no espec\'{\i}ficas
+que se describen en los ejemplos que se ofrecen m\'as adelante.
+
+\begin{ejemplo}
+Si el lenguaje se define como {\em sensible al tama\~no\/} ({\em case
+sensitive\/} en inglés):
+
+\begin{small}
+\begin{tabular}{l}
+\verb+d+$\cdot$\verb+o+ \\
+\verb+e+$\cdot$\verb+n+$\cdot$\verb+d+ \\
+\verb+f+$\cdot$\verb+o+$\cdot$\verb+r+ \\
+\verb+w+$\cdot$\verb+h+$\cdot$\verb+i+$\cdot$\verb+l+$\cdot$\verb+e+ \\
+\end{tabular}
+\end{small}
+
+Si no lo es (may\'usculas y min\'usculas equivalentes):
+
+\begin{small}
+\begin{tabular}{l}
+(\verb+d+$|$\verb+D+)$\cdot$(\verb+o+$|$\verb+O+) \\
+(\verb+e+$|$\verb+E+)$\cdot$(\verb+n+$|$\verb+N+)$\cdot$(\verb+d+$|$\verb+D+) \\
+(\verb+f+$|$\verb+F+)$\cdot$(\verb+o+$|$\verb+O+)$\cdot$(\verb+r+$|$\verb+R+) \\
+(\verb+w+$|$\verb+W+)$\cdot$(\verb+h+$|$\verb+H+)$\cdot$(\verb+i+$|$\verb+I+)$\cdot$(\verb+l+$|$\verb+L+)$\cdot$(\verb+e+$|$\verb+E+) \\
+\end{tabular}
+\end{small}
+\end{ejemplo}
+
+Cuando en la especificaci\'on l\'exica del lenguaje
+coexisten expresiones regulares de cadenas no espec\'{\i}ficas como
+los identificadores con las de espec\'{\i}ficas como las palabras
+reservadas, hay que llevar m\'as cuidado porque cualquiera de
+las palabras reservadas puede ser un prefijo de un identificador
+v\'alido. Esto motiva que los subaut\'omatas que reconocen
+las palabras deben estar comunicados con el de los identificadores
+(véase el ejemplo~\refej{ejdtuno}).
+
+Por otra parte, cuando un elemento l\'exico es prefijo de otro y
+ambos son cadenas espec\'{\i}ficas, aparecer\'an estados de
+aceptaci\'on que partir\'an de estados intermedios (véase el
+ejemplo~\refej{ejdtdos}).
+
+\begin{ejemplo} \label{ejdtuno}
+
+Constr\'uyase un diagrama de transiciones para el reconocimiento de
+identificadores, n\'umeros enteros sin signo y las palabras
+reservadas ``\verb!do!'' y ``\verb!done!''.
+
+Notaci\'on: {\em d} $=$ d\'{\i}gito; {\em l} $=$ letra; 
+{\em f} $=$ otro alfanum\'erico (d\'{\i}gito o letra); {\em (número)} = ir al
+estado {\em número}.
+
+\begin{center}
+\includegraphics{cap2f4.pdf}
+\end{center}
+
+Como se observa en este diagrama de transiciones, todos los estados de
+aceptaci\'on est\'an marcados con asterisco, por lo que
+siempre habr\'a que devolver el \'ultimo car\'acter
+le\'{\i}do a la entrada. Esto es debido, en este
+ejemplo, a que todos los {\em tokens\/} son bien unos prefijos de
+otros (\verb+do+ $\rightarrow$ \verb+done+ $\rightarrow$ identificador) 
+o bien son cadenas no espec\'{\i}ficas (entero e identificador).
+\end{ejemplo}
+
+\begin{ejemplo} \label{ejdtdos}
+
+Constr\'uyase un diagrama de transiciones para el reconocimiento de n\'umeros
+enteros con signo negativo o sin signo ($(-|\epsilon)\cdot d^{+}$) y 
+los operadores suma (``\verb!+!'') y doble incremento (``\verb!+++!'').
+
+\begin{center}
+\includegraphics{cap2f5.pdf}
+\end{center}
+
+Obs\'ervese que el estado de aceptaci\'on del {\em token\/}
+``doble incremento'' no lleva asterisco por ser cadena
+espec\'{\i}fica y no ser prefijo de ninguna otra, y por tanto no
+necesita leer el siguiente car\'acter y retroceder. S\'{\i}
+que lo llevan los estados de aceptaci\'on del {\em token\/}
+``suma'' a pesar de ser espec\'{\i}ficas, por ser prefijos
+del ``doble incremento''. Adem\'as, uno de ellos lleva
+dos asteriscos, indicando que si se llega a ese estado hay que
+retornar el {\em token\/} ``suma'' y devolver {\em dos\/}
+caracteres a la entrada.
+\end{ejemplo}
+
+\section{Implementaci\'on de analizadores l\'exicos}
+
+Existen distintas
+posibilidades para crear un analizador l\'exico; las tres m\'as
+generales son:
+
+\begin{enumerate}
+\item Usar un
+generador autom\'atico de analizadores l\'exicos, como LEX:
+ su entrada es un c\'odigo fuente con la especificaci\'on
+de las expresiones regulares de los patrones que representan a los
+{\em tokens\/} del lenguaje y las acciones a tomar cuando los
+detecte.
+
+\begin{itemize}
+\item Ventaja: comodidad y rapidez en el desarrollo.
+\item Inconveniente: ineficiencia del analizador resultante y complicado
+mantenimiento del c\'odigo generado.
+\end{itemize}
+
+\item Escribir el AL en un lenguaje de alto nivel de uso general utilizando 
+sus funciones de entrada/salida.
+\begin{itemize}
+\item Ventaja: m\'as eficiente y compacto.
+\item Inconveniente: hay que hacerlo todo a mano.
+\end{itemize}
+
+\item Hacerlo en lenguaje ensamblador.
+
+\begin{itemize}
+\item Ventaja: m\'axima eficiencia y compacidad.
+\item Inconveniente: muy complicado de desarrollar y mantener.
+\end{itemize}
+\end{enumerate}
+
+Como se ha indicado, la forma m\'as c\'omoda de implementar
+un analizador l\'exico es con un generador autom\'atico de
+analizadores l\'exicos como LEX,
+si bien no es la forma m\'as eficiente. Si se opta por hacerlo
+``a mano'', se puede hacer de varias maneras: implementando
+el diagrama de transiciones simulando las transiciones entre estados
+o bien se pueden implementar ``directamente'', usando
+estructuras de selecci\'on m\'ultiple (\verb+switch+
+en C, \verb+case+
+en Pascal, etc.) para, seg\'un cual sea el primer car\'acter
+del {\em token}, leer caracteres hasta completar el {\em token}.
+Por supuesto, con esta t\'ecnica tambi\'en es necesario
+devolver caracteres a la entrada.
+
+La opci\'on intermedia es utilizar un enfoque mixto en el que se
+mezcle el an\'alisis manual con el an\'alisis mediante
+m\'aquinas reconocedoras. Se optar\'a as\'{\i} por
+analizar mediante estructuras de selecci\'on m\'ultiple los
+elementos l\'exicos de estructura m\'as sencilla
+(usualmente los operadores) y dejar para el an\'alisis mediante
+diagramas de transiciones los elementos l\'exicos definidos
+como cadenas no espec\'{\i}ficas, prefijos comunes, etc. Luego todo
+ello se empaquetar\'a dentro de una \'unica funci\'on
+que se encargar\'a del an\'alisis l\'exico.
+
+La forma de implementar el diagrama de transiciones es mediante la
+construcci\'on de su {\em tabla de transiciones}. Para ello se
+etiquetan las filas como los estados del DT y las columnas como las
+distintas posibles entradas a las que hay que a\~nadir el {\em token\/}
+que se reconoce y el n\'umero de caracteres que hay que devolver
+a la entrada despu\'es del reconocimiento.
+
+\begin{ejemplo}
+A partir del DT construido antes para los n\'umeros enteros:
+
+\begin{center}
+\includegraphics{cap2f3.pdf}
+\end{center}
+
+La tabla de transiciones correspondiente ser\'a:
+
+\begin{center}
+\begin{tabular}{|c|cc|c|c|}\hline
+ & \multicolumn{2}{|c|}{\bf Entradas} & & \\
+\hline
+estado & \verb+0-9+ & \verb+otro+ & {\em\bf token} & {\em\bf Retroceso} \\\hline
+0      &   1        & Error       &    -           &   -                \\
+1      &   1        & 2           &    -           &   -                \\
+2      &   -        & -           &  Num\_entero   &   1                \\\hline
+\end{tabular}
+\end{center}
+\end{ejemplo}
+
+Esta es la forma de
+trabajo de cualquier construcci\'on de un analizador l\'exico:
+a partir de las especificaciones l\'exicas en forma de
+expresiones regulares se construye la m\'aquina reconocedora
+(DT) y se representa mediante la tabla de transiciones. Una vez que
+se tiene \'esta, el analizador l\'exico la recorrer\'a
+cada vez mediante un bucle con la sentencia:
+
+\begin{center}
+\begin{small}
+\begin{verbatim}
+Estado := TablaTransiciones [ Estado , Entrada ];
+\end{verbatim}
+\end{small}
+\end{center}
+
+que intentar\'a llegar a un estado
+de aceptaci\'on en el que restaurar\'a la entrada seg\'un
+lo que diga el campo ``Retroceso'' para ese n\'umero de
+estado, y devolver\'a el lexema y {\em token} encontrados.
+
+El recorrido se inicializa con la variable Estado en el valor del
+estado inicial (0 en el ejemplo anterior) e itera hasta llegar a un
+estado de aceptaci\'on (2 en el ejemplo anterior).
+
+\begin{ejemplo}
+Vamos a construir
+la tabla de transiciones del ejemplo~\refej{ejdtdos}, en el que se reconoc\'{\i}an
+n\'umeros enteros con signo negativo o sin signo ($(-|\epsilon)\cdot d^{+}$)
+y los operadores suma (``\verb!+!'') y doble incremento (``\verb!+++!'').
+La tabla de transiciones correspondiente al DT dibujado all\'{\i}
+ser\'{\i}a en este caso la siguiente:
+
+\begin{center}
+\begin{tabular}{|c|ccc|c|c|}\hline
+ & \multicolumn{3}{|c|}{\bf Entradas} & & \\
+\hline
+estado & \verb!+! & \verb+-+ & {\em d} & {\em\bf token} & {\em\bf Retroceso} \\\hline
+0      &   1      &    8     & 6       &    -           &   -                \\
+1      &   3      &    2     & 2       &    -           &   -                \\
+2      &   -      & -        & -       &  SUMA          &   1                \\
+3      &   5      &    4     & 4       & -              & -                  \\
+4      &   -      &    -     & -       & SUMA           &   2                \\
+5      &   -      &    -     & -       & 2INCR          &   0                \\
+6      &   7      &    7     & 6       & -              & -                  \\
+7      &   -      &    -     & -       & ENTERO         & 1                  \\
+8      &   Error  &   Error  & 6       & -              & -                  \\\hline
+\end{tabular}
+\end{center}
+
+Obs\'ervese que las casillas de las filas correspondientes a
+estados de aceptaci\'on nunca tienen valores porque, por
+definici\'on de los DT, de esos estados no se puede ir a ning\'un
+otro. El analizador l\'exico debe detenerse al llegar a
+cualquiera de ellos. En cambio las casillas vac\'{\i}as de filas
+que corresponden a estados que no son de aceptaci\'on est\'an
+etiquetadas como error.
+\end{ejemplo}
+
+\subsection{Prioridad de {\em tokens}}
+
+
+Por otro lado, lo normal cuando se construye un AL es establecer criterios 
+para dar m\'as prioridad a unos {\em tokens\/} que a otros:
+\begin{itemize}
+\item Dar prioridad
+        al {\em token} para el que encontramos el lexema m\'as largo.
+        P. ej.: ``\verb!DO!'' / ``\verb!DOT!'',
+        el generador se quedar\'{\i}a con el m\'as largo (``\verb!DOT!'')
+        como identificador (otro ejemplo: ``\verb!>!'' y ``\verb!>=!''
+        se debe quedar con el segundo).
+\item Si el mismo lexema
+        se puede asociar a dos {\em tokens} (patrones),
+        estos patrones estar\'an definidos en un orden, y el analizador
+        debe elegir uno de ellos. El generador de analizadores léxicos
+        LEX elige el que aparezca primero en la especificación.
+\end{itemize}
+
+
+\begin{ejemplo}
+Si en la especificaci\'on l\'exica (para un generador como LEX)  aparecen entre otras
+las expresiones regulares
+
+\begin{center}
+\begin{tabular}{lcl}
+\verb+w+$\cdot$\verb+h+$\cdot$\verb+i+$\cdot$\verb+l+$\cdot$\verb+e+ & $\rightarrow$ & Palabra reservada \verb+while+ \\
+$l\cdot(l|d)^*$ & $\rightarrow$ & Identificador \\
+\end{tabular}
+\end{center}
+
+si en la entrada aparece el lexema ``\verb!while!'',
+éste puede ser generado por ambas expresiones regulares, pero como
+est\'a primero la de la palabra reservada, el AL debe devolver
+dicho {\em token}, no el de identificador. Si estas especificaciones
+aparecieran en el orden inverso:
+
+\begin{center}
+\begin{tabular}{lcl}
+$l\cdot(l|d)^*$ & $\rightarrow$ & Identificador \\
+\verb+w+$\cdot$\verb+h+$\cdot$\verb+i+$\cdot$\verb+l+$\cdot$\verb+e+ & $\rightarrow$ & Palabra reservada \verb+while+ \\
+\end{tabular}
+\end{center}
+
+Entonces, el AL deber\'{\i}a devolver siempre el {\em token\/}
+identificador y no devolver nunca la palabra reservada ``\verb!while!''
+(lo cual no suele ser pr\'actico).
+\end{ejemplo}
+
+En el siguiente ejemplo vamos a ver c\'omo se suelen estructurar
+los analizadores l\'exicos construidos con lenguajes de
+programaci\'on de alto nivel (C en este caso), utilizando la
+t\'ecnica de la diferenciaci\'on manual de los distintos
+{\em tokens\/} mediante estructuras de selecci\'on m\'ultiple.
+
+
+\begin{ejemplo}
+El lexema puede ser
+una variable global, aunque si se organizan los {\em tokens\/} como
+estructuras que almacenan todos los atributos relativos a cada {\em token\/}
+devuelto, puede ser un campo de ellas.
+
+\begin{footnotesize}
+\begin{verbatim}
+int analex(void)
+{
+
+ c = obtenercaracter();
+ switch (c) 
+ {
+   case ' ' :
+   case '\t':
+   case '\n':/* y para los demás separadores, no hacer nada */
+          break;
+
+   case '+' :
+   case '-' : return(ADDOP);
+
+   case '*' :
+   case '/' : return(MULOP);
+
+   /* ... resto de operadores y elementos de puntuación ... */
+
+   default: 
+       if (ESNUMERO(c))
+         { /* leer caracteres mientras sean números */
+           /* devolver a la entrada el último carácter leído */
+           /* almacenar el lexema leído */
+           return (NUMINT);
+         }
+       else if (ESLETRA(c))
+         { /* leer caracteres mientras sean letras o números */
+           /* devolver al buffer de entrada ultimo carácter leído */
+           /* comprobar si es una palabra reservada */
+           /* almacenar el lexema leído */
+           return(token); /* que será palab.reservada o ident. */
+         }
+ }  /* del switch */
+
+}  /* de analex */
+\end{verbatim}
+\end{footnotesize}
+\end{ejemplo}
+
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{2.1, 2.2.3, 2.3.2 y 2.3.3}
+\refb{\cite{ASU90}}{3.1 y 3.4}
+\refb{\cite{Ben90}}{5.1}
+\refb{\cite{FL91}}{3.1 y 3.5}
+\end{rbib}
+
+\clearpage
+%\section{Ejercicios}
+\Ejercicios
+
+\begin{ejercicio}
+Dise\~nar
+un analizador l\'exico que utilice un DT construido a partir de
+las expresiones regulares de los patrones de los tokens involucrados
+en expresiones algebraicas (los operadores son ``\verb!*!'',
+``\verb!+!'', ``\verb!-!'', ``\verb!/!'', ``\verb!(!'' y ``\verb!)!'')
+en las que intervengan n\'umeros enteros y reales (en notaci\'on
+no exponencial) sin signo y variables expresadas mediante
+identificadores.
+
+Las expresiones regulares no triviales son:
+
+\begin{tabular}{ll}
+N\'umeros enteros:  &   d\'{\i}gito\(^{+}\) \\
+N\'umeros reales:   &   d\'{\i}gito\(^{+}\)( . d\'{\i}gito\(^{+}\))? \\
+Identificadores:    &   letra ( letra \hbox{$|$} d\'{\i}gito )*
+\end{tabular}
+\end{ejercicio}
+
+\begin{ejercicio}
+ Hacer lo mismo pero implement\'andolo ``a mano'' en C.
+\end{ejercicio}
+
+\begin{ejercicio}
+Dise\~nar un diagrama de transiciones determinista para reconocer los
+siguientes componentes l\'exicos:
+
+\labelsep1em
+\settowidth{\maxim}{{\bf opersum}}
+\addtolength{\maxim}{\labelsep}
+
+\begin{list}{}{ %\raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{{\bf #1}\hfill}}
+
+   \item[while] la palabra reservada ``{\tt while}'' (en min\'usculas).
+   \item[when] la palabra reservada ``{\tt when}'' (en min\'usculas).
+   \item[ident] cualquier secuencia de letras (may\'usculas y min\'usculas) y
+     d\'igitos que empiece por una letra, y que no coincida con ninguna de las
+     palabras reservadas.
+   \item[opersum] el s\'{\i}mbolo `{\tt +}'.
+   \item[opermul] el s\'{\i}mbolo `{\tt *}'.
+   \item[operinc] el s\'{\i}mbolo `{\tt ++}'.
+\end{list}
+%
+\end{ejercicio}
+
+
+\begin{ejercicio}
+Dise\~nar un diagrama de transiciones determinista para reconocer los
+siguientes componentes l\'exicos:
+\labelsep1em 
+\settowidth{\maxim}{{\bf opersum}}
+\addtolength{\maxim}{\labelsep}
+
+\begin{small}
+\begin{list}{}{ %\raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{{\bf #1}\hfill}}
+
+   \item[letras] cualquier secuencia de una o m\'{a}s
+                  letras (may\'{u}sculas y
+                  min\'{u}sculas);
+   \item[entero]  cualquier secuencia de uno o m\'{a}s d\'{\i}gitos;
+   \item[explos1] la palabra reservada ``{\tt bang}'' (en min\'usculas)
+   \item[explos2] la palabra reservada ``{\tt boom}'' (en min\'usculas)
+   \item[true] la secuencia ``{\tt :-)}''
+   \item[false] la secuencia ``{\tt :-(}''
+   \item[asignar] la secuencia ``{\tt :=}''
+\end{list}
+\end{small}
+\end{ejercicio}
+
+\begin{ejercicio}
+Dise\~nar un diagrama de transiciones determinista para reconocer los
+siguientes componentes l\'exicos:
+
+\labelsep1em \settowidth{\maxim}{{\bf opersum}}
+\addtolength{\maxim}{\labelsep}
+
+\begin{list}{}{ %\raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{{\bf #1}\hfill}}
+
+   \item[read] la palabra reservada `{\tt read}'.
+   \item[print] la palabra reservada `{\tt print}'.
+   \item[pradir] la palabra reservada `{\tt pradir}'.
+   \item[redir] la palabra reservada `{\tt redir}'.
+   \item[ident] cualquier secuencia de letras y d\'{\i}gitos que empiece por una
+    letra y no coincida con ninguna de las palabras reservadas.
+   \item[raya] el s\'{\i}mbolo `{\tt -}'.
+   \item[punto] el s\'{\i}mbolo `{\tt .}'.
+   \item[uno] el s\'{\i}mbolo `{\tt .----}'.
+   \item[dos] el s\'{\i}mbolo `{\tt ..---}'.
+\end{list}
+%
+E indíquese c\'{o}mo separa este analizador la secuencia de entrada \\
+``{\tt pradir6dire..--.-}''.
+\end{ejercicio}
+
+\newpage
+\thispagestyle{empty}
+~~
+

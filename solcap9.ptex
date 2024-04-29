@@ -1,0 +1,393 @@
+
+\section{Soluciones a los ejercicios del capítulo 9}
+
+\stepcounter{contcapitulo}
+\setcounter{contsoleje}{0}
+
+\begin{soleje}
+Dado el siguiente programa en C, dibújese el contenido del registro de
+activación de la función {\tt Pepito} (incluidas las variables
+temporales) en el momento inmediatamente
+anterior a la ejecución del {\tt return} (donde indica el comentario).
+\begin{small}
+\begin{verbatim}
+
+int Pepito(int a,float b)
+{
+  float c;
+
+  a = a+b;
+  c = 2.0*a;
+
+  /* aqui */
+  return c;
+}
+
+main()
+{
+  Pepito(7,3.9);
+}
+\end{verbatim}
+\end{small}
+
+\solucion
+
+\begin{center}
+\begin{tabular}{|lc|}\hline
+\multicolumn{2}{|c|}{(valor devuelto)}\\\hline
+\multicolumn{2}{|c|}{(dirección de retorno)} \\\hline
+\multicolumn{2}{|c|}{(\texttt{B} anterior)} \\\hline
+\texttt{a} & $10$ \\\hline
+\texttt{b} & $3.9$ \\\hline
+\texttt{c} & $20.0$ \\\hline
+$t_1$      & $2.0$ \\\hline
+$t_2$      & $10$  \\\hline
+$t_3$      & $10.0$ \\\hline
+$t_4$      & $20.0$ \\\hline
+\multicolumn{2}{|c|}{$\ldots$}    \\\hline
+\end{tabular}
+\end{center}
+
+Debe tenerse en cuenta que, aunque ``\verb!a!'' sea un argumento, es
+posible modificar su valor como si de una variable local se tratara.
+Las temporales que se muestran son únicamente las utilizadas en la
+asignación a ``\verb!c!'', ya que las de la primera asignación se
+habrán reutilizado en esta segunda asignación.
+\end{soleje}
+
+\begin{soleje}
+Dado el siguiente fragmento de programa en C, dibújese el contenido de los
+registros de activación  de las llamadas activas en
+el momento en que se va a ejecutar la instrucción {\tt return num;}
+{\em por tercera vez}. Indíquese en los registros solamente los
+valores de los parámetros y de las variables locales cuyo valor sea
+conocido. No hace falta especificar cuántas temporales se utilizan
+ni qué valor tienen. Se debe suponer que
+para la función {\tt main} no se crea un registro de activación.
+\begin{small}
+\begin{verbatim}
+int a;
+int potencia(int num,int aque)
+{
+   int uno,dos;
+   uno = aque/2;
+   dos = aque - uno;
+   if (aque == 0)      return 1;
+   else if (aque == 1) return num;
+   else                return potencia(num,uno)*potencia(num,dos);
+}
+main()
+{
+   a = 2+potencia(2,5);
+}
+\end{verbatim}
+\end{small}
+
+\solucion
+\begin{center}
+\begin{small}
+\begin{tabular}{|lc|l}\cline{1-2}
+\multicolumn{2}{|c|}{(valor devuelto)} & \\\cline{1-2}
+\multicolumn{2}{|c|}{(dirección de retorno)} &\\\cline{1-2}
+\multicolumn{2}{|c|}{(\texttt{B} anterior)} & \\\cline{1-2}
+\texttt{num} & $2$ & $\Rightarrow$ \texttt{potencia(2,5)} \\\cline{1-2}
+\texttt{aque} & $5$ & \\\cline{1-2}
+\texttt{uno} & $2$ &\\\cline{1-2}
+\texttt{dos} & $3$ &\\\cline{1-2}
+\multicolumn{2}{|c|}{$\ldots$}  &  \\\cline{1-2}
+\multicolumn{2}{|c|}{(valor devuelto)} & \\\cline{1-2}
+\multicolumn{2}{|c|}{(dirección de retorno)} &\\\cline{1-2}
+\multicolumn{2}{|c|}{(\texttt{B} anterior)} & \\\cline{1-2}
+\texttt{num} & $2$ & $\Rightarrow$ \texttt{potencia(2,3)} \\\cline{1-2}
+\texttt{aque} & $3$ &\\\cline{1-2}
+\texttt{uno} & $1$ &\\\cline{1-2}
+\texttt{dos} & $2$ &\\\cline{1-2}
+\multicolumn{2}{|c|}{$\ldots$}  &  \\\cline{1-2}
+\multicolumn{2}{|c|}{(valor devuelto)} & \\\cline{1-2}
+\multicolumn{2}{|c|}{(dirección de retorno)} &\\\cline{1-2}
+\multicolumn{2}{|c|}{(\texttt{B} anterior)} & \\\cline{1-2}
+\texttt{num} & $2$ & $\Rightarrow$ \texttt{potencia(2,1)} \\\cline{1-2}
+\texttt{aque} & $1$ &\\\cline{1-2}
+\texttt{uno} & $0$ &\\\cline{1-2}
+\texttt{dos} & $1$ &\\\cline{1-2}
+\multicolumn{2}{|c|}{$\ldots$} &   \\\cline{1-2}
+\end{tabular}
+\end{small}
+\end{center}
+\end{soleje}
+
+\begin{soleje}
+Escribir el código en \texttt{m2r} que se generaría para el siguiente fragmento
+de programa en C. 
+\begin{small}
+\begin{verbatim}
+int a;
+int RestaUno(int n) {
+  return n-1;
+}
+int factorial(int n) {
+  if (n>1) return n*factorial(RestaUno(n));
+  else return 1;
+}
+main() {
+   a = 2+factorial(5);
+}
+\end{verbatim}
+\end{small}
+
+\solucion
+\begin{small}
+\begin{verbatim}
+    jmp L1         ; salto al 'main'
+
+L2  ; comienza el código de 'RestaUno'
+    mov @B+0 @B+1  ; 'n' a una temporal
+    mov #1   @B+2  ; '1' a otra temporal
+    mov @B+1 A
+    subi @B+2
+    mov A    @B+3  ; 'n-1'
+    mov @B+3 @B-3  ; poner el valor devuelto
+    mov @B-2 A     ; coger dirección de retorno
+    jmp @A         ; salir de la función
+
+L3  ; comienza el código de 'factorial'
+    mov @B+0 @B+1 
+    mov #1   @B+2 
+    mov @B+1 A
+    gtri @B+2
+    mov A    @B+3  ; 'n>1'
+    mov @B+3 A    
+    jz L4          ; 'if (n>1)'
+    mov @B+0 @B+1  ; 'n*...'
+    ; llamada a 'factorial': se reserva de @B+2 a @B+5
+    ;   llamada a 'RestaUno' (de @B+6 a @B+9)
+    mov @B+0 @B+10 ; '...(n)'
+    mov @B+10 @B+9 ; primer parámetro de 'RestaUno'
+    mov B @B+8     ; guardar 'B' anterior
+    mov B A
+    addi #9
+    mov A B        ; poner nueva 'B'  (en @B+9)
+    mvetq L5 @B-2  ; guardar dirección de retorno
+    jmp L2         ; salto a 'RestaUno'
+L5  mov @B-1 B     ; dejar 'B' como estaba
+    ; fin llamada a 'RestaUno' (resultado en @B+6)
+    mov @B+6 @B+5  ; lo que devuelve 'RestaUno' es el
+                   ; parámetro de 'factorial'
+    mov B @B+4     ; guardar 'B' anterior
+    mov B A
+    addi #5
+    mov A B        ; poner nueva 'B' (en @B+5)
+    mvetq L6 @B-2  
+    jmp L3         ; llamada recursiva a 'factorial'
+L6  mov @B-1 B     ; dejar 'B' como estaba
+    ; fin llamada recursiva a 'factorial(RestaUno(n))' (resultado en @B+2)
+    mov @B+1 A
+    muli @B+2 
+    mov A @B+3     ; 'n (@B+1) * factorial ... (@B+2)'
+    mov @B+3 @B-3 
+    mov @B-2 A
+    jmp @A         ; 'return factorial(...'
+    jmp L7         ; fin de la primera parte del 'if'
+L4  mov #1 @B+4    ; 'else return 1'
+    mov @B+4 @B-3
+    mov @B-2 A
+    jmp @A
+L7  mov @B-2 A     ; retorno por defecto
+    jmp @A 
+
+L1  ; comienza el código del programa principal
+    mov #10000 B   ; las temporales y los RA empiezan en la 10000
+    mov #2 @B+0    ; '2+...'
+    ; llamada a 'factorial(5)': se reserva de @B+1 a @B+4
+    mov #5 @B+5
+    mov @B+5 @B+4  ; primer parámetro de 'factorial'
+    mov B @B+3     ; guardar 'B' anterior
+    mov B A
+    addi #4
+    mov A B        ; poner nueva 'B' (en @B+4)
+    mvetq L8 @B-2
+    jmp L3         ; llamada a 'factorial'
+L8  mov @B-1 B     ; dejar 'B' como estaba
+    ; fin llamada a 'factorial(5)' (resultado en @B+1)
+    mov @B+0 A    
+    addi @B+1
+    mov A @B+2     ; '2+factorial(5)'
+    mov @B+2 100   ; suponiendo que 'a' está en la dirección 100
+    halt
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+\begin{soleje}
+Escribir el código en \texttt{m2r} que generaría un compilador 
+para el siguiente fragmento de programa en C. 
+Indíquese también qué valor se almacena en la variable \verb+a+ declarada
+en la función \verb+main+. Debe suponerse que la función \verb+main+ no
+tiene registro de activación (al estilo del programa principal en Pascal), 
+aunque en C sea una función más.
+\begin{small}
+\begin{verbatim}
+float Abs(float f)
+{
+  if (f<0)
+     return -f;
+  else
+     return f;
+}
+char Suma(int i,float f)
+{
+   int a[2][5];
+
+   a[1][3] = Abs(i+f);
+   return a[1][3];
+}
+main() {
+   int a;
+   a = Suma(10.987,1024);
+}
+\end{verbatim}
+\end{small}
+
+\solucion
+\begin{small}
+\begin{verbatim}
+    jmp L1          ; salto a 'main'
+
+L2  ; código de 'Abs'
+    mov @B+0 @B+1   ; 'f' a una temporal
+    mov #0   @B+2
+    mov @B+2 A
+    itor 
+    mov A @B+3      ; convertir el '0' en '0.0'
+    mov @B+1 A
+    lssr @B+3
+    mov A @B+4      ; 'f<0'
+    mov @B+4 A
+    jz L3           ; 'if (...'
+    mov @B+0 @B+5
+    mov $0.0 A
+    subr @B+5
+    mov A @B+6      ; '-f'
+    mov @B+6 @B-3
+    mov @B-2 A
+    mov @B-1 B      ; en este ejercicio se restaura la 'B'
+                    ; en el código de la función llamada
+    jmp @A          ; 'return -f'
+    jmp L4
+L3  mov @B+0 @B+7
+    mov @B+7 @B-3
+    mov @B-2 A
+    mov @B-1 B
+    jmp @A          ; 'return f'
+L4  mov @B-2 A      ; retorno por defecto
+    mov @B-1 B
+    jmp @A
+
+L5  ; código de 'Suma'  (el array 'a' va de @B+2 a @B+11)
+    mov #0 @B+12    ; desplazamiento 'a'
+    mov #1 @B+13    ; '[1]'
+    mov @B+12 A
+    muli #2
+    addi @B+13    
+    mov A @B+14     ; desplazamiento 'a[1]'
+    mov #3 @B+15    ; '[3]'
+    mov @B+14 A
+    muli #5
+    addi @B+15
+    mov A @B+16     ; desplazamiento 'a[1][3]'
+    ; llamada a 'Abs': se reserva de @B+17 a @B+20
+    mov @B+0 @B+21  ; 'i' a una temporal
+    mov @B+1 @B+22  ; 'f' a otra temporal
+    mov @B+21 A
+    itor 
+    mov A @B+23     ; convertir 'i' a real
+    mov @B+23 A
+    addr @B+22
+    mov A @B+24     ; 'i+f'
+    mov @B+24 @B+20 ; poner primer parámetro
+    mov B @B+19     ; guardar 'B' anterior
+    mov B A
+    addi #20 
+    mov A B         ; poner nueva 'B' (en @B+20)
+    mvetq L6 @B-2
+    jmp L2
+L6  ; fin llamada a 'Abs' (resultado en @B+17)
+    mov @B+17 A
+    rtoi
+    mov A @B+18     ; convertir a entero para asignarlo a 'a[1][3]'
+    mov @B+16 A
+    muli #1         ; multiplicar por el tamaño del tipo entero 
+    addi B
+    addi #2         ; calcular dirección completa de 'a[1][3]'
+    mov @B+18 @A    ; 'a[1][3] = Abs(i+f)'
+    ; segunda instrucción 'return a[1][3]', se reciclan las temporales
+    mov #0 @B+12    ; desplazamiento 'a'
+    mov #1 @B+13    ; '[1]'
+    mov @B+12 A
+    muli #2
+    addi @B+13    
+    mov A @B+14     ; desplazamiento 'a[1]'
+    mov #3 @B+15    ; '[3]'
+    mov @B+14 A
+    muli #5
+    addi @B+15
+    mov A @B+16     ; desplazamiento 'a[1][3]'
+    mov @B+16 A
+    muli #1         ; multiplicar por el tamaño del tipo entero 
+    addi B
+    addi #2         ; dirección completa de 'a[1][3]'    
+    mov @A @B+17    ; poner el valor contenido en 'a[1][3]' en una temporal
+    mov @B+17 A
+    modi #256
+    mov A @B+18     ; convertir el entero 'a[1][3]' en 'char',
+    mov @B+18 @B-3  ; porque 'Suma' devuelve 'char'
+    mov @B-2 A
+    mov @B-1 B
+    jmp @A          ; retornar desde 'Suma'
+
+L1  ; código del programa principal
+    mov #10000 B
+    mov #0 @B+0      ; desplazamiento de 'a'
+    ; llamada a 'Suma': se reserva de @B+1 a @B+5
+    mov $10.987 @B+6
+    mov @B+6 A       ; como 'i' es entero, hay que convertir
+    rtoi             ; el '10.987' a entero
+    mov A @B+7       
+    mov @B+7 @B+4    ; poner el primer parámetro
+    mov #1024 @B+8   
+    mov @B+8 A       ; lo contrario sucede con 'f' (real) y '1024' (entero)
+    itor
+    mov A @B+9
+    mov @B+9 @B+5    ; poner el segundo parámetro
+    mov B @B+3       ; guardar 'B' anterior
+    mov B A
+    addi #4
+    mov A B          ; poner nueva 'B' (en @B+4)
+    mvetq L7 @B-2
+    jmp L5           ; salto a 'Suma'
+L7  ; fin llamada a 'Suma' (resultado en @B+1, como real)
+    mov @B+1 A
+    rtoi
+    mov A @B+2       ; convertir a entero porque se va a asignar a 'a'
+    mov @B+0 A
+    muli #1          ; multiplicar por el tamaño del tipo entero 
+    addi #100        ; calcular dirección completa de 'a' (100)
+    mov @B+2 @A      ; 'a = Suma(...)'
+    halt
+\end{verbatim}
+\end{small}
+
+\paragraph{Notas:}
+\begin{enumerate}
+\item En este ejercicio se restaura el valor anterior de 'B' en el
+código de la función llamada, mientras que en el ejercicio anterior esto
+se hace en el código de la función llamadora.
+\item Se supone que la variable \verb!a! declarada en la función \texttt{main} es global, y 
+  su dirección es $100$.
+\item En la llamada ``\verb!Suma(10.987,1024)!'', $10.987$ se convierte 
+en $10$ (el valor que tendrá ``\verb!i!''), y $1024$ en $1024.0$ (el valor
+de ``\verb!f!''). La suma ``\verb!i+f!'' vale $1034$, pero como la función 
+devuelve un ``\verb!char!'', ese $1034$ se convierte en $10$, que es lo
+que finalmente se almacena en 'a'.
+\end{enumerate}
+\end{soleje}

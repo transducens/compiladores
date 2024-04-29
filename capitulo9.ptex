@@ -1,0 +1,1927 @@
+
+%-------------- comandos varios (J.A. Pérez) ----------------------------
+\newenvironment{ejcode}{\begin{quote}\begin{small}}%
+                       {\end{small}\end{quote}}
+\newcommand{\ejinline}[1]{{\small \tt #1}}
+
+\newcommand{\cl}{\cline{2-2}}
+
+\newcommand{\note}[1]{\textsf{\small $\rightarrow$ #1}}
+
+\renewcommand{\floatpagefraction}{1}
+\renewcommand{\topfraction}{1}
+\renewcommand{\bottomfraction}{0}
+\renewcommand{\textfraction}{0}
+
+\doublehyphendemerits=100000  % No consecutive line hyphens
+\brokenpenalty=10000          % No broken words across columns/pages
+\widowpenalty=10000           % No widows at bottom of page
+\clubpenalty=10000            % No orphans at top of page
+
+%-----------------------------------------------------------------------
+
+\section{Introducción}
+
+En el capítulo anterior se explica cómo se implementan en un compilador
+elementos tan importantes como variables,
+instrucciones de control, registros o arrays. Hay, sin embargo, un
+aspecto que aún no hemos tratado explícitamente y que constituye una
+parte fundamental de muchos compiladores: el \emph{entorno de
+ejecución}.\footnote{El entorno de ejecución
+(\emph{runtime environment}) viene dado
+por la estructura de memoria (incluyendo los registros de la unidad
+central de proceso, si los hubiera) y la forma de gestionarla
+que permite desarrollar adecuadamente el proceso
+de ejecución de un programa.} 
+Aunque este entorno condiciona elementos
+tan importantes de muchos lenguajes como la gestión de la memoria
+dinámica o la implementación de ámbitos, 
+en este capítulo lo abordaremos únicamente desde el punto de
+vista de su aplicación a la gestión de funciones y procedimientos.
+
+El entorno de ejecución, 
+en cualquier caso, no es nuevo para nosotros. Hasta ahora,
+hemos asumido la existencia de un
+determinado entorno de ejecución; la novedad es que su gestión se
+complica cuando queremos que el lenguaje permita el uso de
+funciones y procedimientos.
+
+Antes de continuar, debemos señalar que en lo sucesivo
+utilizaremos el término \emph{función} para referirnos en general
+tanto a 
+\emph{procedimientos} como a
+\emph{funciones}. Un procedimiento puede considerarse como una
+forma sencilla de función en la que no se devuelve valor alguno. 
+La adaptación de lo discutido aquí para funciones
+al caso de los procedimientos es, por lo tanto, inmediata.
+
+El diseñador de un compilador debe
+plantearse tres aspectos fundamentales del
+diseño del esquema de tratamiento de funciones:
+la organización de la memoria en tiempo de ejecución (normalmente
+impuesta por el lenguaje), la compilación del cuerpo de las funciones,
+y la compilación de las llamadas a funciones. Lo veremos en este capítulo.
+
+
+\subsection{El entorno de ejecución}
+
+Los libros de programación suelen
+distinguir dos zonas en el entorno de ejecución de un programa: la
+zona de \emph{datos} y la zona de 
+\emph{código}; esta última suele permanecer
+inalterada durante la ejecución y, por ello, es posible conocer en
+tiempo de compilación la dirección de cada instrucción del código
+ejecutable, en
+especial el punto de comienzo de cada función. 
+
+Lo anterior no suele ser del todo cierto para la zona de datos: 
+pensemos en un lenguaje como C en el que se pueden definir funciones
+recursivas con variables locales; en un determinado instante de la
+ejecución de un programa pueden coexistir varias \emph{instancias} de
+una misma función y cada una de ellas debe almacenar sus 
+argumentos y sus variables locales
+en una posición diferente de la memoria. No hay, en consecuencia, una
+relación biunívoca entre variables y posiciones de memoria
+en este caso:
+los únicos datos
+que tienen una posición única en memoria son las
+variables globales y las estáticas.
+
+Los entornos de
+ejecución utilizados en la gran mayoría 
+de los lenguajes de programación pueden clasificarse en las tres
+siguientes categorías:
+\begin{itemize}
+\item {\bf Entornos completamente estáticos} en los que
+  la dirección exacta de cada
+  dato se conoce en tiempo de compilación;\footnote{Los 
+    sistemas operativos actuales exigen normalmente que los
+    programas del usuario sean \emph{reubicables}, es decir, que todas
+    las direcciones de memoria sean relativas a una 
+    \emph{dirección base}
+    asignada por el sistema operativo antes de cada ejecución. Un
+    entorno completamente estático no es incompatible con este modelo:
+    en este caso, son los desplazamientos relativos los que se conocen
+    en tiempo de compilación.} FORTRAN~77,
+  por ejemplo, utiliza un entorno de este tipo.
+\item {\bf Entornos basados en pila}, requeridos por lenguajes como
+  C, C++, Pascal o Ada, en los que
+  los datos se almacenan en una pila en memoria; a menudo, la
+  arquitectura de la máquina objeto facilita el uso de esta pila
+  mediante instrucciones o registros especiales.
+\item {\bf Entornos completamente dinámicos} en los que tanto el
+  código como los datos pueden modificarse durante la ejecución del
+  programa; esto permite a lenguajes (normalmente interpretados)
+  como Lisp o Prolog la generación
+  dinámica de funciones y la modificación de las existentes durante la
+  ejecución del programa.
+\end{itemize}
+Evidentemente, también son posibles enfoques híbridos, que aunen
+características de más de una de las categorías anteriores.
+
+Un entorno completamente estático no permite, en general, la
+definición de funciones recursivas debido a varias razones,
+entra las que está la imposibilidad de
+determinar de antemano cuántas instancias de cada función
+pueden coexistir durante la ejecución del programa
+para, de esta forma, reservar espacio suficiente en memoria
+para los símbolos utilizados en cada una de ellas
+(variables locales, variables temporales y parámetros de la función);
+además, al compilar el cuerpo de la función no sabríamos qué
+dirección asignar a los símbolos locales, puesto que es posible que se
+utilicen en varias instancias de la función.
+Un entorno basado en pila, por otro lado, sí que permite la
+ejecución de funciones recursivas, ya que cada vez que se llama a una
+función se reserva espacio en la pila para sus variables,
+espacio que se libera adecuadamente cuando la función 
+termina.\footnote{Un aspecto de algunos 
+lenguajes que complica
+ligeramente la implementación de un entorno basado en pila es el relacionado
+con la declaración anidada de funciones; lo
+trataremos más adelante.}
+
+Aunque la política de gestión de una pila es adecuada para la reserva
+de memoria de las variables asociadas a una función, no lo
+es para el caso de la gestión de la 
+\emph{memoria dinámica}, un aspecto de los lenguajes
+de programación que no trataremos en este libro. Nótese cómo 
+en este caso no hay un
+orden preestablecido entre la memoria reservada dinámicamente y su
+liberación; normalmente se
+reserva una zona especial denominada \emph{montículo}
+(\emph{heap})\footnote{No confundir con el tipo abstracto de datos
+  homónimo con el que no guarda ninguna relación.} para los bloques
+de memoria reservados dinámicamente.
+
+
+\subsection{Registro de activación}
+
+Con lo discutido anteriormente queda claro que hay un conjunto de
+datos asociados a cada función\footnote{En general, a cada 
+  \emph{llamada a función}, 
+  pero en eso entraremos más adelante.} que deben ser
+guardados en algún lugar de la memoria. Estos datos incluyen: los
+parámetros de la función, 
+las variables locales y
+temporales, el valor devuelto,
+ y unos cuantos valores adicionales
+que deben salvaguardarse antes de que
+la función se ejecute y restaurarse a su finalización;
+dentro de este último grupo es de especial importancia la 
+\emph{dirección de
+retorno},
+ que indica la dirección de la instrucción siguiente 
+a la instrucción de salto que llama
+a la función y a la que debe hacerse un salto al terminar esta
+para que la ejecución continue tras el punto de llamada.
+Se denomina \emph{registro de activación} (RA)
+(\emph{activation record}) a la estructura 
+en memoria que guarda estos datos. Un
+ejemplo de RA puede verse en la figura~\ref{fig-ragen}.
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{|c|}
+\hline valor devuelto \\
+\hline dirección de retorno \\
+\hline $\cdots$ \\
+\hline parámetros \\ \vdots \\
+\hline datos locales \\ \vdots \\
+\hline temporales locales \\ \vdots \\
+\hline
+\end{tabular}
+\end{small}
+\caption{Modelo general de registro de activación (RA). El orden de
+distribución de los distintos elementos en el RA puede variar de un
+compilador a otro.}\label{fig-ragen}
+\end{center}
+\end{figure}
+
+Algunas zonas del RA tienen el mismo tamaño para todas las funciones; otras,
+como las reservadas a parámetros, variables locales y temporales, pueden
+tener tamaños diferentes para cada función. El RA se almacena de manera
+distinta según la organización del entorno de ejecución del lenguaje: 
+así, el RA se guarda en el área estática en FORTRAN 77; en la pila en C o
+Pascal; y en el montículo en el caso de lenguajes como Lisp. Cuando el RA se
+guarda en la pila de ejecución (el caso más común), también se le conoce
+como \emph{marco de pila} (\emph{stack frame}).
+
+
+\subsection{Secuencias de llamada y retorno}
+
+Una parte importante en el diseño de un entorno de ejecución 
+relacionada con el procesamiento de funciones es la
+especificación de la secuencia de pasos que se producen cuando se invoca una
+función y el orden en que estos se ejecutan. Esta serie de pasos tienen
+lugar siempre, independientemente del contenido de la función
+correspondiente, y es habitual dividirlos en dos categorías, según el
+momento en el que tienen lugar: secuencia de llamada (\emph{call
+sequence}) y secuencia de retorno (\emph{return sequence}).
+
+La \emph{secuencia de llamada}
+se produce antes de la ejecución del código del
+cuerpo de la función y es responsable de cosas como la reserva de memoria
+para el RA, el almacenamiento de la dirección de retorno,
+el cálculo y almacenamiento de los parámetros, y la asignación
+de valores a los registros necesarios.\footnote{En determinadas
+arquitecturas es habitual que en la secuencia de llamada 
+se salvaguarde también
+el contenido de todos los registros de la unidad central de proceso; el
+repertorio de instrucciones suele tener una instrucción para hacerlo.} 
+La \emph{secuencia de retorno} se produce
+cuando la función acaba y se encarga, entre otras cosas, de almacenar
+en el lugar adecuado el valor devuelto por la función y devolver el control
+al punto de llamada.
+
+Determinadas tareas de ambas secuencias pueden realizarse tanto en el
+llamador como en la función invocada. La implementación en la parte del
+llamador, sin embargo, 
+sobrecarga excesivamente el tamaño del
+código objeto al repetirse el mismo código en cada punto de invocación a una
+función.
+
+
+\subsection{Comprobaciones semánticas}
+
+Hay una serie de comprobaciones semánticas que deben realizarse en el ETDS
+cuando trabajamos con funciones:
+\begin{itemize}
+\item Las comprobaciones básicas son asegurar que no se utilizan paréntesis
+con identificadores que no son funciones y, a la inversa, que no se
+utilizan 
+como variables identificadores que corresponden a funciones. Algunos
+lenguajes como C pueden relajar este último requisito.
+\item Cuando se invoca una función, el número de argumentos ha de coincidir
+con el indicado en su declaración. De nuevo, en algunos lenguajes como
+C esto puede no ser obligatorio.
+\item Según la especificación del lenguaje en 
+lo referente al tratamiento de los
+tipos, debe comprobarse la equivalencia
+entre los tipos declarados para los argumentos de la función y los
+utilizados en la invocación y realizar, en su caso, las conversiones de tipo
+adecuadas. Esta conversión también deberá realizarse en el caso del
+valor devuelto por la función.
+\end{itemize}
+
+
+\subsection{Implementación con m2r}
+\label{ss-m2r1}
+
+A continuación se muestra el código de la máquina
+virtual 
+\ejinline{m2r}
+que implementa algunos de los pasos de las secuencias de
+llamada y retorno, asumiendo un entorno de ejecución estático como el
+que se discutirá en la sección~\ref{ss-sin}
+
+El comienzo del código objeto de cada función en memoria
+viene indicado por una etiqueta. Supongamos que estamos compilando el
+programa en C de la figura~\ref{fig-progC1},
+que define dos funciones, \texttt{g1} y \texttt{g2},
+y el cuerpo principal\footnote{Los compiladores de C tratan la
+  función \emph{main} como una función más; en este capítulo, sin embargo,
+  la consideraremos como un programa principal a la manera de Pascal.} 
+o punto
+de entrada del programa.
+
+\begin{figure}
+\begin{center}
+\begin{ejcode}
+\begin{verbatim}
+int a;
+int g1 () 
+{
+  return 10;
+}
+int g2 (int a,int b) 
+{
+  int x,y,z;
+  return a*b;
+} 
+main ()
+{
+  a=g2(3,5);
+}
+\end{verbatim}
+\caption{Programa fuente en C utilizado en los ejemplos 
+del apartado~\ref{ss-m2r1}.}\label{fig-progC1}
+\end{ejcode}
+\end{center}
+\end{figure}
+
+La distribución del código en memoria es la que se
+muestra en la figura~\ref{fig-jmpL3}. Como puede verse, es necesario que la
+primera instrucción del código objeto salte sobre la zona de código de las
+funciones hasta la etiqueta donde comienza el programa principal.
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl & \ejinline{jmp L3} \\
+\cl \ejinline{L1} & código de \ejinline{g1} \\ 
+          & \vdots \\
+\cl \ejinline{L2} & código de \ejinline{g2} \\
+          & \vdots \\
+\cl \ejinline{L3} & programa principal \\
+          & \vdots \\
+\cl
+\end{tabular}
+\end{small}
+\caption{La instrucción de salto al comienzo del código permite saltar sobre
+el código de las funciones y acceder al programa
+principal.}\label{fig-jmpL3}
+\end{center}
+\end{figure}
+
+Si los RA siguen el formato indicado en la figura~\ref{fig-ragen} y 
+suponemos que el RA de
+la función \ejinline{g2} comienza en la posición de memoria 100, la
+dirección
+de retorno tendrá que ser almacenada por el llamador (dentro de la
+función~\ejinline{main}) en la posición~101,
+como puede verse en la figura~\ref{fig-raf1}. El código que ha de ejecutar el
+llamador, por tanto, será similar a:
+\begin{ejcode}
+\begin{verbatim}
+   mvetq L4 101
+   jmp L2
+L4 ...
+\end{verbatim}
+\end{ejcode}
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl 
+100 & valor devuelto \\
+\cl 
+101 & dirección de retorno \\
+\cl 102 & parámetro \ejinline{a} \\ 
+                & parámetro \ejinline{b} \\
+\cl 104 & variable local \ejinline{x} \\
+                & variable local \ejinline{y} \\
+                & variable local \ejinline{z} \\
+\cl 107 & temporales locales \\
+                & \vdots \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Ejemplo de RA para la función~\ejinline{g2} del código de la
+  figura~\ref{fig-progC1}. Se asume que todos los datos ocupan una
+  posición de memoria, independientemente de su tipo.}\label{fig-raf1}
+\end{center}
+\end{figure}
+
+El código que sigue a L4 se encargará de recoger del lugar 
+correspondiente del RA el valor devuelto por
+la función y almacenarlo donde
+corresponda; en este caso, en la dirección de la variable global 
+\ejinline{a}
+que, por ahora, indicaremos mediante \ejinline{d(a)}:
+\begin{ejcode}
+\begin{verbatim}
+L4 mov 100 d(a) 
+\end{verbatim}
+\end{ejcode}
+
+El código de la función \ejinline{g2} se encargará de multiplicar el
+valor de los parámetros 
+\ejinline{a} y 
+\ejinline{b}, guardar el resultado en una
+temporal (las temporales
+se situan a partir de la dirección de memoria 107),
+\begin{ejcode}
+\begin{verbatim}
+   mov 102 107
+   mov 103 108
+   mov 107 A
+   muli 108
+   mov A 109
+\end{verbatim}
+\end{ejcode}
+y, finalmente, como parte de la secuencia de retorno, copiar el valor de
+esa temporal en la zona del RA reservada para el valor devuelto y
+saltar a la etiqueta de retorno (que, en este caso, es \ejinline{L4}
+y está almacenada en el RA en la dirección~101):
+\begin{ejcode}
+\begin{verbatim}
+   mov 109 100
+   mov 101 A
+   jmp @A
+\end{verbatim}
+\end{ejcode}
+
+
+\subsection{Valor devuelto}
+
+La manera de determinar el valor devuelto 
+por una función depende del lenguaje de
+programación considerado. Así, C utiliza la instrucción \ejinline{return}
+seguida de la expresión cuyo valor se ha de devolver (si lo hay); 
+por otro lado, 
+lenguajes como Pascal
+consideran que el valor a devolver es el último asignado a una
+variable cuyo nombre coincide con el de la función (variable 
+que se declara implícitamente). El siguiente código
+muestra cómo quedaría en Pascal una función equivalente a la función
+\ejinline{g2} de la figura~\ref{fig-progC1}:
+\begin{ejcode}
+\begin{verbatim}
+function g2 (a: integer; b:integer) : integer;
+  var x,y,z: integer;
+  begin
+    g2 := a*b
+  end
+\end{verbatim}
+\end{ejcode}
+
+
+\subsection{Gestión de la tabla de tipos}
+\label{ss-tt}
+
+El tipo de una función viene definido por el tipo de cada uno de sus
+argumentos junto al tipo del valor devuelto. Siguiendo con la notación
+definida en el capítulo anterior para caracterizar los tipos de datos,
+una función definida como
+\begin{ejcode}
+\begin{verbatim}
+float foo (int i,float f,char c)
+\end{verbatim}
+\end{ejcode}
+se representaría mediante la expresión de tipos
+\begin{ejcode}
+\ejinline{int} $\times$ \ejinline{float} $\times$ 
+\ejinline{char} $\longrightarrow$ \ejinline{float}
+\end{ejcode}
+
+La tabla de tipos almacena el tipo de los argumentos como una sucesión
+de productos cartesianos, como puede estudiarse en la
+figura~\ref{fig-ttex}. El campo \emph{Tipo base/Argumento} indica la
+entrada anterior del producto cartesiano o el tipo del primer
+argumento; el campo \emph{Argumento/Retorno} guarda el tipo de los
+argumentos posteriores y, en el caso de la última entrada, el
+tipo del valor devuelto por la función.
+
+\begin{figure}
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|c|l|c|c|ll}
+\cline{1-4}
+{\sc Entrada} & {\sc Tipo} & {\sc T. base/} & 
+{\sc Arg./} & & \\
+ & & {\sc Arg.} & {\sc Ret.} & & \\
+\hhline{:====:}
+0 & entero & & \\ \cline{1-4}
+1 & real & & \\ \cline{1-4}
+2 & carácter & & \\ \cline{1-4}
+3 & prod. cartesiano & 0 & 2 & & 
+  \ejinline{\footnotesize int $\times$ float} \\ 
+\cline{1-4}
+4 & prod. cartesiano & 3 & 1 & & 
+  \ejinline{\footnotesize (int $\times$ float) $\times$
+  char} \\ 
+\cline{1-4}
+5 & función & 4 & 1 & & 
+  \ejinline{\footnotesize [(int $\times$ float) $\times$
+  char] $\rightarrow$ float} \\ 
+\cline{1-4}
+\end{tabular}
+\end{footnotesize}
+\caption{Tabla de tipos para la función \ejinline{foo} del 
+apartado~\ref{ss-tt}.}\label{fig-ttex}
+\end{center}
+\end{figure}
+
+La tabla de símbolos contendrá en este caso una entrada para
+\ejinline{foo} con tipo~5, que 
+se corresponde con el registro número~5 de la tabla de tipos
+de la figura~\ref{fig-ttex}. Además, un nuevo campo de la tabla
+de símbolos servirá para almacenar
+la dirección o etiqueta de comienzo del código de cada función.
+
+La política para tratar las variables locales de funciones 
+en la tabla de símbolos
+es muy parecida a la mostrada en el capítulo anterior para el tratamiento
+de las declaraciones de variables dentro de ámbitos: los
+ argumentos y variables locales de cada función se van guardando 
+ en la tabla
+ de símbolos conforme se procesa su declaración 
+ y el espacio que ocupan
+ se recupera cuando finaliza la
+ compilación de la función; más adelante se muestra un ejemplo de esto.
+
+
+\subsection{Parámetros y argumentos}
+
+Aunque en muchos casos se puede usar indistintamente un término u
+otro, conviene mencionar aquí que un argumento y un parámetro no son
+exactamente lo mismo. Los \emph{argumentos} forman parte de la
+definición de la función, mientras que los \emph{parámetros} son los
+valores reales indicados para ellos en la llamada a la función. La
+función \ejinline{foo} del apartado~\ref{ss-tt} tiene tres argumentos y
+una llamada como \ejinline{foo(0,0,'a')} 
+tiene tres parámetros.
+
+
+\section{Funciones sin recursividad}
+\label{ss-sin}
+
+Un entorno de ejecución completamente estático es adecuado para
+lenguajes que no permiten punteros,
+ni reserva dinámica de memoria, ni (lo que aquí
+nos importa) \emph{recursividad} en las 
+funciones.\footnote{Cuando en este capítulo nos refiramos
+  de forma general a \emph{recursividad}, lo haremos tanto en el
+  sentido de recursividad \emph{directa} (una función se llama a sí
+  misma), como en el de recursividad \emph{indirecta} (una secuencia de
+  llamadas entre distintas funciones termina generando una llamada a
+  la función inicial).} La memoria de 
+datos se organiza en este caso de manera que se reserva
+una zona para los datos globales\footnote{En el lenguaje C los datos
+globales son la variables globales propiamente dichas y
+  las variables de tipo \emph{static}.} 
+y una zona para el RA de cada función definida en
+el programa. 
+Un programa fuente suele presentar intercaladas 
+declaraciones de variables
+globales y de funciones, como ocurre en el programa de la 
+figura~\ref{fig-progC2}. 
+Si la compilación se hace en una sola pasada,
+lo normal es que
+también aparezcan intercalados en memoria espacios para los datos globales y
+para los RA correspondientes; la figura~\ref{fig-compl} muestra la
+disposición en memoria de estos elementos.
+
+\begin{figure}
+\begin{center}
+\begin{ejcode}
+\begin{verbatim}
+int a;
+int f1 (int b) 
+{
+  int c;
+  c=b*b;
+  return c;
+}
+int b;
+int f2 (int a,int b) 
+{
+  int c;
+  c=f1(a)+f1(b);
+  return c;
+} 
+int c;
+main ()
+{
+  a=7;
+  a=f2(a,3);
+}
+\end{verbatim}
+\caption{Programa fuente en C utilizado en el
+apartado~\ref{ss-sin}.}\label{fig-progC2}
+\end{ejcode}
+\end{center}
+\end{figure}
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl
+\cl & variable global \ejinline{a} \\ 
+\cl & RA de \ejinline{f1} \\
+    & \vdots \\
+\cl & variable global \ejinline{b} \\
+\cl & RA de \ejinline{f2} \\
+    & \vdots \\
+\cl & variable global \ejinline{c} \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Distribución en memoria del programa de la 
+figura~\ref{fig-progC2} en un entorno
+completamente estático.}\label{fig-compl}
+\end{center}
+\end{figure}
+
+El código objeto generado para el programa de la figura~\ref{fig-progC2}
+y la máquina \ejinline{m2r} se muestra
+profusamente comentado
+en la figura~\ref{fig-progm2r1}.
+Con todo lo discutido hasta aquí en este capítulo
+y con ayuda de la figura~\ref{fig-memo} (una versión más detallada
+de la figura~\ref{fig-compl}), este código no debería
+plantear grandes dificultades para su comprensión.
+
+
+\begin{figure}
+\begin{center}
+\begin{quote}
+\begin{footnotesize}
+\begin{verbatim}
+      jmp L1     ; salta al programa principal
+      ; -------------------- código de f1:
+  L2  mov 3 5    ; t1=b
+      mov 3 6    ; t2=b
+      mov 5 A
+      muli 6     ; b*b
+      mov A 7    ; t3=b*b
+      mov 7 4    ; c=t3
+      mov 4 5    ; t1=c
+      mov 5 2    ; valor devuelto=t1
+      mov 1 A     
+      jmp @A     ; return c
+      ; -------------------- código de f2:
+  L3  mov 11 14  ; t1=a
+      mov 14 3   ; parámetro b de f1=t1
+      mvetq L4 1 ; guarda etiqueta de retorno
+      jmp L2     ; salta al código de f1
+  L4  mov 2 15   ; t2=valor devuelto por f1
+      mov 12 16  ; t3=b
+      mov 16 3   ; parámetro b de f1=t3
+      mvetq L5 1 ; guarda etiqueta de retorno
+      jmp L2     ; salta al código de f1
+  L5  mov 2 17   ; t4=valor devuelto por f1
+      mov 15 A    
+      addi 17    ; f1(a)+f1(b)
+      mov A 18   ; t5=f1(a)+f1(b)
+      mov 18 13  ; c=t5
+      mov 13 14  ; t1=c
+      mov 14 10  ; valor devuelto=t1
+      mov 9 A    
+      jmp @A     ; return c
+      ; ------------------- código del programa principal:
+  L1  mov #7 15000  ; t1=7
+      mov 15000 0   ; a=7
+      mov 0 15000   ; t1=a
+      mov 15000 11  ; parámetro a de f2=t1
+      mov #3 15001  ; t2=3
+      mov 15001 12  ; parámetro b de f2=t2
+      mvetq L6 9    ; guarda etiqueta de retorno
+      jmp L3        ; salta al código de f2
+  L6  mov 10 15002  ; t3=valor devuelto por f2
+      mov 15002 0   ; a=f2(a,3)
+      halt
+\end{verbatim}
+\end{footnotesize}
+\end{quote}
+\end{center}
+\caption{Código objeto para \ejinline{m2r} del programa de la 
+figura~\ref{fig-progC2}
+bajo un entorno de ejecución estático.}\label{fig-progm2r1}
+\end{figure}
+
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|p{0.25cm}c}
+\cl 0 & variable global \ejinline{a} \\
+\cl \cline{4-4} 1 & etiqueta de retorno \\
+\cl 2 & valor devuelto & & $\uparrow$ \\
+\cl 3 & parámetro \ejinline{b} \\
+\cl 4 & variable local \ejinline{c} & & RA de \ejinline{f1} \\
+\cl 5 & temporal \ejinline{t1} \\
+\cl 6 & temporal \ejinline{t2} & & $\downarrow$ \\
+\cl 7 & temporal \ejinline{t3} \\
+\cl \cline{4-4} 8 & variable global \ejinline{b} \\
+\cl \cline{4-4} 9 & etiqueta de retorno \\
+\cl 10 & valor devuelto & & $\uparrow$ \\
+\cl 11 & parámetro \ejinline{a} \\
+\cl 12 & parámetro \ejinline{b} \\
+\cl 13 & variable local \ejinline{c} & & RA de \ejinline{f2} \\
+\cl 14 & temporal \ejinline{t1} \\
+\cl 15 & temporal \ejinline{t2} \\
+\cl 16 & temporal \ejinline{t3} \\
+\cl 17 & temporal \ejinline{t4} & & $\downarrow$ \\
+\cl 18 & temporal \ejinline{t5} \\
+\cl \cline{4-4} 19 & variable global \ejinline{c}  \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Versión detallada del mapa de 
+memoria de la figura~\ref{fig-compl}.}\label{fig-memo}
+\end{center}
+\end{figure}
+
+Dado que las declaraciones se suelen procesar en el orden en el que se
+definen en el programa fuente, es posible conocer cuando se termina de
+compilar una función el espacio requerido para sus temporales, que
+corresponderá con el máximo número de temporales utilizadas en una
+instrucción. Este dato se usa para determinar el espacio ocupado por el RA
+de la función correspondiente.
+
+Solo nos queda estudiar la gestión de la tabla de símbolos durante la
+compilación del programa anterior. Como ya se ha dicho, 
+el cuerpo de la función se considera como un ámbito 
+y los argumentos de la función y sus variables locales
+se incluyen en la tabla de símbolos mediante una política idéntica a la
+estudiada en el capítulo anterior para el manejo de ámbitos: se insertan en la
+tabla de símbolos al iniciar la compilación de la función y se eliminan
+cuando esta finaliza. La entrada correspondiente a la función en sí, sin
+embargo, no se elimina nunca, ya que la función puede invocarse desde
+cualquier punto del programa. 
+
+La figura~\ref{fig-ts3}
+muestra la configuración de la tabla de símbolos en tres momentos distintos
+de la compilación del programa de la figura~\ref{fig-progC2}: cuando se
+están compilando las instrucciones de la función \ejinline{f1}, cuando se
+están compilando las de la función \ejinline{f2} y, finalmente, cuando se
+está compilando el programa principal.\footnote{En el caso de que el
+lenguaje permita un único tipo simple para las variables, no es necesario
+utilizar la tabla de tipos; la tabla de símbolos puede guardar simplemente
+el número de argumentos de la función, la dirección de comienzo de su RA y
+la etiqueta de comienzo de su código.} 
+En el caso de un entorno 
+de ejecución completamente estático los datos que deben almacenarse en
+la tabla de símbolos para una
+función son su nombre, su entrada asociada en la tabla de
+tipos, la dirección de comienzo de su RA en memoria y la dirección o
+etiqueta de comienzo del código objeto de la función.
+
+\begin{figure}
+\begin{center}
+\subfigure[Mientras se procesa la función \ejinline{f1}.]{
+\begin{small}
+\begin{tabular}{|c|c|c|c|}
+\hline
+{\sc Identificador} & {\sc Tipo} & {\sc Dirección} & {\sc Etiqueta} \\
+\hline \hline
+a & entero & 0 & \\
+\hline 
+f1 & \ejinline{t(f1)} & 1 & L2 \\
+\hline
+b & entero & 3 & \\
+\hline
+c & entero & 4 & \\
+\hline
+\end{tabular}
+\end{small}
+}\\
+\subfigure[Mientras se procesa la función \ejinline{f2}.]{
+\begin{small}
+\begin{tabular}{|c|c|c|c|}
+\hline
+{\sc Identificador} & {\sc Tipo} & {\sc Dirección} & {\sc Etiqueta} \\
+\hline \hline
+\ejinline{a} & entero & 0 & \\
+\hline 
+\ejinline{f1} & \ejinline{t(f1)} & 1 & L2 \\
+\hline
+\ejinline{b} & entero & 8 & \\
+\hline
+\ejinline{f2} & \ejinline{t(f2)} & 9 & L3 \\
+\hline
+\ejinline{a} & entero & 11 & \\
+\hline
+\ejinline{b} & entero & 12 & \\
+\hline
+\ejinline{c} & entero & 13 & \\
+\hline
+\end{tabular}
+\end{small}
+}\\
+\subfigure[Mientras se procesa el programa principal.]{
+\begin{small}
+\begin{tabular}{|c|c|c|c|}
+\hline
+{\sc Identificador} & {\sc Tipo} & {\sc Dirección} & {\sc Etiqueta} \\
+\hline \hline
+\ejinline{a} & entero & 0 & \\
+\hline 
+\ejinline{f1} & \ejinline{t(f1)} & 1 & L2 \\
+\hline
+\ejinline{b} & entero & 8 & \\
+\hline
+\ejinline{f2} & \ejinline{t(f2)} & 9 & L3 \\
+\hline
+\ejinline{c} & entero & 19 & \\
+\hline
+\end{tabular}
+\end{small}
+}
+\caption{Evolución de la tabla de símbolos 
+en distintos momentos de la compilación del
+programa de la figura~\ref{fig-progC2}. Mediante
+\ejinline{t(f)} se indica la posición en la tabla de tipos de la
+entrada correspondiente a la función \ejinline{f}.}\label{fig-ts3}
+\end{center}
+\end{figure}
+
+A modo de resumen indicaremos a continuación los principales pasos a
+seguir para compilar la declaración y la llamada a una función.
+
+\subsection{Compilación del cuerpo de la función}
+
+Podemos resumir los aspectos a tener en cuenta al compilar el cuerpo
+de una función en un entorno completamente estático
+como sigue:
+\begin{enumerate}
+\item[a)] En relación a la tabla de símbolos: insertar las entradas
+  adecuadas para
+  la función\footnote{El tipo de la función no se puede construir
+    hasta que se han analizado los argumentos y se conoce su tipo.} 
+  en la tabla de tipos y en la tabla de símbolos; 
+  salvaguardar la posición de comienzo en la tabla de símbolos
+  de las declaraciones locales a la función; insertar en la tabla de
+  símbolos los argumentos de la función y las variables locales
+  conforme estas se declaren; al terminar de compilar la
+  función, restaurar la posición libre de la tabla de símbolos al
+  valor guardado al comienzo de su compilación.
+\item[b)] Generar código para copiar el valor devuelto por la función a la
+  posición adecuada del RA; comprobar, si corresponde, que el tipo
+  del valor devuelto coincide con el indicado en el prototipo de la
+  función y generar las conversiones de tipo adecuadas en caso contrario.
+\item[c)] Generar código para devolver el control al llamador, tomando la
+  dirección de retorno del lugar apropiado del RA.
+\item[d)] Según el lenguaje, puede ser necesario comprobar que se ha
+  establecido un valor de retorno o asignar uno por defecto. En
+  general, se debe generar código para devolver 
+  al final de la función 
+  el control al llamador,
+  independientemente de si existe una instrucción específica para ello
+  en el cuerpo de la función (secuencia de retorno por defecto).
+\end{enumerate}
+
+\subsection{Compilación de la llamada a la función}
+
+A la hora de compilar una llamada a una función deberemos tener en
+cuenta:
+\begin{enumerate}
+\item[a)] Comprobaciones semánticas: comprobar que el número y tipo de los
+  pará\-metros se corresponde con los indicados en la definición de la
+  función y, en su caso, generar las conversiones de tipo adecuadas;
+  comprobar que el tipo del valor devuelto por la función es adecuado
+  para la expresión en la que figura la llamada y generar código para
+  la conversión de tipo, si es necesario.
+\item[b)] Generar código para evaluar los parámetros y poner cada
+  uno de ellos en su posición del~RA.
+\item[c)] Almacenar la dirección o etiqueta de retorno en
+  el lugar adecuado del RA.
+\item[d)] Generar código para saltar al comienzo de la función, accediendo
+  a su dirección o etiqueta de inicio en la tabla de símbolos.
+\item[e)] Recuperar y utilizar el valor devuelto por la función
+  (almacenándolo en una variable temporal, por ejemplo).
+\end{enumerate}
+
+
+\section{Funciones con recursividad}
+\label{sect-conr}
+
+Si permitimos recursividad en las funciones de un lenguaje,
+el espacio de los RA no puede reservarse
+estáticamente como se hacia en el caso 
+de los entornos de ejecución completamente estáticos. 
+Pensemos, por ejemplo, en una 
+funcion para calcular el factorial 
+de un número entero tal como la de la figura~\ref{fig-ffact}. 
+Si seguimos la política de la sección anterior, tendremos un único RA para
+la función. Dado que la recursividad hace que en un determinado momento
+puedan haber varias instancias de la funcion \ejinline{fact} ejecutándose,
+estas competirían por el RA, modificarían valores de otras instancias
+y harían que
+el comportamiento del programa fuera
+completamente erróneo.
+
+\begin{figure}
+\begin{center}
+\begin{ejcode}
+\begin{verbatim}
+int a;
+int fact (int n)
+{
+  if (n <= 1)
+    return 1;
+  else
+    return fact(n-1)*n;
+}
+main () 
+{
+  a=fact(3);
+}
+\end{verbatim}
+\end{ejcode}
+\end{center}
+\caption{Código en C de la funcion factorial utilizada en la 
+seccion~\ref{sect-conr}.}\label{fig-ffact}
+\end{figure}
+
+En este caso, es necesario 
+considerar un entorno de ejecución basado en 
+una pila, denominada \emph{pila de ejecución} (\emph{runtime stack}),
+donde se almacenan los RA.
+Cada llamada a una función apila un RA en la pila de ejecución y
+cuando la función acaba se desapila el RA
+correspondiente.\footnote{Las variables de tipo \emph{static} de C no
+  se guardan en el RA, ya que, de hacerlo, su contenido se perdería al
+  desapilar el RA; este tipo de variables se almacenan 
+  en la zona global.} En un determinado instante
+puede haber en la pila de ejecución más de un RA correspondiente a una
+única función.
+
+Ya que 
+se utiliza una zona de memoria nueva y diferente para cada llamada o
+activación de la función y dado que puede haber más de un RA en la pila
+para la misma función, los campos del RA no están en una dirección
+única; para poder acceder a ellos se utiliza 
+\emph{direccionamiento
+indirecto} con respecto a un
+determinado registro índice que apunta al RA actual.
+
+Para que el esquema anterior funcione,
+deben mantenerse como mínimo dos punteros: uno al RA actual,
+llamado \emph{puntero de cuadro} (\emph{frame pointer}), y otro,
+llamado \emph{enlace de control} (\emph{control link}), que apunta al
+RA anterior en la pila
+y permite restituirlo cuando la llamada acabe. El puntero
+de cuadro se guarda normalmente en un registro, ya que se usa
+intensivamente para acceder a las variables locales, a las temporales y 
+a los parámetros de la función. Por
+otro lado, el enlace de control se almacena en el RA y 
+salvaguarda el valor del puntero de cuadro del
+RA precedente (es decir, de la función que realizó la llamada a la
+función actual). Finalmente, el puntero de
+cuadro apunta a la posición del 
+primer parámetro de la función en el RA\footnote{El puntero
+de cuadro puede, según el compilador, apuntar a otras posiciones
+del RA.} y, si la función
+no tiene argumentos, a la posición en el RA de la primera variable
+local o temporal. En la
+figura~\ref{fig-racuadro} se muestra como queda un RA con esta modificación. 
+En el caso de \ejinline{m2r},
+el puntero de cuadro se almacena en el registro
+\ejinline{B} por lo que el RA puede también representarse como 
+se hace en la
+figura~\ref{fig-ram2r}. 
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl & valor devuelto \\
+\cl & dirección de retorno \\
+\cl & enlace de control \\
+\cl puntero de cuadro $\longrightarrow$ & parámetros \\ & \vdots \\
+\cl & variables locales \\ & \vdots \\
+\cl & temporales locales \\ & \vdots \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Modelo de registro de activación (RA) para un entorno basado
+en pila. El puntero de cuadro apunta al primer parámetro de la función
+y el enlace de control salvaguarda el puntero de cuadro del RA
+inmediatamente anterior en la pila.}\label{fig-racuadro}
+\end{center}
+\end{figure}
+
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl & valor devuelto \\
+\cl & dirección de retorno \\
+\cl & \ejinline{B} anterior \\
+\cl \ejinline{B} $\longrightarrow$ & parámetros \\ & \vdots \\
+\cl & variables locales \\ & \vdots \\
+\cl & temporales locales \\ & \vdots \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Forma del RA en el caso de la máquina \ejinline{m2r}. El
+  puntero de cuadro se guarda en el 
+  registro~\ejinline{B}.}\label{fig-ram2r}
+\end{center}
+\end{figure}
+
+
+En la figura~\ref{fig-ram2r} se observa que, suponiendo que todos los
+tipos de datos ocupan sólo una posición de memoria, el valor devuelto por
+la función se almacena en \ejinline{@B-3}, la dirección o etiqueta de
+retorno en \ejinline{@B-2} y el valor anterior de \ejinline{B} en
+\ejinline{@B-1}. El primer argumento está en \ejinline{@B+0} o, lo que
+es lo mismo, en \ejinline{B}; el segundo está en \ejinline{@B+1}, y
+así sucesivamente. Supongamos que el RA es el de una función con dos
+argumentos; en ese caso, la primera variable local se guardará en
+\ejinline{@B+2}, la segunda en \ejinline{@B+3}, y así
+sucesivamente. Las temporales se almacenarán 
+en el RA a continuación de las variables locales.
+
+Las variables globales se suelen almacenar en un espacio de memoria
+separado de la pila de ejecución y se accede a ellas mediante
+direccionamiento absoluto.
+
+\subsection{Compilación del cuerpo de la función}
+
+Cuando el compilador encuentra la definición de una función 
+bajo un entorno de ejecución basado en pila ha de
+llevar a cabo algunas tareas, que se indican a continuación:
+
+\begin{itemize}
+\item[a)]
+  Guardar la función (sin tipo todavía) 
+  en la tabla de símbolos; abrir
+  un nuevo ámbito en la 
+  tabla de símbolos y hacer que la dirección del primer argumento 
+  sea 0 (relativa
+  al puntero de cuadro,~\ejinline{B}).
+\item[b)]
+  Al mismo tiempo que los argumentos
+  se van almacenando en la tabla de símbolos
+  se va creando el tipo de la función 
+  en la tabla de tipos;
+  finalmente, el tipo de la función se almacena
+  en la entrada correspondiente de la tabla de símbolos.
+\item[c)] Hacer que las temporales de la función
+  comiencen a continuación de la última
+  variable local.
+\item[d)]
+  Cuando se acabe el cuerpo de la función deben eliminarse los símbolos
+  locales de la tabla de símbolos
+  (esto es, cerrar el ámbito) y generar la
+  secuencia de retorno por defecto.
+\end{itemize}
+
+En un ETDS con las dos reglas siguientes
+para definir la sintaxis de una declaración de función,
+las acciones anteriores se situarían donde se
+indica:
+\begin{quote}
+%\hspace*{0.7cm} 
+\emph{Func} $\longrightarrow$ \emph{Tipo} {\bf id} {\bf lpar} \{a\} 
+\emph{Args} {\bf rpar} \{b\} \emph{Bloque} \{d\} 
+
+%\hspace*{0.7cm}
+\emph{Bloque} $\longrightarrow$ {\bf lbra} \emph{BDecl} \{c\} 
+\emph{SeqInstr} {\bf rbra}
+\end{quote}
+
+\subsection{Compilación de instrucciones}
+
+En cuanto a la compilación de las instrucciones, debe tenerse en
+cuenta:
+
+\begin{itemize}
+\item[a)] En el acceso a variables debe distinguirse
+  entre símbolos locales y globales para usar
+  direccionamiento indirecto o absoluto.
+\item[b)] Normalmente las variables temporales 
+  del programa principal se acceden mediante direccionamiento
+  absoluto, mientras que las de las funciones se acceden con
+  direccionamiento indirecto.
+\item[c)] La instrucción de retorno debe almacenar el valor de la
+  expresión a devolver en el lugar adecuado del RA y efectuar el salto
+  a la dirección de retorno previamente almacenada en el RA.
+\end{itemize}
+
+
+\subsection{Compilación de la llamada}
+
+Mientras se compila una llamada a una función es
+necesario tener en cuenta los
+siguientes aspectos:
+
+\begin{itemize}
+\item[a)] Reservar el espacio para el RA de la nueva llamada a función
+(el número de posiciones a reservar será la suma de 3 
+con el número de argumentos de la función) antes de empezar a procesar
+sus parámetros.
+\item[b)] Comprobar el tipo de cada parámetro, realizar las conversiones
+  de tipo adecuadas y generar código para situar cada parámetro en su
+  posición en el RA. Normalmente las temporales necesarias
+  para calcular el valor de las expresiones que conforman los
+  parámetros se cogen de la zona destinada a variables locales y
+  temporales del nuevo RA; más adelante se muestra un ejemplo.
+\item[c)] En general, hay que comprobar que 
+  el número de parámetros utilizados en la llamada a la
+  función coincide con el indicado en su definición, aunque esto puede
+  depender del lenguaje considerado.
+\item[d)] Generar código para: guardar el valor de 
+  \ejinline{B} (enlace de control)
+  actual, actualizar el valor del registro 
+  \ejinline{B} para que apunte al nuevo RA, 
+  guardar la etiqueta de retorno en el nuevo RA, 
+  dar el salto a la función y, una vez que esta devuelva el control, 
+  restaurar el registro \ejinline{B} a su valor anterior (esto último se
+ puede hacer en la secuencia de retorno de la función llamada, con lo cual
+ se genera menos código y el programa objeto resulta ligeramente más pequeño). 
+\end{itemize}
+
+En un ETDS las acciones anteriores se situarían donde se
+indica en la siguiente regla de ejemplo:
+
+\begin{quote}
+%\hspace*{0.7cm}
+\emph{Factor} $\longrightarrow$ {\bf id} {\bf lpar} 
+\{a\} \emph{Par} \{b\} {\bf rpar} \{c\} \{d\}
+\end{quote}
+
+\subsection{Traducción a m2r de la función factorial}
+
+Las figuras~\ref{fig-fa1} a~\ref{fig-fa4} 
+ejemplifican todas las ideas
+anteriores. En ellas se muestra la traducción de la función
+factorial a código objeto de \ejinline{m2r}. 
+Para hacer más sencillo su seguimiento, la figura~\ref{fig-fifa}
+muestra la pila de ejecución justo antes de ejecutar la instrucción
+\ejinline{jmp L2} que efectua la llamada \ejinline{fact(2)}.
+
+\begin{figure}
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|p{0.22\textwidth}|p{0.66\textwidth}|}
+\hline
+{\sc \small prog. fuente} & {\sc \small programa objeto} \\
+\hline \hline
+\begin{verbatim}
+\end{verbatim}
+&
+\begin{verbatim}
+   mov #10000 B  ; temporales del programa principal
+   jmp L6        ; salta al programa principal
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+int a;
+\end{verbatim}
+&
+\begin{verbatim}
+   ; - reserva la posicion 0 para la 
+   ;    variable 'a'
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+int fact (
+\end{verbatim}
+&
+\begin{verbatim}
+   ; - guarda 'fact' en la tabla de
+   ;    símbolos (TS) , con la etiqueta L1 para
+   ;    indicar el comienzo del codigo de la
+   ;    función
+   ; - marca el principio de la TS para
+   ;    saber dónde empiezan los símbolos locales
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+          int n) {
+\end{verbatim}
+&
+\begin{verbatim}
+   ; - guarda 'n' en la TS como símbolo local,
+   ;    con la dirección (relativa) 0
+   ; - guarda el tipo de la funcion en la tabla
+   ;    de tipos
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+   if (n<=1) 
+\end{verbatim}
+&
+\begin{verbatim} 
+L1 mov @B+0 @B+1 ; guarda 'n' (@B+0) 
+                 ;  en una temporal (@B+1)
+   mov #1 @B+2   ; guarda un '1' en otra (@B+2)
+   mov @B+1 A
+   leqi @B+2     ; 'n <= 1' 
+   mov A @B+3    ; guarda el resultado en @B+3
+   mov @B+3 A
+   jz L3         ; 'if (n<=1) ...' 
+\end{verbatim}
+\\
+\hline
+\end{tabular}
+\end{footnotesize}
+\caption{Ejemplo de traducción a código de \ejinline{m2r}
+de la función \ejinline{fact} 
+\emph{(conti\-nua en la figura~\ref{fig-fa2})}.}\label{fig-fa1}
+\end{center}
+\end{figure}
+
+\begin{figure}
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|p{0.22\textwidth}|p{0.66\textwidth}|}
+\hline
+{\sc \small prog. fuente} & {\sc \small programa objeto} \\
+\hline \hline
+\begin{verbatim}
+     return 1;
+\end{verbatim}
+&
+\begin{verbatim}
+   mov #1 @B+4   ; guarda  un '1' en @B+4
+   mov @B+4 @B-3 ; pone el '1' (@B+4) en la
+                 ;  posición reservada al valor
+                 ;  que devuelve la función
+   mov @B-2 A    ; coge la posición de programa
+                 ;  (o etiqueta) a la que hay que
+                 ;  volver
+   jmp @A        ; salto de retorno
+   jmp L4        ; cuando termina la parte 
+                 ;  'then', hay que saltar al
+                 ;  final del 'if'
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+   else 
+     return fact(
+\end{verbatim}
+&
+\begin{verbatim}
+   ; - llamada a otra función: reserva sitio en
+   ;    las temporales para el registro de activación   
+   ;    (RA) de la función que se va a llamar: 
+   ;    3 posiciones (fijas) + 1 argumento; 
+   ;    reserva desde @B+5 hasta @B+8
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+           n-1
+\end{verbatim}
+&
+\begin{verbatim}
+L3 mov @B+0 @B+9 ; guarda 'n' (@B+0) en una
+                 ;  temporal (@B+9) mas alla del
+                 ;  nuevo RA
+   mov #1 @B+10  ; guarda un '1' en @B+10
+   mov @B+9 A
+   subi @B+10    ; 'n - 1'
+   mov A @B+11   ; guarda el resultado en @B+11
+   mov @B+11 @B+8  ; pone el primer parametro 
+                   ;  en la posición reservada para
+                   ;  él en el nuevo RA
+\end{verbatim}
+\\
+\hline
+\end{tabular}
+\end{footnotesize}
+\caption{Ejemplo de traducción a código de \ejinline{m2r}
+de la función \ejinline{fact} \emph{(continuación de la
+figura~\ref{fig-fa1}; continua en la~\ref{fig-fa3})}.}\label{fig-fa2}
+\end{center}
+\end{figure}
+
+
+\begin{figure}
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|p{0.22\textwidth}|p{0.66\textwidth}|}
+\hline
+{\sc \small prog. fuente} & {\sc \small programa objeto} \\
+\hline \hline
+\begin{verbatim}
+               )
+\end{verbatim}
+&
+\begin{verbatim}
+                   ; --- llamada a 'fact'
+   mov B @B+7      ; guarda B anterior
+   mov B A
+   addi #8         ; 8 = 4(temporales usadas) 
+                   ;     +3(campos fijos RA)+1
+   mov A B         ; B apunta al nuevo RA
+   mvetq L2 @B-2   ; pone etiqueta de retorno
+   jmp L1          ; salto a la funcion fact
+L2 mov @B-1 B      ; al volver, deja la B como estaba
+                   ; el valor devuelto por la función
+                   ;  queda en @B+5 y el resto de
+                   ;  temporales (@B+6,...) se 
+                   ;  reciclan 
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+             *n;  
+\end{verbatim}
+&
+\begin{verbatim}
+   mov @B+0 @B+6   ; guarda 'n' (@B+0) en @B+6
+   mov @B+5 A      ; valor devuelto por fact(n-1)
+   muli @B+6       ;  'n' * (valor devuelto)
+   mov A @B+7      ; sobreescribe el antiguo valor de
+                   ;  retorno
+   mov @B+7 @B-3   ; devuelve el resultado del
+                   ;  producto
+   mov @B-2 A
+   jmp @A          ; return fact(n-1)*n 
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+ }
+\end{verbatim}
+&
+\begin{verbatim}
+L4 mov @B-2 A   ; fin del 'if (n <= 1) ...'
+   jmp @A       ; secuencia de retorno por defecto, 
+                ; por si se alcanza el final de la
+                ; función sin haber hecho 'return'
+\end{verbatim}
+\\
+\hline
+\end{tabular}
+\end{footnotesize}
+\caption{Ejemplo de traducción a código de \ejinline{m2r}
+de la función \ejinline{fact} 
+\emph{(continuación de la figura~\ref{fig-fa3}; continua
+en la figura~\ref{fig-fa4})}.}\label{fig-fa3}
+\end{center}
+\end{figure}
+
+\begin{figure}
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|p{0.22\textwidth}|p{0.66\textwidth}|}
+\hline
+{\sc \small prog. fuente} & {\sc \small programa objeto} \\
+\hline \hline
+\begin{verbatim}
+ int main () {
+
+   a=fact(
+\end{verbatim}
+& 
+\begin{verbatim}
+                ; llamada a 'factorial':
+                ;  hay que reservar 3+1 
+                ;  posiciones para el RA,
+                ;  desde @B+0 a @B+3
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+          3);
+\end{verbatim}
+&
+\begin{verbatim}
+L6 mov #3 @B+4     ; guarda un '3' en una temporal
+
+   mov @B+4 @B+3   ; pone el primer parametro 
+                   ;  (el '3') en la posición
+                   ;  reservada para él en el RA
+   mov B @B+2      ; guarda B anterior
+   mov B A
+   addi #3
+   mov A B         ; pone la nueva B
+   mvetq L5 @B-2   ; pone etiqueta de retorno
+   jmp L1          ; salta a la función
+L5 mov @B-1 B      ; deja la B como estaba y
+                   ;  fin de la llamada
+   mov @B+0 0      ; asignacion a la variable 'a' 
+                   ;  (dir: 0) del valor que
+                   ;  devuelve la función, que ha
+                   ;  quedado en @B+0
+\end{verbatim}
+\\
+\hline
+\begin{verbatim}
+ }
+\end{verbatim}
+&
+\begin{verbatim}
+   halt
+\end{verbatim}
+\\
+\hline
+\end{tabular}
+\end{footnotesize}
+\caption{Ejemplo de traducción a código de \ejinline{m2r}
+de la función \ejinline{fact} 
+\emph{(continuación de la figura~\ref{fig-fa3})}.}\label{fig-fa4}
+\end{center}
+\end{figure}
+
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl & \\
+\cl & \ejinline{L6}  \\
+\cl & \ejinline{B} anterior \\
+\cl & parámetro \ejinline{n}=3 \\
+\cl & temporal=3 \\
+\cl & temporal=1 \\
+\cl & temporal=($3<=1$) \\
+\cl & \\
+\cl & \\
+\cl & \ejinline{L5} \\
+\cl & \ejinline{B} anterior \\
+\cl \ejinline{B} $\longrightarrow$ \ & parámetro \ejinline{n}=2 \\
+\cl & temporal=3 \\
+\cl & temporal=1 \\
+\cl & temporal=($3-1$) \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Pila de ejecución inmediatamente antes de la 
+llamada a \ejinline{fact(2)}.}\label{fig-fifa}
+\end{center}
+\end{figure}
+
+
+\section{Funciones locales}
+
+En este apartado consideraremos el tratamiento de las funciones en
+lenguajes como Pascal o Ada, que no sólo permiten la recursividad, 
+sino también la
+declaración anidada de funciones. La figura~\ref{fig-anid} muestra 
+un ejemplo de programa que declara varias funciones
+anidadas de este tipo. Nótese cómo para la función \ejinline{hijo} 
+la variable \ejinline{v\_abu} no es 
+\emph{ni local ni global}, sino que
+pertenece al ámbito de su función abuelo. La existencia de
+estas referencias (\emph{nonlocal references})
+que no son globales ni locales complica considerablemente la
+compilación de las funciones y procedimientos.
+
+\begin{figure}
+\begin{center}
+\begin{ejcode}
+\begin{verbatim}
+int abuelo ()
+{
+  int v_abu;
+  int otrotio ()
+  {
+  }
+  int padre ()
+  {
+    int hijo ()
+    {
+      v_abu=7;
+    }
+    int hermano ()
+    {
+      hijo();
+    }
+    hermano();
+  }
+  int tio () 
+  {
+    padre();
+  }
+  tio();
+}
+\end{verbatim}
+\caption{Programa con sintaxis de C con declaraciones anidadas de
+funciones.}\label{fig-anid}
+\end{ejcode}
+\end{center}
+\end{figure}
+
+Consideremos en primer lugar cómo podríamos tratar las funciones
+anidadas con el modelo descrito en la sección anterior para el caso de
+funciones recursivas. En el momento que el programa estuviera
+ejecutando el cuerpo de la función \ejinline{hijo}, la pila de
+ejecución tendría el aspecto de la figura~\ref{fig-pilahijo}. Si
+utilizamos únicamente la información del RA de la función
+\ejinline{hijo}
+(con una forma como la de la figura~\ref{fig-racuadro}), no
+será posible acceder a la variable \ejinline{v\_abu} directamente; la
+única forma de hacerlo será \emph{saltando} a través de los enlaces
+de control hasta llegar al RA de \ejinline{abuelo}. Esta técnica se
+conoce como \emph{encadenamiento} (\emph{chaining}). 
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl
+\cl & RA de \ejinline{abuelo} \\
+    & \vdots \\
+    & variable local \ejinline{v\_abu} \\
+    & \vdots \\
+\cl & RA de \ejinline{tio} \\
+    & \vdots \\ 
+\cl & RA de \ejinline{padre} \\
+    & \vdots \\
+\cl & RA de \ejinline{hermano} \\
+    & \vdots \\
+\cl & RA de \ejinline{hijo} \\
+    & \vdots \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Aspecto de la pila de ejecución cuando se llama a la función
+  \ejinline{hijo} en el programa de la 
+  figura~\ref{fig-anid}.}\label{fig-pilahijo}
+\end{center}
+\end{figure}
+
+
+El encadenamiento tal como se ha descrito en el párrafo anterior
+presenta un inconveniente adicional: no es posible conocer 
+en tiempo de compilación el número de saltos (4 en el caso anterior)
+a realizar para llegar
+al RA deseado, ya que, en general, las funciones se pueden llamar
+desde más de un lugar del programa y los saltos podrían
+depender de ese punto de llamada (imaginemos, por ejemplo, que la
+función \ejinline{padre} llamara directamente a \ejinline{hijo}). 
+La solución a este problema
+complicaría tanto el diseño del compilador que nunca se sigue este
+enfoque para el tratamiento de funciones locales. Son
+otros enfoques, 
+como el \emph{encadenamiento de
+  accesos} o el \emph{display}, que veremos a continuación,
+los que se usan en la práctica.
+
+\subsection{Encadenamiento de accesos}
+
+La técnica de encadenamiento de accesos (\emph{access chaining})
+consiste básicamente en añadir un campo nuevo,
+llamado \emph{enlace de acceso} (\emph{access
+  link}), a la información
+guardada en el RA. El enlace de acceso 
+apunta al RA de la función padre según esté definida esta en el
+programa fuente.\footnote{De manera distinta al enlace de control, 
+que apunta al RA de la función llamadora.} El nuevo RA tiene la forma 
+general que se muestra
+en la figura~\ref{fig-noura} y la forma para la máquina \ejinline{m2r}
+mostrada en la~\ref{fig-nouram2r}. Como se observa en ambas figuras,
+el puntero de cuadro apunta ahora al enlace de acceso del RA actual.
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl & valor devuelto \\
+\cl & dirección de retorno \\
+\cl & enlace de control \\
+\cl puntero de cuadro $\longrightarrow$ & enlace de acceso \\
+\cl & parámetros \\ & \vdots \\
+\cl & variables locales \\ & \vdots \\
+\cl & temporales locales \\ & \vdots \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Modelo de registro de activación (RA) para un entorno basado
+en pila con funciones locales
+bajo el esquema de encadenamiento de accesos. 
+El puntero de cuadro apunta 
+al enlace de acceso, que apunta a su vez al enlace
+de acceso del RA de la función padre.}\label{fig-noura}
+\end{center}
+\end{figure}
+
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl & valor devuelto \\
+\cl & dirección de retorno \\
+\cl & \ejinline{B} anterior \\
+\cl \ejinline{B} $\longrightarrow$ & \ejinline{B} del padre \\
+\cl & parámetros \\ & \vdots \\
+\cl & variables locales \\ & \vdots \\
+\cl & temporales locales \\ & \vdots \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Forma del RA en el caso de la máquina \ejinline{m2r}
+  cuando se permiten funciones locales
+  bajo el esquema de encadenamiento de accesos. El
+  puntero de cuadro se guarda en el 
+  registro~\ejinline{B}.}\label{fig-nouram2r}
+\end{center}
+\end{figure}
+
+
+En el caso de que la variable a acceder se encuentre definida en la
+función padre (esto es, en el ámbito externo más cercano),
+basta con acceder a su RA a través del enlace de acceso y acceder a la
+variable mediante un desplazamiento conocido en tiempo de
+compilación. En el caso general, habrá que \emph{saltar} repetidamente
+a través de los enlaces de acceso hasta llegar al RA adecuado. Así, el
+código en \ejinline{m2r} que permite acceder a la variable
+\ejinline{v\_abu} en el programa de la figura \ref{fig-anid} sería el
+siguiente: 
+\begin{ejcode}
+\begin{verbatim}
+   mov @B+0 A  ; salto al RA de la función padre
+   mov @A A    ; salto al RA de la función abuelo
+   addi #1     ; desplazamiento de la variable
+   mov @A t1   ; guarda la variable en una temporal
+\end{verbatim}
+\end{ejcode}
+donde \ejinline{t1} representa la dirección de memoria de una variable
+temporal.
+
+Para que el encadenamiento de accesos funcione correctamente es
+necesario poder determinar en tiempo de compilación el número de
+saltos o encadenamientos a realizar para llegar a la variable
+deseada. Esto se consigue asociando un \emph{nivel de anidamiento}
+ a cada declaración por medio de 
+ una variable global que se inicializa a cero y que se
+ incrementa o decrementa conforme se entra o sale de una función
+ durante la compilación. El nivel de anidamiento se almacena en la
+ tabla de símbolos. En el
+ ejemplo de la figura~\ref{fig-anid} la función \ejinline{abuelo}
+ tiene nivel 0; las funciones 
+ \ejinline{otrotio}, \ejinline{padre} y \ejinline{tio},
+ y las variables locales de \ejinline{abuelo},
+ nivel 1; las funciones \ejinline{hijo} y \ejinline{hermano}, 
+ y las variables locales de 
+ \ejinline{otrotio}, \ejinline{padre} y \ejinline{tio},
+ nivel 2; y, finalmente,
+ las variables locales de \ejinline{hijo} y \ejinline{hermano},
+ nivel 3.
+
+El número de encadenamientos o saltos\footnote{Como \emph{saltos} 
+consideraremos tanto la primera instrucción \ejinline{mov @B+0 A},
+como las posteriores instrucciones de la forma \ejinline{mov @A A}.}
+necesarios para acceder a una
+variable que no es local ni global 
+se obtiene mediante la diferencia entre el
+nivel del ámbito en el
+que se realiza el acceso y el nivel de la
+variable accedida; en el ejemplo que venimos siguiendo
+hasta ahora, el número de encadenamientos desde 
+el interior de la función
+\ejinline{hijo} para acceder a las variables locales de la función
+\ejinline{abuelo} sería de $3-1=2$. El número de instrucciones 
+generadas del tipo \ejinline{mov @A A} depende, por lo tanto, de esta
+diferencia.
+
+La secuencia de llamada debe modificarse para 
+considerar el almacenamiento del
+puntero de cuadro del padre en el campo del enlace de acceso del RA; en el
+caso de \ejinline{m2r}, esto consiste en
+poner la \ejinline{B} del padre en el nuevo RA. 
+Cuando la
+función invocada es una función hijo o una función hermano,
+el acceso a
+la \ejinline{B} de su padre es inmediato.\footnote{Todas las llamadas a
+funciones del programa de la figura~\ref{fig-anid} 
+son de este tipo.}
+Por otro lado, cuando 
+se invoca una función de otro tipo,\footnote{Este sería el caso si, por
+ejemplo, se invocara la función \ejinline{otrotio} desde
+el cuerpo de la función \ejinline{hermano} del programa de la 
+figura~\ref{fig-anid}.} el acceso es más complicado, ya que debe
+recorrerse la cadena de enlaces de acceso hasta encontrar la \ejinline{B}
+del padre de dicha función; esto implica una secuencia de
+instrucciones \ejinline{mov @A A} similar a la generada en el caso del
+acceso a variables que no son ni locales ni globales.
+
+Cuando el número de niveles de anidamiento es muy elevado, el código
+generado
+para acceder a las variables definidas en otras funciones 
+y para invocar determinadas funciones se
+sobrecarga excesivamente.\footnote{En cualquier caso, los programas
+  habituales no suelen tener más de 2 o 3 niveles de 
+anidamiento.} La estructura de datos conocida como
+\emph{display} evita esta sobrecarga.
+
+\subsection{Display}
+
+Una alternativa al encadenamiento de accesos es mantener 
+(en tiempo de ejecución) los enlaces
+de acceso en un vector que se guarda en una zona de memoria 
+separada de la pila de ejecución y se
+indiza por medio del nivel de anidamiento. A este vector se le conoce
+con el nombre de \emph{display}. 
+
+Para acceder a una variable que no es local ni global se
+determina, consultando la tabla de símbolos,
+el nivel de anidamiento $n$ de la función en la que se declara dicha
+variable; como el puntero de cuadro del RA correspondiente 
+está guardado en \ejinline{display[}$n$\ejinline{]}, 
+el acceso a la variable es inmediato y se evita la secuencia de
+saltos del método de encadenamiento de accesos.
+
+Si consideramos que el nivel de anidamiento asignado a la función
+\ejinline{abuelo} es 0 y que el
+\emph{display} está
+almacenado a partir de la posición 100 (con lo que el valor de
+\ejinline{display[0]} está guardado en esa misma dirección), 
+el código de \ejinline{m2r} necesario para acceder a la
+variable \ejinline{v\_abu} desde la función \ejinline{hijo} es 
+el siguiente:
+\begin{ejcode}
+\begin{verbatim}
+   mov 100 A  
+   addi #1     
+   mov @A t1
+\end{verbatim}
+\end{ejcode}
+Como puede observarse, el número de instrucciones a ejecutar es
+independiente de la diferencia de niveles de anidamiento.
+
+Cuando se invoca una función de nivel $n$, 
+en \ejinline{display[}$n$\ejinline{]} se guarda
+la dirección de su RA. Ya que el valor anterior de 
+\ejinline{display[}$n$\ejinline{]} puede ser necesario en el código que
+sigue a la llamada, este valor debe salvaguardarse
+convenientemente. El mejor sitio donde hacerlo es en el RA de la
+función invocada, de manera que pueda ser restaurado cuando esta
+termine.
+Como resultado de lo anterior, el RA adoptará (en
+el caso de la máquina \ejinline{m2r}) 
+la forma de la figura~\ref{fig-radisp}.
+
+\begin{figure}
+\begin{center}
+\begin{small}
+\begin{tabular}{r|c|}
+\cl & valor devuelto \\
+\cl & dirección de retorno \\
+\cl & \ejinline{B} anterior \\
+\cl & \ejinline{display[nivel]} \\
+\cl \ejinline{B} $\longrightarrow$ & parámetros \\ & \vdots \\
+\cl & variables locales \\ & \vdots \\
+\cl & temporales locales \\ & \vdots \\
+\cl
+\end{tabular}
+\end{small}
+\caption{Forma del RA para la máquina \ejinline{m2r}
+  cuando se permiten funciones locales
+  gestionadas mediante el \emph{display}. Con \ejinline{nivel} 
+  se indica el nivel de anidamiento de la función a la que 
+  pertenece el RA.}\label{fig-radisp}
+\end{center}
+\end{figure}
+
+La secuencia de llamada debe modificarse, por tanto, para que guarde
+en el RA la posición del \emph{display} de la función a llamar y
+almacene en esa posición el valor del puntero de cuadro
+de la función llamada. La secuencia de retorno debe encargarse de
+dejar la posición correspondiente del \emph{display} como estaba antes
+de la llamada a la función.
+
+Consideremos la pila de ejecución de la figura~\ref{fig-pilahijo}. En
+este momento en \ejinline{display[0]} se guarda el puntero de cuadro
+del RA de la función \ejinline{abuelo}, en \ejinline{display[1]} el de
+la función \ejinline{padre} y en \ejinline{display[2]} el de la
+función \ejinline{hijo}. Cuando la función \ejinline{hijo} termine y
+devuelva el control a la función \ejinline{hermano}, el valor de
+\ejinline{display[2]} se restaurará 
+y contendrá el puntero de cuadro del RA de la
+función \ejinline{hermano}.
+
+\section{Paso de parámetros}
+
+Hay varias técnicas de paso de parámetros a una función; las más
+importantes son:
+\begin{description}
+\item[Paso por valor:] el valor del parámetro se copia en el RA de la
+  función durante la llamada; de esta manera el acceso se realiza
+  igual que si de una variable local se tratara. Cualquier
+  modificación en el parámetro dentro de la función no afecta a su
+  valor en el exterior de esta (parámetro de \emph{entrada}). 
+  Es el tipo de paso de parámetros que
+  hemos utilizado en los ejemplos de este capítulo y el único que permite
+  el lenguaje C.
+\item[Paso por referencia:] en este caso lo que se copia en el RA es
+  la dirección del parámetro y no su valor; así, cualquier acceso al
+  valor del parámetro desde el interior de la función se lleva a cabo
+  mediante la desreferencia oportuna. Los parámetros pasados de esta
+  forma son, por lo tanto, de \emph{entrada} y de
+  \emph{salida}.\footnote{En C++ se indica que un parámetro es de
+    entrada y salida anteponiendo a su nombre el carácter '\ejinline{\&}'.}
+\item[Paso por valor-copia:] este tipo de paso de parámetros está a
+  medio camino de los dos anteriores: el valor del parámetro se copia
+  al RA durante la llamada por lo que se puede acceder como una
+  variable local; pero,
+  por otro lado, como parte de la secuencia de
+  retorno, el valor posiblemente modificado del parámetro se copia a la
+  variable utilizada en la llamada. Es también, por tanto, un caso de
+  parámetros de \emph{entrada} y \emph{salida}.
+\end{description}
+
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{7.1, 7.2, 7.3, 7.5, ejercicio 7.10 y 8.5}
+\refb{\cite{ASU90}}{7.2, 7.3, 7.4, 7.5 y 8.7}
+\refb{\cite{Ben90}}{2.2.2 y 10.3.2}
+\refb{\cite{FL91}}{9.1, 9.2 y 13.2}
+\end{rbib}
+
+\clearpage
+%\section{Ejercicios}
+\Ejercicios
+
+\begin{ejercicio}
+Dado el siguiente programa en C, dibújese el contenido del registro de
+activación de la función {\tt Pepito} (incluidas las variables
+temporales) en el momento inmediatamente
+anterior a la ejecución del {\tt return} (donde indica el comentario).
+\begin{small}
+\begin{verbatim}
+
+int Pepito(int a,float b)
+{
+  float c;
+
+  a = a+b;
+  c = 2.0*a;
+
+  /* aqui */
+  return c;
+}
+
+main()
+{
+  Pepito(7,3.9);
+}
+\end{verbatim}
+\end{small}
+\end{ejercicio}
+
+\begin{ejercicio}
+Dado el siguiente fragmento de programa en C, dibújese el contenido de los
+registros de activación  de las llamadas activas en
+el momento en que se va a ejecutar la instrucción {\tt return num;}
+{\em por tercera vez}. Indíquese en los registros solamente los
+valores de los parámetros y de las variables locales cuyo valor sea
+conocido. No hace falta especificar cuántas temporales se utilizan
+ni qué valor tienen. Se debe suponer que
+para la función {\tt main} no se crea un registro de activación.
+\begin{small}
+\begin{verbatim}
+int a;
+int potencia(int num,int aque)
+{
+   int uno,dos;
+   uno = aque/2;
+   dos = aque - uno;
+   if (aque == 0)      return 1;
+   else if (aque == 1) return num;
+   else                return potencia(num,uno)*potencia(num,dos);
+}
+main()
+{
+   a = 2+potencia(2,5);
+}
+\end{verbatim}
+\end{small}
+\end{ejercicio}
+
+\begin{ejercicio}
+Escribir el código en \texttt{m2r} que se generaría para el siguiente fragmento
+de programa en C. 
+\begin{small}
+\begin{verbatim}
+int a;
+int RestaUno(int n) {
+  return n-1;
+}
+int factorial(int n) {
+  if (n>1) return n*factorial(RestaUno(n));
+  else return 1;
+}
+main() {
+   a = 2+factorial(5);
+}
+\end{verbatim}
+\end{small}
+\end{ejercicio}
+
+\begin{ejercicio}
+Escribir el código en \texttt{m2r} que generaría un compilador 
+para el siguiente fragmento de programa en C. 
+Indíquese también qué valor se almacena en la variable \verb+a+ declarada
+en la función \verb+main+. Debe suponerse que la función \verb+main+ no
+tiene registro de activación (al estilo del programa principal en Pascal), 
+aunque en C sea una función más.
+\begin{small}
+\begin{verbatim}
+float Abs(float f)
+{
+  if (f<0)
+     return -f;
+  else
+     return f;
+}
+char Suma(int i,float f)
+{
+   int a[2][5];
+
+   a[1][3] = Abs(i+f);
+   return a[1][3];
+}
+main() {
+   int a;
+   a = Suma(10.987,1024);
+}
+\end{verbatim}
+\end{small}
+\end{ejercicio}
+
+
+\newpage
+\thispagestyle{empty}
+~~
+

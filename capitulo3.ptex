@@ -1,0 +1,1085 @@
+
+\section{La función del analizador sintáctico}
+
+Como ya se indic\'o
+en la introducci\'on, la principal tarea del analizador
+sint\'ac\-tico (o {\em parser}) no es comprobar que la sintaxis
+del programa fuente sea correcta, sino construir una representaci\'on
+intermedia de ese programa (necesaria para la traducción) y, en el caso 
+en que sea un programa incorrecto, dar un mensaje de error. Para ello, 
+el analizador sint\'actico (AS) comprueba que el orden en que el analizador
+l\'exico le va entregando los {\em tokens\/} es v\'alido. Si
+esto es as\'{\i}, significar\'a que la sucesi\'on de
+s\'{\i}mbolos que representan dichos {\em tokens\/} puede ser
+generada por la gram\'atica correspondiente al lenguaje fuente.
+
+\begin{center}
+\includegraphics[width=0.9\textwidth]{cap3f1.pdf}
+\end{center}
+
+La forma m\'as habitual de representar la sintaxis de un programa es el \'arbol
+de an\'alisis sint\'actico, y lo que hacen los analizadores
+sint\'acticos es construir una derivaci\'on por la
+izquierda o por la derecha del programa fuente, que en realidad son
+dos recorridos determinados del \'arbol de an\'alisis
+sint\'actico. A partir de ese recorrido el analizador sint\'actico
+debe construir una representaci\'on intermedia de ese programa
+fuente: un \'arbol sint\'actico abstracto o bien un
+programa en un lenguaje intermedio; por este motivo, es muy
+importante que la gram\'atica est\'e bien dise\~nada,
+e incluso es frecuente redise\~nar la gram\'atica original
+para facilitar la tarea de obtener la representaci\'on
+intermedia mediante un analizador sint\'actico concreto.
+
+\begin{ejemplo}
+Los {\em \'arboles sint\'acticos abstractos\/} son
+materializaciones de los \'arboles de an\'alisis sint\'actico
+en los que se implementan los nodos de \'estos, siendo el nodo
+padre el operador involucrado en cada instrucci\'on y los hijos
+sus operandos. Por otra parte, las representaciones intermedias son
+lenguajes en los que se han eliminado los conceptos de mayor
+abstracci\'on de los lenguajes de programaci\'on de alto
+nivel. Sea la instrucci\'on ``\verb!a=b+c-d!''.
+A continuaci\'on se muestra su representaci\'on mediante
+ambos esquemas citados.
+
+\begin{center}
+\begin{tabular}{|c|c|}\hline							
+{\bf \'Arbol sint\'actico abstracto} & {\bf Lenguaje intermedio} \\\hline
+\begin{minipage}{0.40\textwidth}
+\includegraphics[width=0.98\textwidth]{cap3f2.pdf}
+\end{minipage}  &
+\begin{minipage}{0.40\textwidth}
+\begin{verbatim}
+       sumar b c t1
+       restar t1 d t2
+       asignar t2 a
+\end{verbatim}
+\end{minipage} \\\hline
+\end{tabular}
+\end{center}
+\end{ejemplo}
+
+El AS constituye el esqueleto principal del compilador.
+Habitualmente el analizador l\'exico se implementa como una
+rutina dentro del sint\'actico, al que devuelve el siguiente
+{\em token} que encuentre en la entrada cada vez
+que \'este se lo pide. Asimismo, gran parte del resto de
+etapas de un programa traductor est\'an integradas de una u otra
+forma en el analizador sint\'actico.
+
+Principalmente hay dos opciones para implementar un AS:
+\begin{enumerate}
+	\item {\em a mano},
+        utilizando una serie de t\'ecnicas que se describir\'an en
+        los siguientes capítulos;
+	\item utilizando un generador de
+        analizadores sint\'acticos (p. ej. YACC).
+\end{enumerate}
+
+Como siempre, ambos enfoques tienen ventajas e inconvenientes, muy
+similares al caso de los analizadores l\'exicos (para el segundo
+caso el inconveniente de la ineficiencia y la ventaja de la
+sencillez, y viceversa para el primero). 
+
+\come{ % no se hace referencia a esta notación en el resto del libro
+\section{Notación EBNF}
+
+
+EBNF son las siglas de {\em Extended Backus-Naur Form}. La idea surgi\'o como
+herramienta para reducir el n\'umero de producciones en las
+gram\'aticas. Para ello se a\~naden unas notaciones
+adicionales a las ya contenidas en la notaci\'on BNF.
+
+\begin{enumerate}
+\item{\em Alternativas de una regla:} Como un mismo s\'{\i}mbolo
+auxiliar puede definirse como varios s\'{\i}mbolos, utilizamos una
+\'unica producci\'on utilizando el s\'{\i}mbolo ``\verb!|!'' para
+separar las distintas posibilidades que definen al no terminal de la
+izquierda.
+
+Ejemplo: si 
+$$
+\begin{array}{lcl}
+\nter{A} \der \ter{a} \\
+\nter{A} \der \ter{b} \\
+\nter{A} \der \ter{c} \\
+\end{array}
+$$
+estas tres producciones las podemos resumir en:  
+$A \;\longrightarrow\; \ter{a} |\; \ter{b} |\; \ter{c}$
+
+Otro:   \verb+<+entero\verb+>+ $\longrightarrow$ \verb+<+dígito\verb+>+ $|$ \verb+<+entero\verb+>+ \verb+<+dígito\verb+>+
+
+\item {\em Llaves:} \{ \}, lo que aparece entre llaves se repite de 
+      cero a $n$ veces.
+
+Ejemplos: \newline
+\begin{center}
+\begin{tabular}{l}
+\verb+<+Lista\_parámetros\verb+>+ $\longrightarrow$ \verb+<+parámetro\verb+>+ $\{$ \verb+,+ \verb+<+parámetro\verb+>+ $\}$ \\
+\verb+<+tren\verb+>+ $\longrightarrow$ \verb+<+locomotora\verb+>+ $\{$ \verb+<+vagón\verb+>+ $\}$  \\
+\end{tabular}
+\end{center}
+
+\item {\em Llaves con repetici\'on
+especificada:} \{ \}$_{x}^{y}$, lo que aparece
+entre llaves se repite un n\'umero de veces comprendido entre $x$
+e $y$.
+
+Ejemplo:
+
+\begin{center}
+     tren con 3, 4 \'o 5 vagones:  \verb+<+tren\verb+>+ $\longrightarrow$ \verb+<+locomotora\verb+>+ $\{$ \verb+<+vagón\verb+>+ $\}_{3}^{5}$
+\end{center}
+
+\item {\em Corchetes:}
+\hbox{$[$} \hbox{$]$}, lo que est\'a entre los
+corchetes puede o no aparecer. Es un caso particular del anterior, pues es
+equivalente a $\{$ $\}_{0}^{1}$
+
+Ejemplo:          Sentencia IF completa en Pascal:
+
+\begin{quote}
+\verb+IF+ \verb+<+expresión\verb+>+ \verb+THEN+ \verb+<+sentencia\verb+>+ 
+$[$ \verb+ELSE+ \verb+<+sentencia\verb+>+ $]$
+\end{quote}
+
+\end{enumerate}
+} % come
+
+\section{Diseño de gramáticas}
+
+El dise\~no de gram\'aticas para lenguajes de programaci\'on es una
+materia que dif\'{\i}cilmente puede ense\~narse en su
+totalidad, sino que debe ser aprendida en la mayor medida posible.
+Sin embargo, la forma de recoger parte de la sem\'antica de los
+operadores en la gram\'atica es bastante sencilla de explicar. A
+continuaci\'on vamos a ver c\'omo se plasma en el aspecto
+de las reglas sint\'acticas algunas propiedades de los
+operadores y operandos en los lenguajes de programaci\'on.
+
+\subsection{Recursividad}
+
+Una de las principales dificultades a la hora de dise\~nar un compilador es
+que debe procesar correctamente un n\'umero en principio
+infinito de programas distintos. Por otro lado, es evidente que la
+especificaci\'on sint\'actica de un lenguaje debe ser
+finita. El concepto que hace compatible las dos afirmaciones
+anteriores es el de recursividad. \'Esta nos permite definir
+sentencias complicadas con un n\'umero peque\~no de
+sencillas reglas de producci\'on.
+
+
+\subsubsection{Estructura de la recursividad}
+\begin{enumerate}
+	\item Una o más reglas no recursivas que se definen como caso base.
+	\item Una o m\'as reglas recursivas
+        que permiten el crecimiento a partir del caso base.
+\end{enumerate}
+
+\begin{ejemplo}
+Supongamos que queremos expresar la estructura de un tren formado por
+una locomotora y un n\'umero cualquiera de vagones detr\'as.
+Si lo hicieramos de esta forma:
+
+\begin{small}
+\begin{tabular}{lcl}
+tren  \Der  locomotora \\
+tren  \Der locomotora  vag\'on \\
+tren  \Der locomotora  vag\'on  vag\'on \\
+$\ldots$ \\
+\end{tabular}
+\end{small}
+
+necesitar\'{\i}amos
+infinitas reglas de derivaci\'on (una por cada n\'umero de
+vagones posibles en el tren). Para expresar lo mismo con un par de
+sentencias podemos utilizar la recursividad de la siguiente manera:
+
+\begin{enumerate}
+\item definimos la regla base (no recursiva), que define el
+concepto elemental de partida y que en este caso ser\'{\i}a:
+
+\begin{small}
+\begin{tabular}{lcl}
+tren  \Der locomotora \\
+\end{tabular}
+\end{small}
+
+\item definimos una o m\'as reglas recursivas que permitan el
+crecimiento ilimitado de la estructura partiendo del concepto
+elemental anterior. En este caso:
+
+\begin{small}
+\begin{tabular}{lcl}
+tren  \Der  tren vagón \\
+\end{tabular}
+\end{small}
+\end{enumerate} 
+\end{ejemplo}
+
+\begin{ejemplo}
+Un elemento común en muchos lenguajes de programación son las
+declaraciones de variables. La siguiente gramática independiente
+del contexto genera una secuencia de uno o más identificadores 
+separados por comas:
+
+\begin{small}
+\begin{tabular}{@{}lcl@{}l|@{}l@{}}
+N & $=$ & \{$\;$ & Lista \}                    & ~\hbox{N}otación:\\
+T & $=$ & \{$\;$ & ident coma \}                    & ~~ \hbox{N} $=$ cjto. de no terminales \\
+P & $=$ & \{$\;$ & Lista $\rightarrow$ ident   & ~~ T $=$ cjto. de terminales \\
+  &     &    & Lista $\rightarrow$ Lista coma ident \} & ~~ P $=$ cjto. de producciones\\ 
+S & $=$ &    & Lista                           & ~~ S $=$ símbolo inicial o axioma \\
+\end{tabular}
+\end{small}
+
+\come{ % PE: en el tema 2 les decimos que el léxico reconoce los identificadores
+Aunque en un compilador el encargado de 
+reconocer los identificadores es el analizador léxico, y por tanto
+la gramática que se utiliza para describir la sintaxis de un lenguaje
+incluye los identificadores como terminales, es posible escribir
+una gramática independiente del contexto que genera los identificadores
+caracter a caracter, como la siguiente:
+
+\begin{footnotesize}
+\begin{tabular}{@{}lcl@{}l|@{}l@{}}
+N & $=$ & \{$\;$ & Letra, D\'{\i}gito, Identificador \}  & ~\hbox{N}otación:\\
+T & $=$ & \{$\;$ & a, b, c,..., z, 0, 1,..., 9 \} & ~~ \hbox{N} $=$ cjto. de no terminales \\
+P & $=$ & \{$\;$ & Letra $\rightarrow$ a          & ~~ T $=$ cjto. de terminales \\
+  &     &    & Letra $\rightarrow$ b          & ~~ P $=$ cjto. de producciones\\ 
+  &     &    & $\ldots$                       & ~~ S $=$ símbolo inicial o axioma \\
+  &     &    & Letra $\rightarrow$ z & \\
+  &     &    & Dígito $\rightarrow$ 0 & \\
+  &     &    & Dígito $\rightarrow$ 1 & \\
+  &     &    & $\ldots$               & \\
+  &     &    & Dígito $\rightarrow$ 9 & \\
+  & {\em(3)}    &    & Identificador $\rightarrow$ Letra & \\
+  & {\em(4)}    &    & Identificador $\rightarrow$ Identificador Letra & \\
+  & {\em(5)}    &    & Identificador $\rightarrow$ Identificador Dígito \} & \\
+S & $=$ &    & Identificador & \\
+\end{tabular}
+\end{footnotesize}
+
+As\'{\i}, el \'arbol sint\'actico de ``\verb!id02a!'' ser\'{\i}a: 
+
+\begin{center}
+\includegraphics{cap3f3.pdf}
+\end{center}
+} % come
+\end{ejemplo}
+
+\begin{description}
+\item[Definici\'on:]
+
+Una gram\'atica
+se dice que es {\em recursiva\/} si podemos hacer una derivaci\'on
+(sucesi\'on de una o m\'as producciones) de un s\'{\i}mbolo
+no terminal tras la cual nos vuelve a aparecer dicho s\'{\i}mbolo
+entre los s\'{\i}mbolos de la parte derecha de la derivaci\'on
+$A \stackrel{*}{\deriva} \alpha A \beta$.
+
+Unos casos especiales de recursividad son aquellos en los que
+aparecen derivaciones como $A \stackrel{*}{\deriva} A \beta$ o 
+$A \stackrel{*}{\deriva} \alpha A$ 
+y se denominan {\em recursividad por la izquierda\/} y {\em por la derecha\/}, 
+respectivamente.
+
+Un no terminal $A$ se dice que es recursivo si a partir de $A$ se puede
+derivar una forma sentencial en que aparece \'el mismo en la
+parte derecha.
+\end{description}
+
+\subsection{Ambigüedad}
+
+Una gram\'atica
+es {\em ambigua} si el lenguaje que define contiene alguna cadena
+que tenga m\'as de un \'arbol de an\'alisis
+sint\'actico para esa gramática. Es decir, si se puede construir 
+m\'as de un \'arbol de an\'alisis sint\'actico, quiere decir que
+esa sentencia puede ``significar'' cosas diferentes (tiene
+m\'as de una interpretaci\'on), por lo que tiene varias
+traducciones. Una gram\'atica es {\em no ambigua} cuando 
+cualquier cadena del lenguaje tiene un \'unico 
+\'arbol sint\'actico. 
+
+Como veremos m\'as adelante, no es posible construir
+analizadores sint\'ac\-ticos eficientes para gram\'a\-ticas
+ambiguas y, lo que es peor, al poderse obtener m\'as de un \'arbol
+sint\'actico para la misma cadena de entrada, es complicado
+conseguir en todos los casos la misma representaci\'on
+intermedia. Por estos motivos debemos evitar dise\~nar
+gram\'aticas ambiguas para los lenguajes de programaci\'on;
+aunque no disponemos de t\'ecnicas para saber a priori si una
+gram\'atica es ambigua o no, si ponemos ciertas restricciones a
+la gram\'atica estaremos en condiciones de afirmar que no es
+ambigua.
+
+La \'unica forma de saber que una gram\'atica es ambigua es
+encontrando una cadena con dos o m\'as \'arboles
+sint\'acticos distintos (o dos derivaciones por la izquierda).
+Las gram\'aticas que vamos a utilizar normalmente generan
+lenguajes infinitos, por tanto no es posible encontrar en todos
+los casos en un tiempo finito dicha cadena.
+Sin embargo, si la gram\'atica tiene alguna de las siguientes
+caracter\'{\i}sticas, es sencillo encontrar una cadena con dos o
+m\'as \'arboles:
+\begin{itemize}
+\item Gram\'aticas con ciclos simples o menos simples:
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{A} \\
+\nter{S} \der \nter{a} \\
+\nter{A} \der \nter{S} \\
+\end{array}
+$$
+%
+\item Alguna regla con una forma
+$$
+\begin{array}{rcl}
+\nter{E} \der \nter{E} \ldots \nter{E} \\
+\end{array}
+$$
+con cualquier cadena de terminales y no terminales entre las dos $E$. Es 
+posible que con alg\'un terminal antes de la primera $E$ o alg\'un terminal 
+despu\'es de la \'ultima $E$ pueda producirse tambi\'en ambig\"uedad; 
+por ejemplo, el {\tt if-then-else} de Pascal y C es f\'acil que se exprese 
+con una construcci\'on ambigua.
+%
+\item Un conjunto de reglas que ofrezcan caminos alternativos 
+entre dos puntos, como en:
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{A} \\
+\nter{S} \der \nter{B} \\
+\nter{A} \der \nter{B} \\
+\end{array}
+$$
+%
+\item Producciones recursivas en las que las variables no recursivas 
+de la producci\'on puedan derivar a la cadena vac\'{\i}a:
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{H} \nter{R} \nter{S} \\
+\nter{S} \der \ter{s} \\
+\nter{H} \der \ter{h} \opt \epsilon \\
+\nter{R} \der \ter{r} \opt \epsilon \\
+\end{array}
+$$
+%
+\item Símbolos no terminales que puedan derivar a la cadena vac\'{\i}a y 
+a la misma cadena de terminales, y que aparezcan juntas en la parte derecha 
+de una regla o en alguna forma sentencial:
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{H} \nter{R} \\
+\nter{H} \der \ter{h} \opt \epsilon \\
+\nter{R} \der \ter{r} \opt \ter{h} \opt \epsilon \\
+\end{array}
+$$
+\end{itemize}
+
+\begin{ejemplo}
+
+Sea una gram\'atica cuyas reglas de producci\'on son:
+
+$$
+\begin{array}{rcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{E} \\
+\nter{E} \der \nter{E} \tertt{*} \nter{E} \\
+\nter{E} \der \ter{n} \\
+\nter{E} \der \tertt{(} \nter{E} \tertt{)} \\
+\end{array}
+$$
+
+Con estas reglas se puede generar la cadena ``\verb!2+3*5!''
+que tiene dos posibles \'arboles sint\'acticos. En funci\'on
+de que se escoja uno u otro, el resultado de evaluar dicha expresi\'on
+matem\'atica es distinto, como se ve a continuaci\'on:
+
+\begin{footnotesize}
+\begin{center}	
+\begin{tabular}{l|l}
+\begin{minipage}[t]{0.4\textwidth}
+\begin{center}
+\includegraphics{cap3f4.pdf}
+\end{center}
+\end{minipage} &
+\begin{minipage}[t]{0.4\textwidth}
+\begin{center}
+\includegraphics{cap3f5.pdf}
+\end{center}
+\end{minipage} \\
+$E \deriva E+E \deriva n+E \deriva n+E*E$ & $E \deriva E+E \deriva E+E*E \deriva n+E*E$   \\
+$\;\; \deriva n+n*E \deriva n+n*n$    & $\;\; \deriva n+n*E \deriva n+n*n$ \\
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+Para solucionar esta ambig\"uedad se debe modificar las reglas de
+producci\'on de la gram\'atica. En este caso, se trata de
+distinguir en estas expresiones matem\'aticas lo que es un
+factor y lo que es un t\'ermino (producto de dos factores ---
+monomio). As\'{\i} se establece la jerarqu\'{\i}a de precedencias
+de los operadores:
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \opt \nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \opt \nter{F} \\
+\nter{F} \der \tertt{(} \nter{E} \tertt{)} \opt \ter{n} \\
+\end{array}
+$$
+De esta forma s\'olo hay un
+posible \'arbol sint\'actico para ``\verb!2+3*5!'':  
+
+\begin{center}
+\includegraphics{cap3f6.pdf}
+\end{center}
+\end{ejemplo}
+
+\subsection{Asociatividad y precedencia de los operadores}
+
+\subsubsection{Asociatividad}
+
+La \emph{asociatividad} de
+un operador binario define c\'omo se operan tres o m\'as
+operandos; cuando se dice que la asociatividad de un operador 
+es \emph{por la izquierda} se quiere decir que si aparecen tres o m\'as
+operandos se eval\'uan de izquierda a derecha: primero se eval\'uan los 
+dos operandos de
+m\'as a la izquierda, y el resultado de esa operaci\'on se
+opera con el siguiente operando por la izquierda, y as\'{\i}
+sucesivamente.
+
+Si la asociatividad del operador es \emph{por la derecha}, los operandos se
+eval\'uan de derecha a izquierda. En los lenguajes de
+programaci\'on imperativos m\'as utilizados (Pascal, C,
+C++, Java, etc.) la asociatividad de la mayor\'{\i}a de los
+operadores y en particular la de los operadores aritm\'eticos es
+por la izquierda. Por el contrario, en el lenguaje APL, que es un
+lenguaje orientado al c\'alculo num\'erico, la
+asociatividad de todos los operadores es por la derecha.
+
+
+\begin{ejemplo}
+Si la asociatividad del operador ``\verb!#!''
+es por la izquierda, la expresi\'on ``\verb!2#a#7.5!''
+se eval\'ua operando primero el ``\verb!2!''
+con la variable ``\verb!a!'', y operando despu\'es el resultado con 
+``\verb!7.5!''.
+Si la asociatividad fuera por la derecha, primero se operar\'{\i}an
+la variable ``\verb!a!'' con el ``\verb!7.5!'',
+y despu\'es se operar\'{\i}a el ``\verb!2!''
+con el resultado de esa operaci\'on. La posici\'on de los
+operandos con respecto al operador suele ser importante, ya que
+aunque algunos operadores son conmutativos, la mayor\'{\i}a no lo
+son.
+\end{ejemplo}
+
+\begin{ejemplo}
+Existen lenguajes que combinan operadores asociativos por la
+izquierda con otros asociativos por la derecha; en FORTRAN existen
+cinco operadores aritm\'eticos: suma (``\verb!+!''), resta
+(``\verb!-!''), multiplicaci\'on (``\verb!*!''), divisi\'on
+(``\verb!/!'') y exponenciaci\'on (``\verb!**!'').
+Los cuatro primeros son asociativos por la izquierda, mientras que el
+\'ultimo lo es por la derecha. As\'{\i}, tendremos las
+siguientes equivalencias:
+\begin{itemize}
+	\item ``\verb!A/B/C!''	se eval\'ua como ``\verb!A/B!''
+	y el resultado se divide por ``\verb!C!''.
+\item ``\verb!X**Y**Z!'' se eval\'ua como ``\verb!Y**Z!''
+	y ``\verb!X!'' se eleva al resultado.
+\end{itemize}
+\end{ejemplo}
+
+La forma de reflejar la asociatividad de un operador en la gram\'atica
+es la siguiente: cuando la asociatividad del operador es por la
+izquierda, la regla sint\'actica en la que interviene dicho
+operador debe ser recursiva por la izquierda, y cuando es por la
+derecha, la regla en la que interviene debe tener recursi\'on
+por la derecha. Para comprender estas reglas basta con pensar c\'omo
+se desarrollar\'an los \'arboles sint\'acticos con
+ambos tipos de recursividad y c\'omo se operar\'a en los
+nodos del \'arbol a la subida de un recorrido en profundidad por
+la izquierda. 
+
+\subsubsection{Precedencia}
+
+La precedencia de un operador especifica el orden relativo de cada
+operador con respecto a los dem\'as operadores; de esta manera,
+si un operador ``\verb!#!''
+tiene mayor precedencia que otro operador ``\verb!%!'',
+cuando en una expresi\'on aparezcan los dos operadores, se debe
+evaluar primero el operador con mayor precedencia.
+
+\begin{ejemplo}
+Con los operadores definidos m\'as arriba, si aparece una
+expresi\'on como ``\verb!2%3#4!'',
+al tener el operador ``\verb!#!''
+mayor precedencia, primero se operar\'{\i}an el ``\verb!3!'' y el ``\verb!4!'',
+y despu\'es se operar\'{\i}a el ``\verb!2!'' con el resultado de esa 
+operaci\'on.
+\end{ejemplo}
+
+Siguiendo los criterios aritm\'eticos habituales, en la mayor\'{\i}a
+de los lenguajes de programaci\'on los operadores
+multiplicativos tienen mayor precedencia que los aditivos, por lo que
+cuando se mezclan ambos tipos de operaciones en una misma sentencia,
+se eval\'uan las multiplicaciones y divisiones de izquierda a
+derecha antes que las sumas y restas. Existen excepciones: en el
+lenguaje {\em Smalltalk} no existe precedencia ni asociatividad,
+todos los operandos se eval\'uan de izquierda a derecha sin
+importar lo que aparezca m\'as a la izquierda de ellos; los
+conceptos de precedencia y asociatividad se establecen indirectamente
+por medio de los paréntesis.
+
+La forma de reflejar la precedencia de los operadores aritm\'eticos
+en una gram\'atica es bastante sencilla. Es necesario utilizar
+una variable en la gram\'atica por cada operador de distinta
+precedencia. Cuanto m\'as ``cerca'' est\'e la
+producci\'on de la del s\'{\i}mbolo inicial, menor ser\'a
+la precedencia del operador involucrado. La noci\'on de cercan\'{\i}a
+tiene que ver con el n\'umero de producciones que hay que llevar
+a cabo para llegar hasta esa regla desde el s\'{\i}mbolo inicial.
+
+\subsubsection{Parentizaci\'on}
+
+En la mayor\'{\i}a de los lenguajes de programaci\'on se
+utilizan los par\'entesis (que son operadores especiales que
+siempre tienen la m\'axima precedencia) para agrupar los
+operadores seg\'un la conveniencia del programador y sortear las
+precedencias y asociatividades definidas en el lenguaje.
+
+Para incluirlos en la gram\'atica, se a\~nade una variable
+que produzca expresiones entre par\'entesis y los operandos
+(n\'umeros, variables, etc.) a la mayor distancia posible del
+s\'{\i}mbolo inicial. En esta producci\'on tambi\'en se
+pondr\'{\i}an los operadores unarios a no ser que tengan una
+precedencia menor (véase m\'as adelante).
+
+\begin{ejemplo}
+Sup\'onganse los operadores ``\verb!+!'', ``\verb!-!'', con
+asociatividad por la izquierda (en ``\verb!6-3-2!'',
+se calcula primero ``\verb!6-3!'' y despu\'es
+se le resta el ``\verb!2!'') y los operadores ``\verb!*!'',
+``\verb!/!'' con asociatividad por la derecha (al contrario de lo
+habitual en los lenguajes C y Pascal, por ejemplo). Sean para los dos tipos 
+de operadores la precedencia habitual en los lenguajes de programaci\'on
+(``\verb!*!'' y ``\verb!/!'' tienen mayor
+precedencia y, por tanto, se eval\'uan antes que las sumas y las
+restas) y los par\'entesis tienen la m\'axima precedencia.
+La gram\'atica que genera las expresiones con estos operadores y
+adem\'as recoge la asociatividad y la precedencia es la
+siguiente:
+
+$$
+\begin{array}{rcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \\
+\nter{E} \der \nter{E} \tertt{-} \nter{T} \\
+\nter{E} \der \nter{T} \\
+\nter{T} \der \nter{F} \tertt{*} \nter{T} \\
+\nter{T} \der \nter{F} \tertt{/} \nter{T} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \terttprin{(} \nter{E} \tertt{)} \\
+\nter{F} \der \ter{número} \\
+\end{array}
+$$
+
+Se dice que esta gram\'atica refleja la precedencia y
+asociatividad de los operadores porque si construimos el \'arbol
+sint\'actico para una cadena cualquiera, p. ej. ``\verb!12-4-6/2/2!'',
+veremos que los operandos est\'an agrupados seg\'un su
+asociatividad y precedencia en las ramas del \'arbol, lo cual
+facilitar\'a su traducción en un recorrido del \'arbol.
+\end{ejemplo}
+
+Es importante que la gram\'atica refleje la precedencia y
+asociatividad de los operadores puesto que en la mayor\'{\i}a de
+los lenguajes objeto los operadores no tienen precedencia o
+asociatividad (normalmente porque no pueden aparecer expresiones
+aritm\'eticas complejas), y por tanto si el \'arbol
+sint\'actico mantiene correctamente agrupados los operandos de
+dos en dos ser\'a m\'as sencillo traducir la expresi\'on
+a un lenguaje objeto t\'{\i}pico, como puede ser el
+c\'odigo m\'aquina de un procesador cualquiera.
+
+La forma de recoger la sem\'antica de los operadores unarios y
+ternarios depende de cada caso, por lo que es necesario estudiar bien
+el comportamiento de estos operadores para dise\~nar una
+gram\'atica para ellos.
+
+\begin{ejemplo}
+En el caso del
+operador ``\verb+!+'' de C (el ``\verb!not!'' de Pascal) la sem\'antica 
+permite que aparezcan varios
+operadores seguidos (como por ejemplo ``\verb+!!!!0+'').
+En este caso, habr\'{\i}a que a\~nadir una regla como la
+siguiente a la gram\'atica del ejemplo anterior (dependiendo de
+la precedencia del operador):
+
+$$
+\begin{array}{rcl}
+\nter{F} \der \terttprin{!} \nter{F} \\
+\end{array}
+$$
+
+Sin embargo, el caso del operador de signo, la sem\'antica de
+muchos lenguajes como C, C++, Pascal, etc. no permite que aparezca
+m\'as de un signo delante de un t\'ermino, y adem\'as
+se especifica que el signo afecta a todo el t\'ermino. En el
+ejemplo anterior, habr\'{\i}a que a\~nadir las siguientes
+reglas:
+
+$$
+\begin{array}{rcl}
+\nter{E} \der \terttprin{-} \nter{T} \\
+\nter{E} \der \terttprin{+} \nter{T} \\
+\end{array}
+$$
+\end{ejemplo}
+
+
+\section{Tipos de análisis sintáctico}
+
+
+Existen algoritmos de an\'alisis sint\'actico para cualquier gram\'atica
+independiente del contexto (incluidas las ambiguas); los más conocidos
+son el de Earley y el de Cocke, Younger y Kasami (CYK). Ambos tienen un coste 
+temporal del orden de $O(n^3)$; este es un coste demasiado elevado
+para un compilador, por lo que es necesario buscar subclases de
+gram\'aticas que permitan un an\'alisis sint\'actico
+en tiempo lineal. Además, estos algoritmos no son adecuados para guiar
+la traducción del programa fuente, que es la principal misión del analizador
+sintáctico en un compilador.
+
+Existen dos estrategias para el análisis sintáctico lineal, que construyen
+el árbol sintáctico (o lo recorren) de diferente manera:
+\begin{itemize}
+\item {\bf An\'alisis
+        descendente}: partimos de la ra\'{\i}z del \'arbol (donde
+        estar\'a situado el axioma o s\'{\i}mbolo inicial de la
+        gram\'atica) y se van aplicando reglas por la izquierda de
+        forma que se obtiene una derivaci\'on por la izquierda del
+        s\'{\i}mbolo inicial. Para decidir qu\'e regla aplicar, se
+        lee uno o más {\em tokens\/} de la entrada. Recorriendo el 
+        \'arbol de an\'alisis sint\'actico resultante, en profundidad de
+        izquierda a derecha, encontraremos en las hojas del \'arbol los
+        {\em tokens\/} que nos devuelve el analizador léxico en ese mismo orden.
+\item {\bf An\'alisis
+        ascendente}: partiendo de la cadena de entrada, se construye el
+        \'arbol de an\'alisis sint\'actico empezando por las
+        hojas (donde est\'an los {\em tokens\/}) y se van creando nodos
+        intermedios hasta llegar a la ra\'{\i}z (hasta el s\'{\i}mbolo
+        inicial), construyendo as\'{\i} el \'arbol de abajo a arriba.
+        En un recorrido en profundidad del \'arbol de izquierda a
+        derecha tambi\'en se encontrar\'an en las hojas los {\em tokens\/}
+	en el orden entregado por el analizador l\'exico. El orden en
+        el que el analizador va entregando las producciones corresponde a la
+        inversa de una derivaci\'on por la derecha de la cadena de entrada.
+\end{itemize}
+
+Las dos estrategias recorren la cadena de entrada de izquierda a
+derecha una sola vez y necesitan que la gram\'atica no sea ambigua.
+
+\begin{ejemplo}
+Dada la entrada ``\verb!num*num+num!'' y dada la gramática:
+$$
+\begin{array}{rcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \opt \nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \opt \nter{F} \\
+\nter{F} \der \ter{num} \\
+\end{array}
+$$
+
+ Las derivaciones que se obtendrían según el método de análisis serían:
+
+\begin{center}
+\begin{tabular}{|c|c|}\hline
+árbol descendente & Lista de producciones \\\hline
+\begin{minipage}[c]{0.41\textwidth}
+\begin{center}
+\includegraphics{cap3f7.pdf}
+\end{center}
+\end{minipage} &
+\begin{minipage}[c]{0.41\textwidth}
+\begin{center}
+\begin{footnotesize}
+$$
+\begin{array}{rcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \\
+\nter{E} \der \nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \ter{num} \\
+\nter{F} \der \ter{num} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \ter{num} \\
+\end{array}
+$$
+(derivación por la izquierda)~\newline
+
+\end{footnotesize}
+\end{center}
+\end{minipage} \\\hline
+árbol ascendente & Lista de producciones \\\hline
+\begin{minipage}[c]{0.41\textwidth}
+\begin{center}
+\includegraphics{cap3f8.pdf}
+\end{center}
+\end{minipage} &
+\begin{minipage}[c]{0.41\textwidth}
+\begin{center}
+\begin{footnotesize}
+$$
+\begin{array}{rcl}
+\nter{F} \der \ter{num} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \ter{num} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \\
+\nter{E} \der \nter{T} \\
+\nter{F} \der \ter{num} \\
+\nter{T} \der \nter{F} \\
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \\
+\end{array}
+$$
+(inversa de derivación por la derecha)~\newline
+
+\end{footnotesize}
+\end{center}
+\end{minipage} \\\hline
+\end{tabular}
+\end{center}
+
+
+Obs\'ervese que en el an\'alisis descendente, partiendo del
+s\'{\i}mbolo inicial hasta alcanzar las hojas, obtenemos una
+derivaci\'on por la izquierda. En el ascendente, partiendo de
+las hojas hasta llegar al axioma obtenemos la inversa de una
+derivaci\'on por la derecha.
+\end{ejemplo}
+
+Ambos tipos de an\'alisis son eficientes (coste lineal $O(n)$)
+pero no son capaces de trabajar con todo tipo de gram\'aticas
+(el an\'alisis de tipo general s\'{\i} que es capaz de tratar
+cualquier gram\'atica, pero no es adecuado para el dise\~no
+de compiladores). Existen dos grandes familias de gramáticas
+que permiten un análisis en tiempo lineal, cada una de las 
+cuales es adecuada para un tipo de análisis:
+\begin{itemize}
+\item An\'alisis descendente: gramáticas LL$(k)$
+\item An\'alisis ascendente: gramáticas LR$(k)$
+\end{itemize}
+donde:
+
+\begin{quote}
+\begin{description}
+\item{L $\Rightarrow$}
+\emph{left to right}: la secuencia de {\em tokens\/} de entrada se analiza de 
+       izquierda a derecha.
+\item{L/R $\Rightarrow$}
+\emph{left-most/right-most}: obtiene la derivación por la izquierda/derecha. 
+\item{$k \Rightarrow$}
+es el n\'umero de s\'{\i}mbolos de entrada que es necesario 
+conocer en cada momento para poder hacer el an\'alisis. 
+\end{description}
+\end{quote}
+
+Por ejemplo, una gram\'atica LL(2) es aquella cuyas cadenas son
+analizadas de izquierda a derecha, derivando
+el no terminal que quede por derivar m\'as a la izquierda y 
+para las que es necesario mirar un m\'aximo de dos {\em tokens\/} 
+en la entrada para saber qu\'e producci\'on de la gram\'atica tomar 
+en cada instante. 
+
+En los siguientes capítulos estudiaremos cómo construir analizadores
+sintácticos para estas dos clases de gramáticas.
+
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{3.1, 3.2, 3.3, 3.4 y 3.5.1}
+\refb{\cite{ASU90}}{2.2, 2.4, 4.1, 4.2 y 4.3}
+\refb{\cite{Ben90}}{3.1, 3.2 y 6.1}
+\refb{\cite{FL91}}{4.1, 4.4 y 6.12.3}
+\end{rbib}
+
+\clearpage
+%\section{Ejercicios}
+\Ejercicios
+
+\begin{ejercicio}
+Dise\~nar una gram\'atica {\em no ambigua\/} para el lenguaje de
+las expresiones
+que se pueden construir en Zaskal
+usando \'{u}nicamente ``{\tt true}'', ``{\tt false}'' y operadores booleanos.
+Los operadores de Zaskal son:
+``{\tt or}'' (binario, infijo), ``{\tt and}'' (binario, infijo),
+``{\tt not}'' (unario, {\em postfijo}),  ``{\tt (}''
+y ``{\tt )}''. Sin contar los par\'{e}ntesis, la precedencia relativa
+de los operadores es
+$$\mbox{\tt not} > \mbox{\tt and} > \mbox{\tt or};$$
+adem\'{a}s, ``{\tt and}'' y {\tt or}'' son asociativos por la
+derecha. Por ejemplo, la expresi\'{o}n
+\begin{center}
+{\tt (true and false not) or false and true not not}
+\end{center}
+ser\'{\i}a una expresion correcta en Zaskal (que se evalua como \texttt{true},
+por cierto).
+\end{ejercicio}
+%
+\begin{ejercicio}
+Dise\~nar una gram\'atica {\em no ambigua\/} para el lenguaje de
+las expresiones regulares que se pueden construir con el alfabeto \{0,1\}.
+Los operadores que se usan para construir expresiones regulares son los 
+siguientes (ordenados de menor a mayor precedencia):
+\begin{center}
+\begin{tabular}{|c|l|l|l|}
+\hline
+{\tt a|b} & uni\'on & binario & asociatividad \\
+          &         &         & por la izquierda \\
+\hline
+{\tt ab}  & concatenaci\'on & binario & asociatividad \\
+          &                 &         & por la derecha \\
+\hline
+ {\tt a}$^{+}$, {\tt a}$^{*}$ & clausura & unarios & \\
+\hline
+\end{tabular}
+\end{center}
+ Algunas expresiones regulares que deben poder ser generadas por la
+gram\'a\-tica son:
+$$
+\begin{array}{l}
+010 \\
+(01^{*}|(0|1^{+})^{*}|1)1  \\
+(0(1^{+})0|1(0^{+})1)^{*}0011 \\
+({1100^{*+*}})^{+*}
+\end{array}
+$$
+\end{ejercicio}
+%
+\begin{ejercicio}
+Diseñar una gramática {\em no ambigua\/} para los lenguajes que permiten
+escribir cualquier número de declaraciones de variables enteras, caracteres
+o reales en Pascal y C.
+\end{ejercicio}
+%
+\come{  % demasiado largo
+\begin{ejercicio}
+Dise\~nar una gram\'atica {\em no ambigua\/} a partir de esta descripci\'on
+de un lenguaje de programaci\'on:
+
+\begin{enumerate}
+   \item Un programa est\'a formado por una secuencia de cero o m\'as
+   declaraciones de variables seguida de una secuencia de una o m\'as 
+    instrucciones.
+   Adem\'as, cada declaraci\'on debe acabar con un punto y coma y entre cada
+   dos instrucciones de la secuencia tambi\'en debe haber un punto y coma.
+   \item Una declaraci\'on de variables empieza con un tipo, que puede
+   ser entero o booleano (los tipos se representan con las palabras
+   reservadas {\tt int} y {\tt bool} respectivamente). Despu\'es del tipo
+   debe aparecer una secuencia de uno o m\'as identificadores
+   separados por comas. Antes de esta secuencia de identificadores puede
+   aparecer un n\'umero entero, y en ese caso los identificadores ser\'an
+   {\em arrays\/} cuyo rango de posiciones empezar\'a en {\em cero} y acabar\'a
+   en el n\'umero que define al {\em array}. El rango incluye a ambos
+   l\'{\i}mites.
+   \item Una instrucci\'on puede ser cualquiera de las siguientes:
+     \begin{description}
+     \item[{\bf asignaci\'on:}] est\'a formada por una referencia, un
+     operador de asignaci\'on (el s\'{\i}mbolo `\verb+:=+') y una expresi\'on.
+     Una referencia es un identificador seguido opcionalmente por una
+     expresi\'on entre corchetes;
+     \item[{\bf entrada:}] est\'a formada por la palabra reservada {\tt read}
+     y una referencia;
+     \item[{\bf condicional:}] empieza con la palabra reservada {\tt if},
+     una expresi\'on, la palabra reservada {\tt then}, una secuencia de
+     instrucciones (como se define m\'as arriba) y la palabra reservada
+     {\tt end}. Opcionalmente, puede aparecer antes de {\tt end} la palabra
+     reservada {\tt else} y otra secuencia de instrucciones;
+     \item[{\bf salida:}] est\'a formada por la palabra reservada {\tt print}
+     y una expresi\'on;
+     \item[{\bf iteraci\'on:}] est\'a formada por la palabra reservada
+     {\tt while}, una expresi\'on, la palabra reservada {\tt do}, una
+     secuencia de instrucciones y la palabra reservada {\tt end}.
+     \item[{\bf for:}] est\'a formada por
+     la palabra reservada {\tt for}, un
+     identificador, el operador de asignaci\'on, una expresi\'on (que debe ser
+     de tipo entero), la palabra reservada {\tt to}, otra expresi\'on (que
+     tambi\'en debe ser de tipo entero), la palabra reservada {\tt do}, una
+     secuencia de una o m\'as instrucciones (separadas por un punto y coma
+     entre cada dos instrucciones) y la palabra reservada {\tt end}. 
+     \item[{\bf selecci\'on:}] La instrucci\'on se define con las
+     siguientes reglas:	
+\begin{enumerate}
+   \item Empieza por la palabra reservada {\tt case}, una expresi\'on
+   (que debe ser de tipo entero), una
+   secuencia de uno o m\'as {\em casos\/} y la palabra reservada {\tt end}.
+   \item Un {\em caso\/} empieza por la palabra reservada {\tt when},
+   una secuencia de uno o m\'as n\'umeros
+   enteros sin signo o {\em rangos\/} separados por comas, seguida de la
+   palabra reservada {\tt then}, y una secuencia de instrucciones.
+   \item Puede aparecer un {\em caso\/} especial\footnote{Puede ser
+   tambi\'en el \'unico {\em caso\/} que aparezca}, y debe ser \'unico (no
+   puede haber dos {\em casos\/} especiales) y el \'ultimo caso. Est\'a
+   formado por la palabra reservada {\tt else} y una secuencia de
+   instrucciones.
+   \item Cuando la expresi\'on no coincida con ninguno de los {\em casos}
+   normales, se ejecutar\'a la secuencia de instrucciones asociadas al
+   {\em caso\/} especial si existe.
+   \item Un {\em rango\/} est\'a formado por un n\'umero entero, la palabra
+   reservada {\tt to} y otro n\'umero entero. El rango incluye a los
+   dos n\'umeros que lo definen y puede ser ascendente
+   o puede estar formado por un \'unico n\'umero entero (si los
+   dos n\'umeros del rango son el mismo). Si el rango fuera descendente
+   el compilador debe producir un mensaje de error.
+\end{enumerate}
+     \end{description}
+   \item Las expresiones est\'an formadas por n\'umeros enteros, las
+    constantes booleanas {\tt true} y {\tt false}, referencias (tal como
+    se definen m\'as arriba), y los operadores {\tt or} y {\tt and},
+    los operadores relacionales $!=$, $==$, $>=$, $>$, $<=$ y $<$, los
+    operadores de suma($+$) y resta($-$), los operadores de producto($*$) y
+    divisi\'on($/$) y el operador {\tt not}.  La siguiente tabla muestra
+    los operadores ordenados de menor a mayor precedencia y tambi\'en
+    muestra su asociatividad y aridad:
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+{\sc Operadores} &
+{\sc Asociatividad} &
+{\sc Orden} \\
+\hline\hline
+\verb!or! & izquierda    & binario \\
+\verb!and! & izquierda    & binario \\
+\verb+!=+,\verb+==+,
+\verb+>=+,\verb+>+,
+\verb+<=+,\verb+<+ & izquierda    & binarios \\
+\verb!+!, \verb!-! & izquierda    & binarios \\
+\verb!+!, \verb!-! & - & unarios \\
+\verb!*!, \verb!/! & izquierda    & binarios \\
+\verb+not+       & - & unario \\
+\hline
+\end{tabular}
+\end{center}
+Los operadores unarios \verb!+! y \verb!-! s\'olo pueden aparecer al
+principio de una expresi\'on, y s\'olo afectan al primer t\'ermino de la
+expresi\'on. Adem\'as, se pueden utilizar par\'entesis para 
+agrupar operaciones. En general, las expresiones son similares (en cuanto
+a su sintaxis) a las de Pascal o C.
+
+\end{enumerate}
+\end{ejercicio}
+} %come
+%
+\begin{ejercicio}
+Las reglas siguientes definen el lenguaje {\tt LogPro}. Escríbanse las
+expresiones regulares que definen los {\em tokens\/} de este lenguaje
+y despu\'es disé\~nese una gram\'{a}tica para él.
+%
+\begin{itemize}
+\item Un programa en el lenguaje {\tt LogPro} consta de una secuencia
+de cero o m\'{a}s hechos o  reglas y {\em una} \'unica pregunta.
+\item Un hecho es un predicado seguido de un punto.
+\item Una regla es un predicado seguido del s\'{\i}mbolo {\tt <-},
+la parte derecha de la regla y un punto.
+\item Una pregunta empieza con el s\'{\i}mbolo {\tt <-} seguido de la
+parte derecha de una regla y termina en un punto.
+\item Un predicado tiene un nombre (que es una secuencia de letras,
+d\'{\i}gitos y el s\'{\i}mbolo \verb|_| (el caracter de subrayado)
+que empieza por una letra
+min\'uscula) y cero o m\'as argumentos separados por comas y encerrados
+entre par\'entesis (al contrario que en C, 
+si no tiene argumentos, no se ponen los par\'entesis).
+\item Un argumento puede ser un n\'umero (una secuencia de uno m\'as
+d\'{\i}gitos sin signo), una variable (una secuencia de letras, d\'{\i}gitos
+y el s\'{\i}mbolo \verb|_|, que empieza por una letra may\'uscula o por
+\verb|_|) o un predicado.
+\item La parte derecha de una regla es una expresi\'on booleana, y est\'a
+formada por una secuencia de t\'erminos booleanos combinados
+con los operadores '{\tt ,}' (una coma, representa la operaci\'on l\'ogica
+{\em and\/}) y '{\tt ;}' (un punto y coma, representa al {\em or\/} l\'ogico). 
+Los dos
+operandos tienen la asociatividad por la izquierda, y el '{\tt ;}' tiene
+menor precedencia (se evalua despu\'es) que el '{\tt ,}'. Se pueden utilizar
+par\'entesis para agrupar expresiones, de la misma manera que se utilizan 
+en expresiones de C o Pascal.
+\item Un t\'ermino booleano puede ser un predicado o una expresi\'on
+relacional. Una expresi\'on relacional est\'a formada por dos expresiones
+aritm\'eticas separadas por un operador relacional, que puede ser uno de
+estos s\'{\i}mbolos: {\tt ==}, {\tt !=}, \verb+<+, {\tt <=}, \verb+>+,
+{\tt >=}.
+\item Una expresi\'on aritm\'etica est\'a formada por n\'umeros, variables,
+par\'en\-tesis y los operadores {\tt +}, {\tt -}, {\tt *} y {\tt /}, con la
+misma precedencia y asociatividad que tienen en lenguajes como C o Pascal
+(una expresi\'on aritm\'etica en {\tt LogPro} es sint\'acticamente correcta
+en C o Pascal).
+\item De igual forma que en C o Pascal, se pueden utilizar espacios en
+blanco, tabuladores y cambios de linea para mejorar la legibilidad de un
+programa en {\tt LogPro}, pero no son elementos del lenguaje.
+\item Un argumento de un predicado puede ser tambi\'en una
+lista, que est\'a formada por un corchete izquierdo, una secuencia de
+elementos separados por comas, una cola opcional y un corchete derecho.
+Cualquier tipo de argumento de un predicado puede ser un elemento de una
+lista (se puede construir una lista de listas), y la cola (que puede
+aparecer o no) est\'a formada por el s\'{\i}mbolo {\tt |} seguido de una
+lista. La cola, si aparece, va situada inmediatamente antes del corchete
+derecho (aunque puede haber blancos entre estos elementos).
+\end{itemize}
+\paragraph{Ejemplo:}
+\begin{small}
+\begin{verbatim}
+preD1   .
+preD2(23,_23,f(a)) <- (eurt,eslaf;cierto), 2+3*4<= 3, X == 5.
+preD3(Predicado, [l,i,s,t,a
+       |[c,o,l,a]]).
+<-preD4(preD2(Y,2,f(X)),preD1)
+.
+\end{verbatim}
+\end{small}
+\end{ejercicio}
+%
+\begin{ejercicio}
+Dise\~nar una gram\'atica {\em no ambigua\/} que genere el lenguaje G
+definido por las siguientes frases:
+ \begin{enumerate}
+ \item Un programa en G es una secuencia de uno o m\'as m\'etodos.
+ \item Un m\'etodo est\'a formado por una declaraci\'on de variables y
+  una secuencia de cero o m\'as mensajes acabada en una sentencia de
+  retorno.
+ \item Una declaraci\'on de variables est\'a formada por una barra
+  vertical (`{\tt |}'), una secuencia de cero o m\'as identificadores y
+  otra barra vertical.
+ \item Un mensaje puede ser una asignaci\'on, una expresi\'on o un mensaje
+  de m\'etodo.
+ \item Un mensaje de asignaci\'on est\'a formado por una variable, el
+  simbolo `{\tt :=}'~ y un mensaje.
+ \item Las expresiones pueden contener n\'umeros enteros, variables,
+  los operadores `{\tt +}', `{\tt -}', `{\tt *}', `{\tt /}', con la
+  misma asociatividad que en C o Pascal, pero {\em sin precedencia}. Una 
+   expresi\'on puede ser un mensaje entre par\'entesis.
+ \item Un mensaje de m\'etodo est\'a formado por un identificador, un
+  corchete izquierdo, una secuencia de cero o m\'as expresiones separadas
+  por un punto y coma entre cada dos expresiones, y un corchete derecho.
+ \item Una sentencia de retorno est\'a formada por el s\'{\i}mbolo `\verb+^+'~
+  y una expresi\'on.
+ \end{enumerate}
+
+\end{ejercicio}
+%
+\begin{ejercicio}
+Dise\~nar una gram\'atica {\em no ambigua\/} que genere (car\'acter
+a car\'acter) el lenguaje de todos los n\'umeros enteros sin signo que sean
+pares, considerando que el 0 es par tambi\'en. Algunos n\'umeros que 
+tendr\'{\i}a que generar esta gram\'atica son:
+\begin{verbatim}
+             0
+           234
+         11112
+          2350
+         00078
+\end{verbatim}
+\end{ejercicio}
+
+

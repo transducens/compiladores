@@ -1,0 +1,2181 @@
+
+
+\section{Introducción}
+
+ En este capítulo vamos a estudiar cómo emplear los ETDS para obtener 
+información acerca de los tipos y generar código intermedio. Como estudiaremos 
+más adelante, el código intermedio que se genere para un programa fuente
+determinado depende en gran medida de los tipos utilizados en dicho programa.
+Por tanto, las fases de análisis semántico y generación de código intermedio
+están fuertemente relacionadas entre sí, y en la práctica son una única
+etapa guiada por el análisis sintáctico, como hemos explicado en los
+capítulos anteriores.
+Además, estudiaremos los tipos compuestos ({\em arrays\/}, registros, $\ldots$) 
+y la generación de código para acceder a variables de cualquier tipo.
+
+ Un aspecto muy importante en el diseño de un compilador es la elección de
+la representación intermedia o código intermedio que se va a utilizar. En el
+epígrafe~\ref{sec:ri} estudiaremos los distintos tipos de representaciones
+intermedias que se suelen utilizar. Previamente, estudiaremos el módulo de
+gestión de la tabla de símbolos y los problemas que plantean los ámbitos
+anidados.
+
+ También se estudia en este capítulo la generación de código para expresiones
+aritmé\-ti\-cas y para las instrucciones más comunes de los lenguajes de alto
+nivel. Durante todo el capítulo se hace una comparación entre los lenguajes
+C y Pascal, ya que son los precursores de la mayoría de los lenguajes actuales
+y son lenguajes casi antagónicos en muchos aspectos, especialmente en lo
+relacionado con el tratamiento de los tipos.
+
+\section{Gestión de la tabla de símbolos}
+
+ La tabla de símbolos es una fase (o un módulo) del compilador que interacciona
+con las demás fases y, aunque suele estar estrechamente ligada 
+al {\em front end\/}, a veces también interacciona con algunas fases del
+{\em back end\/}. 
+
+La tabla de símbolos es una tabla que se utiliza para 
+almacenar los nombres definidos por el usuario en el programa fuente: variables,
+nombres de funciones, nombres de tipos, etc. Normalmente, un compilador debe
+comprobar, por ejemplo, que no se utiliza una variable sin haberla declarado
+previamente, o que no se declara una variable dos veces. Para ello, el 
+compilador tiene que almacenar el nombre de la variable (y posiblemente
+su tipo y algún otro dato) en la tabla de 
+símbolos y, cuando se utiliza esa variable en una expresión, el compilador
+la busca (eficientemente) en la tabla para comprobar que existe y además para 
+obtener información acerca de ella: tipo, dirección de memoria, etc. La
+información que se guarda en la tabla depende del tipo de
+símbolo de que se trate: 
+
+\begin{small}
+\begin{center}
+\begin{tabular}{|l|l|}\hline
+{\sc Tipo de símbolo} & {\sc Información almacenada} \\\hline\hline
+variable & nombre, tipo, tamaño, dirección de memoria  $\ldots$ \\
+función  & nombre, tipo, comienzo del código, $\ldots$ \\
+tipo definido por el usuario & nombre, tipo, tamaño, $\ldots$  \\
+constante & nombre, tipo, tamaño, valor, $\ldots$ \\\hline
+\end{tabular}
+\end{center}
+\end{small}
+
+ El módulo de la tabla de símbolos proporciona al resto del {\em front end\/}
+dos funciones: añadir un nuevo símbolo a la tabla y buscar un símbolo para
+obtener su información (tipo, dirección, etc.). Cuando se va a añadir un
+símbolo lo primero que se hace es buscarlo y comprobar que no está ya 
+declarado (si lo estuviera habría que dar un error), por lo que también
+en esta función de añadir se realiza una búsqueda. Durante la compilación
+de un programa se llegan a producir muchas búsquedas, por lo que la eficiencia
+temporal de estas búsquedas es un factor determinante en la velocidad del
+compilador. Aunque se suele pensar en la tabla de símbolos como un {\em array\/} o una
+tabla de registros (cuyos campos serían el nombre, el tipo, etc.), 
+lo habitual (excepto en compiladores muy sencillos) es implementar la tabla de
+símbolos utilizando tablas de dispersión (tablas {\em hash\/}) para 
+optimizar el tiempo de búsqueda. \come{Prácticamente en todos los libros de
+texto sobre compiladores se explican las características de las 
+tablas de dispersión que se suelen
+utilizar en los compiladores\footnote{Un compilador es un programa muy complejo, y
+en su construcción se emplean las técnicas más avanzadas de muchos otros
+campos de la informática.}.}%come
+
+\begin{ejemplo}
+
+Dado el siguiente fragmento de programa en C:
+\begin{center}
+\begin{verbatim}
+  int     a,b,c;
+  float   d,e;
+  char    f,g;
+\end{verbatim}
+\end{center}
+
+la tabla de símbolos que construiría un compilador podría ser\footnote{La 
+asignación de una dirección de memoria a una
+variable depende del tipo de representación intermedia que utilice el
+compilador, y el tamaño de los tipos depende de la máquina objeto.}:
+
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline\hline
+{\sc Nombre} &
+{\sc Tipo} &
+{\sc Tamaño} & 
+{\sc Dirección}\\
+\hline
+\verb!a! & ENTERO & 2 & 100 \\
+\verb!b! & ENTERO & 2 & 102 \\
+\verb!c! & ENTERO & 2 & 104 \\
+\verb!d! & REAL & 4 & 106 \\
+\verb!e! & REAL & 4 & 110 \\
+\verb!f! & CARACTER & 1 & 114 \\
+\verb!g! & CARACTER & 1 & 115 \\
+\hline
+\end{tabular}
+\end{center}
+\end{small}
+\end{ejemplo}
+
+ Cuando se está diseñando el fragmento de ETDS que se encarga de procesar
+las declaraciones y almacenar los símbolos en la tabla de símbolos, es 
+importante tener en cuenta que el orden en que se deben almacenar los 
+símbolos en la tabla es exactamente el orden en que aparecen en el programa
+fuente. Por tanto, es fundamental conocer, dado un ETDS, el orden en que
+se van a ejecutar las acciones semánticas (y para ello se debe conocer el
+funcionamiento del proceso de análisis sintáctico, que es el que determina
+el orden de ejecución de las acciones).
+Según la gramática, conseguir que las acciones se ejecuten en el orden
+adecuado puede ser una tarea muy sencilla o muy complicada, por lo que es 
+posible que sea necesario 
+rediseñar la gramática para facilitar la tarea del ETDS (en otras partes del
+{\em front end\/} también puede ser conveniente rediseñar la gramática).
+
+ Los errores semánticos que se pueden producir en este módulo de gestión 
+de la tabla de símbolos son básicamente de dos clases: 
+\begin{itemize}
+\item que se intente utilizar una variable que no haya sido declarada previamente, y
+\item que se intente declarar dos veces una variable (dentro del mismo
+{\em ámbito}, como se explica más adelante).
+\end{itemize}
+
+Además, pueden producirse
+errores internos del compilador porque hay demasiados símbolos o bien porque
+las variables declaradas ocupan demasiada memoria (p. ej. si hay {\em arrays\/}
+muy grandes).
+
+\subsubsection{\'Ambitos anidados}
+
+ La gestión de una tabla de símbolos parece sencilla a simple vista, pero se
+complica un poco cuando en el lenguaje fuente se permiten distintos 
+{\em ámbitos\/} de declaración de símbolos. Por ejemplo, en el lenguaje C
+está permitido declarar variables al principio de un bloque entre 
+llaves\footnote{En la última versión del estándar ANSI (1999) las variables 
+pueden declararse en cualquier lugar (como en C++) y no exclusivamente al 
+comienzo de un bloque.}, y
+además se permite que dichas variables tengan el mismo nombre que otras 
+variables declaradas previamente en otros bloques anteriores
+(en otros {\em ámbitos\/}), con lo que las nuevas variables están
+{\em ocultando\/} a las anteriores con el mismo nombre: cuando dentro del
+bloque se utiliza una variable, el compilador primero la busca entre las
+variables del bloque y, si no la encuentra, la busca en las que había 
+declaradas antes. De esta manera, si se declaran dos variables con el
+mismo nombre en distintos ámbitos, el compilador encuentra la última 
+que se haya declarado y esté en un ámbito abierto.
+
+\begin{ejemplo}
+
+El siguiente fragmento de programa en C puede servir
+para demostrar la semántica de las declaraciones en los bloques:
+\begin{center}
+\begin{small}
+\begin{verbatim}
+{
+  int     a,    /* primera 'a' */
+          b,c;
+
+  a = 7;
+  if (1)
+  {
+    int i,a;    /* segunda 'a' */
+
+    a = 8;      /* asigna un 8 a la segunda 'a' */
+    b = a;      /* asigna a 'b' el valor de la segunda 'a' */
+  }
+
+  /* En este punto 'b' vale 8, 'a' vale 7 e 'i' no existe */
+
+}
+\end{verbatim}
+\end{small}
+\end{center}
+\end{ejemplo}
+
+ Además, cuando se cierra un ámbito, el compilador debe {\em olvidar\/} las
+variables que hubiera declaradas en él, puesto que pueden inducir a error si
+permanecen en la tabla de símbolos. En algunos compiladores se introduce un
+nuevo campo en la tabla de símbolos que indica el ámbito o nivel de anidamiento
+del símbolo en cuestión. El hecho de añadir variables a la tabla de símbolos al
+abrir un bloque y borrarlas al cerrarlo hace que el funcionamiento de la 
+tabla de símbolos se parezca a una pila, por lo que en algunos casos se suele
+utilizar una pila de tablas de símbolos (con una tabla para cada bloque) con
+el objetivo de resolver el problema de los ámbitos. 
+
+ Como se ha explicado anteriormente, las búsquedas en la tabla de sím\-bolos
+se realizan tanto al intentar obtener información de un
+símbolo como al añadir un nuevo símbolo a la tabla (para comprobar que no se
+ha declarado previamente). Si el lenguaje fuente permite ámbitos anidados,
+estas búsquedas deben realizarse de forma diferente:
+\begin{itemize}
+\item Cuando se va a añadir un nuevo símbolo, se debe buscar el símbolo 
+únicamente entre los símbolos del mismo ámbito, lo que se puede implementar
+fácilmente comenzando las búsquedas desde el final de la tabla (si se 
+implementa la tabla de símbolos como una tabla de registros), y terminando
+cuando se llega al principio de la tabla o cuando se llega a un símbolo cuyo
+ámbito o nivel de anidamiento es menor que el actual.
+\item Cuando se intenta obtener información acerca de un símbolo que aparece
+en una instrucción, se debe buscar el símbolo desde el final de la tabla
+hasta el principio, de manera que se encontrará el símbolo del ámbito
+no cerrado más cercano.
+\end{itemize}
+
+ Además de la gestión de los símbolos, si el compilador asigna direcciones de
+memoria a las variables, las direcciones asignadas a las variables del 
+ámbito o bloque deben ser reutilizadas cuando se cierra el bloque, 
+ya que esas variables serán usadas únicamente en el código de ese bloque y 
+cuando se cierre el bloque las variables no serán {\em visibles\/}, y 
+por tanto las direcciones que ocupan podrán asignarse a otras variables que 
+se declaren más adelante.
+
+ En la mayoría de los lenguajes del tipo de Pascal o C, el cuerpo de una
+función es considerado un ámbito en sí mismo (los nombres de los argumentos
+son lo primero que se almacena en la tabla de símbolos), por lo que la
+gestión de la tabla de símbolos al compilar el cuerpo de una función es
+muy similar. Además, Pascal (como otros lenguajes) permite declarar funciones
+locales a otras funciones, es decir, funciones que son declaradas al mismo
+nivel que las variables locales de la función; así como las variables locales
+de una función no son {\em visibles\/} fuera de su cuerpo, las funciones
+locales tampoco. La compilación de las funciones y de las llamadas a funciones
+se tratará en profundidad en el capítulo siguiente, pero las reglas de ámbitos
+son básicamente las descritas aquí.
+
+\section{Representaciones intermedias} \label{sec:ri}
+
+ La utilización de una representación intermedia permite separar claramente
+el {\em front end\/} del {\em back end\/}, y reutilizar
+ambas partes del compilador para futuros compiladores. Además, la mayoría 
+de los compiladores se diseñan como parte de una familia de
+compiladores para una serie de procesadores o bien para una serie de
+lenguajes fuente (C/C++, FORTRAN, Pascal, ...). La elección de la representación
+intermedia que va a utilizar el compilador depende en gran medida de la
+``familia'': si se trata de una serie de compiladores para procesadores muy
+parecidos, lo habitual es utilizar un lenguaje intermedio que sea un
+superconjunto de los conjuntos de instrucciones de todos los procesadores,
+de manera que la generación de código objeto real sea prácticamente 
+inmediata a partir del código intermedio.
+Si por el contrario se trata de un compilador perteneciente a una familia de 
+compiladores cuyos lenguajes fuente son muy parecidos pero cuyos
+lenguajes objetos son diferentes, lo razonable es utilizar 
+una representación intermedia de más alto nivel, como puede ser un árbol 
+sintáctico abstracto (en inglés {\em abstract syntax tree\/}).
+
+ Las clases de representaciones intermedias más utilizadas son:
+\begin{itemize}
+  \item Código de tres direcciones ({\em three--address code\/}),
+   representado mediante tripletas o cuádruplas. \newline
+   {\bf Ejemplo:} La expresión aritmética ``\verb!(2+3)*(2+3+5)!'' se traduciría a la
+   siguiente secuencia de instrucciones en código de tres direcciones:
+   \begin{center}
+   \begin{small}
+   \begin{tabular}{cccc}
+\hline\hline
+{\sc Instrucción} & {\sc Operando 1} & {\sc Operando 2} & {\sc Resultado} \\
+\hline
+\verb!ADD!  & 2 & 3 & $t_1$         \\
+\verb!ADD!  & 2 & 3 & $t_2$         \\
+\verb!ADD!  & $t_2$ & 5 & $t_3$     \\
+\verb!MUL!  & $t_1$ & $t_3$ & $t_4$ \\
+\hline
+   \end{tabular}
+   \end{small}
+   \end{center}
+   Se denomina código de tres direcciones porque, como se puede observar, las
+  instrucciones en este lenguaje tienen (casi todas) 3 direcciones: dos para 
+  los operandos y una para el resultado. En el ejemplo, $t_1$, $t_2$ $\ldots$ 
+  son variables temporales que utiliza el compilador para almacenar resultados
+  intermedios.
+
+  \noindent {\bf Nota:} El optimizador de código intermedio detectará que $t_1$ y 
+   $t_2$ contienen el mismo valor, y por tanto eliminará la segunda instrucción 
+   y sustituirá $t_2$ por $t_1$ en la tercera instrucción. Esta optimización se
+   conoce como {\em eliminación de subexpresiones comunes\/}. Es más, en este 
+   ejemplo concreto realmente no se llegaría a aplicar esta optimización puesto 
+   que antes se habría aplicado otra optimización para evaluar expresiones 
+   constantes y se habría sustituido {\em toda\/} la expresión por 
+   su valor: 50. Lo normal es que el generador de código intermedio no intente
+   generar un código intermedio muy bueno, sino que intenta generar un código
+   intermedio fácilmente optimizable, y ello implica generar (a veces) código
+   claramente ineficiente.
+
+\vspace{0.4cm}
+ 
+  \item Árboles sintácticos abstractos y grafos dirigidos acíclicos.\newline
+  {\bf Ejemplo:} La expresión aritmética anterior se representaría con el
+   siguiente árbol sintáctico abstracto de la figura~\ref{figast}.
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.4\textwidth]{cap8f2.pdf}
+\caption{Árbol sintáctico abstracto para ``{\tt (2+3)*(2+3+5)}''.} \label{figast}
+\end{center}
+\end{figure}
+
+   Los grafos dirigidos acíclicos se obtienen cuando el compilador detecta y
+elimina subexpresiones comunes en un árbol.\newline
+  {\bf Ejemplo:} El grafo de la expresión ``\verb!(2+3)*(2+3+5)!'' sería el
+  que se muestra en la figura~\ref{figdag}. Lo normal sería que el generador de
+  código intermedio del {\em front end\/}
+  generase árboles y el optimizador de código intermedio pudiera transformarlos
+  en grafos, por lo que el generador de código objeto
+  tendría que admitir tanto árboles como grafos.
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.4\textwidth]{cap8f3.pdf}
+\caption{Grafo dirigido acíclico para ``{\tt (2+3)*(2+3+5)}''.} \label{figdag}
+\end{center}
+\end{figure}
+
+  \item Código de una máquina virtual, como, por ejemplo, el {\em P--code\/}
+   utilizado en muchos compiladores de Pascal, que es el código de una máquina
+   virtual de pila.\newline
+   {\bf Ejemplo:} La traducción de la expresión anterior a código para una máquina
+   virtual de pila sería:
+   \begin{center}
+   \begin{footnotesize}
+   \begin{tabular}{l|l}
+\hline\hline
+{\sc Instrucción} & {\sc Significado} \\
+\hline
+\verb!lda 2!  & Apilar un \verb+2+ \\
+\verb!lda 3!  & Apilar un \verb+3+ \\
+\verb!add!    & Desapilar dos números, sumarlos y apilar el resultado (5)\\
+\verb!lda 2!  &                      \\
+\verb!lda 3!  &                      \\
+\verb!add!    & Repetir la operación para el segundo \verb!2+3!\\
+\verb!lda 5!  &                      \\
+\verb!add!    & Sumar el segundo \verb!2+3! con \verb+5+ y apilar el resultado (10)                \\
+\verb!mul!    & Desapilar dos números (el \verb+5+ del primer \verb!2+3! y el \verb+10+),    \\
+              & multiplicarlos y apilar el resultado    \\
+\hline
+   \end{tabular}
+   \end{footnotesize}
+   \end{center}
+   Aunque el código para máquinas virtuales de pila ha tenido mucho éxito 
+ debido a su utilización en compiladores de Pascal y a que es un ejemplo
+ muy frecuente en los libros de texto sobre compiladores, es bastante
+ complicado transformar ese código en código para una máquina concreta.
+ Además de las máquinas virtuales de pila se utilizan otros tipos de
+ máquinas virtuales más parecidas a un procesador real, con un número
+ determinado de registros y un conjunto de instrucciones similar al 
+ ensamblador de un procesador cualquiera.
+
+\end{itemize}
+
+ Los lenguajes intermedios también se utilizan para construir
+pseudo-compiladores: tienen un {\em front end\/} como el de 
+un compilador normal, que genera código intermedio que después es
+ejecutado por un intérprete. Los
+intérpretes de lenguajes de alto nivel no son muy distintos: suelen tener
+también un {\em front end\/} y un intérprete de código intermedio, todo
+ello en el mismo ejecutable.
+
+Los primeros compiladores de Pascal, debido a problemas de memoria y de
+velocidad del compilador, generaban {\em P--code\/}
+que posteriormente era interpretado, lo cual permitía ejecutar un
+programa objeto en todas aquellas máquinas en las que hubiera un
+intérprete de {\em P--code\/}. Esta idea, que estaba últimamente
+considerada desfasada, se ha vuelto a poner de moda gracias a la aparición
+del lenguaje Java, que especifica que los compiladores de dicho lenguaje
+deben generar código intermedio para una máquina virtual (la 
+{\em Java Virtual Machine\/} o {\em JVM\/}),  
+que después será ejecutado por un intérprete (que por ejemplo llevan incluido en
+su código los navegadores de Internet). Los famosos {\em bytecodes\/} que hay en los
+ficheros {\tt .class} son instrucciones de este lenguaje intermedio.
+La gran ventaja de Java y la principal causa de su éxito es la portabilidad
+del código generado, ya que puede ejecutarse en cualquier máquina que 
+disponga de un intérprete para dicho lenguaje. También han aparecido 
+compiladores de Java que generan código objeto para máquinas reales, 
+aunque normalmente no utilizan los {\em bytecodes\/} como lenguaje 
+intermedio\footnote{Un lenguaje intermedio puede ser muy bueno para 
+ser interpretado pero no tan bueno para ser traducido a código objeto 
+de una máquina real (el {\em P--code\/} es un buen ejemplo).}.
+
+\subsubsection{El problema de los tipos y las direcciones de memoria}
+
+ Los lenguajes de alto nivel utilizan operadores {\em sobrecargados\/}, como
+pueden ser, por ejemplo, los operadores aritméticos o relacionales, que permiten
+que sus operandos sean enteros, reales, o uno entero y otro real. 
+Sin embargo, 
+y aunque es posible utilizar un lenguaje intermedio con operadores sobrecargados,
+dado que los lenguajes objeto no permiten la sobrecarga de operadores, lo
+normal es que el lenguaje intermedio no tenga los operadores sobrecargados, 
+para facilitar la traducción a código objeto. Esto implica que el 
+{\em front end\/} debe calcular el tipo de cada operando y generar las
+instrucciones del lenguaje intermedio de manera adecuada. En el caso de los
+operadores más habituales:
+
+\begin{itemize}
+\item si los dos operandos son los dos enteros o los dos reales, 
+se debe generar una operación para enteros o bien una operación para reales,
+\item si un operando es entero y el otro real, se debe generar código para
+convertir el operando entero en un valor real y se debe generar la operación
+para reales.
+\end{itemize}
+
+
+\begin{ejemplo}
+El código de tres direcciones para la expresión ``\verb!2*3+0.5!''
+sería, con los operadores sobrecargados, el siguiente:
+ \begin{center}
+ \begin{small}
+ \begin{tabular}{cccc}
+ \hline\hline
+ {\sc Instrucción} & {\sc Operando 1} & {\sc Operando 2} & {\sc Resultado} \\
+ \hline
+ \verb!MUL!  & 2     & 3   & $t_1$         \\
+ \verb!ADD!  & $t_1$ & 0.5 & $t_2$     \\
+ \hline
+ \end{tabular}
+ \end{small}
+ \end{center}
+
+y sería el siguiente sin los operadores sobrecargados:
+
+ \begin{center}
+ \begin{small}
+ \begin{tabular}{cccc}
+ \hline\hline
+ {\sc Instrucción} & {\sc Operando 1} & {\sc Operando 2} & {\sc Resultado} \\
+ \hline
+ \verb!MUL_i!  & 2     & 3   & $t_1$     \\
+ \verb!i_TO_r!   & $t_1$ & -   & $t_2$     \\
+ \verb!ADD_r!  & $t_2$ & 0.5 & $t_3$     \\
+ \hline
+ \end{tabular}
+ \end{small}
+ \end{center}
+
+En este segundo caso, se utiliza una instrucción específica (\verb+MUL_i+) para
+multiplicar enteros y otra para sumar reales (\verb+ADD_r+). Además, se necesita
+una instrucción de conversión de entero a real (\verb+i_TO_r+).
+\end{ejemplo}
+
+  Además, otro problema que es posible que tenga que resolver el
+{\em front end\/} es el de asignar o no direcciones de memoria a las
+variables. Por ejemplo, cuando el lenguaje intermedio es el lenguaje 
+de una máquina virtual, normalmente se asigna una dirección de memoria 
+en la máquina virtual a cada variable (cuando se almacena en la tabla 
+de símbolos), de manera que en el código intermedio solamente aparecen 
+direcciones de memoria. También es posible utilizar una representación
+intermedia que trabaje con nombres de variables y posponga hasta el 
+{\em back end\/} la asignación de direcciones de memoria a las variables.
+
+\section{Comprobaciones y conversiones de tipos}
+
+ El compilador debe realizar dos tareas relacionadas con los tipos de los
+datos: calcular el tipo de cada expresión o
+construcción del lenguaje ({\em inferencia de tipos\/}) y comprobar que en 
+las operaciones y en las instrucciones los tipos son correctos 
+({\em comprobación de tipos\/}). Ambas tareas (y otras menos importantes) 
+constituyen la fase de análisis semántico, y se puede realizar a la vez que 
+se hace el análisis sintáctico, utilizando normalmente un ETDS. 
+
+ Las comprobaciones semánticas que realiza el compilador dependen siempre de
+la semántica del lenguaje fuente, del {\em significado\/} de cada construcción
+en dicho lenguaje. La mayoría de los lenguajes imperativos de las familias de
+Pascal y de C exigen, por ejemplo, que los identificadores (las {\em variables\/}) 
+se declaren antes de ser utilizados en una instrucción, y además suelen exigir
+que el usuario del compilador les asigne un tipo concreto. Por tanto, el
+compilador debe comprobar, cuando aparece un identificador, que ha sido 
+declarado previamente, y además debe obtener información acerca de él que 
+será imprescindible para la generación de código. Todo esto se hace con 
+ayuda de la tabla de símbolos, en la que se almacenan los identificadores
+(y el tipo que el usuario les ha asignado) cuando se declaran.
+
+
+ La información acerca del tipo de un identificador es importante por varios
+motivos, entre ellos los siguientes:
+\begin{itemize}
+\item La generación del código intermedio depende en gran medida de los
+tipos de los datos: no se genera el mismo código para una suma de valores 
+(constantes numéricas o variables) enteros que para una suma de valores reales. 
+Como hemos estudiado anteriormente en este capítulo, los
+lenguajes de alto nivel permiten utilizar el mismo operador para sumar 
+enteros y para sumar reales (operadores sobrecargados), y ya hemos
+comentado que no es razonable que el lenguaje intermedio
+tenga también los operadores sobrecargados, por lo que lo normal es que 
+el {\em front end\/} deba resolver este problema.
+\item En algunos lenguajes no se permite utilizar valores de cualquier
+tipo con cualquier operador. Por ejemplo, Pascal no permite sumar un
+valor real con un valor de tipo carácter, y en este caso el compilador debe
+producir un error semántico; en este mismo caso, C permite la suma, pero
+el compilador debe generar código para convertir el valor de tipo carácter en
+un valor real (tomando su código ASCII como un número real).
+\item En la instrucción de asignación de Pascal no están permitidas todas
+las asignaciones; en todos los casos se exige que la expresión a la
+derecha del operador de asignación sea del mismo tipo que la variable que
+aparece a la izquierda, y solamente se permite una excepción: que la variable
+sea de tipo real y la expresión de tipo entero. En C, la asignación es una
+operación más, como puede ser la suma, y tiene unas reglas de conversión 
+propias: el tipo de la variable es el tipo resultante de la operación y la
+expresión a la derecha del operador debe convertirse al tipo de la parte 
+izquierda.
+\item En muchos lenguajes está permitido realizar operaciones aritméticas (suma,
+resta, multiplicación, división, etc.) o relacionales (comparaciones de igualdad,
+etc.) mezclando valores enteros con reales. En el caso de que aparezca una
+operación de un valor entero con un valor real, el tipo resultante de la
+operación será real y el valor entero debe convertirse a un valor real antes
+de operarlo. Esta conversión es una de las {\em conversiones implícitas\/} 
+que la mayoría de los lenguajes tiene. También se suelen permitir las 
+{\em conversiones explícitas\/} (forzadas por el programador); por ejemplo, el
+lenguaje C permite el uso de operadores para forzar una conversión (como
+p. ej. \verb!(float)2!) y 
+Pascal utiliza funciones predefinidas para las conversiones explícitas.
+\end{itemize}
+
+ Tanto para generar código intermedio como para producir errores semán\-ticos
+(o generar conversiones de tipos) es necesario que el compilador tenga en cuenta en
+todo momento el tipo de cada variable o constante del programa fuente, y ese
+tipo debe transmitirse a las expresiones aritméticas, relacionales o lógicas,
+para ser utilizado en asignaciones o en otro tipo de instrucciones; por
+ejemplo, Pascal exige que la condición que aparece después de un 
+``{\tt if}'' sea de tipo booleano.
+
+
+\begin{ejemplo}
+ El ETDS de la figura~\ref{figETDSuno} reconoce un subconjunto 
+muy pequeño de Pascal y calcula el tipo de cada expresión; además, como
+hace todo compilador de Pascal, produce un error semántico si se intenta 
+asignar un valor real a una variable entera. Por simplificar, supondremos que 
+solamente hay dos tipos: entero y real. 
+
+ Como se puede observar en el ETDS, cuando se trata de sumar (o restar, o
+multiplicar, etc) un valor entero con un valor real, el tipo de la expresión
+resultante es real (y, como veremos más adelante, la expresión entera debe
+convertirse a real antes de sumar). 
+\end{ejemplo}
+
+\begin{figure}[ht]
+\begin{footnotesize}
+$$
+\begin{array}{lcll}
+\nter{Instr} \der  \ter{id} \ter{\texttt{:=}} & \{\; si~~Busca({\bf id}.lexema) = NO\_ENCONTRADO   \\
+          & &                        & ~~~~entonces~~ErrorSemantico($\ldots$)    \\
+          & &                        & ~~fsi \;\;\} \\
+          & & \nter{E}               & \{\; si~~Tipo({\bf id}.lexema) = ENTERO~~y \\
+          & &                        & ~~~~~~~E.tipo = REAL~~~entonces~~ErrorSemantico($\ldots$) \\
+          & &                        & ~~fsi \;\;\} \\
+\nter{E} \der \nter{$E_1$} \ter{\texttt{+}} \nter{T} & \{\; si~~E_1.tipo = ENTERO ~~y~~ T.tipo = ENTERO ~~~entonces \\
+          & &            & ~~~~E.tipo := ENTERO \\
+          & &            & ~~si\;\;no~~si~~E_1.tipo = ENTERO ~~y~~ T.tipo = REAL ~~~entonces \\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~si\;\;no~~si~~E_1.tipo = REAL ~~y~~ T.tipo = ENTERO ~~~entonces \\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~si\;\;no\\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~fsi \;\;\} \\
+\nter{E} \der \nter{T}   & \{\; E.tipo := T.tipo \;\;\} \\
+\nter{T} \der \ter{nint} & \{\; T.tipo := ENTERO \;\} \\
+\nter{T} \der \ter{nfix} & \{\; T.tipo := REAL \;\} \\
+\nter{T} \der \ter{id}   & \{\; si~~Busca({\bf id}.lexema) = NO\_ENCONTRADO   \\
+          & &            & ~~~~entonces~~ErrorSemantico($\ldots$)             \\
+          & &            & ~~si\;\;no \\
+          & &            & ~~~~T.tipo := Tipo({\bf id}.lexema) \\
+          & &            & ~~fsi \;\;\} \\
+\end{array}
+$$
+\end{footnotesize}
+\caption{Esquema de traducción que calcula los tipos y hace
+algunas comprobaciones semánticas.} \label{figETDSuno}
+\end{figure}
+
+
+ Las restricciones semánticas relacionadas con los tipos de un lenguaje se
+denominan en su conjunto {\em reglas de tipos\/} o {\em sistema de tipos\/}.
+El ETDS de la figura~\ref{figETDSuno} implementa un subconjunto del sistema
+de tipos de Pascal. Normalmente, las reglas de tipos se expresan en lenguaje
+humano, y debe ser el programador del compilador el que interprete dichas
+reglas y las convierta en acciones semánticas en su ETDS. 
+
+\section{Código intermedio para expresiones}
+
+ El código que debe generar un compilador para procesar expresiones
+aritmé\-ticas, relacionales o lógicas depende de la semántica del lenguaje
+fuente, pero también del tipo de representación intermedia que se utilice:
+si se utiliza un árbol o un grafo, la traducción de la expresión es
+sencilla; si se utiliza una máquina abstracta de pila, también
+(la notación de la máquina de pila se parece
+mucho a la notación postfija, que es muy fácil de generar usando un ETDS).
+Sin embargo, si se utiliza un código intermedio que necesita temporales,
+como el código de tres direcciones o el lenguaje {\tt m2r} (descrito
+en el apéndice~\ref{app:mdosr}), la traducción se complica un poco, 
+aunque sigue siendo en general bastante sencilla.
+
+ Los lenguajes de alto nivel suelen tomar la sintaxis y la semántica de 
+las expresiones del lenguaje Pascal o de C. Los operadores más importantes
+que aparecen en un lenguaje de alto nivel se suelen clasificar en tres
+grupos:
+\begin{description}
+\item[Operadores aritméticos:] La siguiente tabla muestra los operadores
+arit\-mé\-ticos de C y Pascal:
+
+\begin{center}
+\begin{tabular}{|c|l|}\hline
+{\sc Lenguaje} & {\sc Operadores} \\\hline
+C      & \verb!+! \verb!-! \verb!*! \verb!/! \verb!%! \\
+Pascal & \verb!+! \verb!-! \verb!*! \verb!/! \verb!div! \verb!mod! \\\hline
+\end{tabular}
+\end{center}
+
+ La diferencia entre ambos lenguajes se manifiesta en el operador de
+división: mientras que en C la división es una división entera si los
+dos operandos son enteros, en Pascal el operador ``\verb+/+'' se utiliza
+para la división real (incluso cuando los operandos son enteros), y el
+operador ``\verb+div+'' se utiliza exclusivamente para enteros.
+
+ Los operadores ``\verb!+!'', ``\verb!-!'' y ``\verb!*!'' (y ``\verb+/+'' en
+C) permiten que los dos operandos sean enteros o reales, y también 
+permiten que uno sea real y el otro entero; en este caso, el tipo de la
+expresión será real y el entero debe convertirse a real antes de
+operarlo. El ETDS de la figura~\ref{figETDSgcexpr} hace este tipo de
+conversiones y genera código para una máquina abstracta de pila.
+
+\begin{figure}[h]
+\begin{footnotesize}
+$$
+\begin{array}{lcll}
+\nter{E} \der \nter{$E_1$} \ter{\texttt{+}} \nter{T} & \{\; si~~E_1.tipo = ENTERO ~~y~~ T.tipo = ENTERO ~~~entonces \\
+          & &            & ~~~~E.tipo := ENTERO \\
+          & &            & ~~~~E.cod := E_1.cod || T.cod || \verb+"AddI"+ \\
+          & &            & ~~si\;\;no~~si~~E_1.tipo = ENTERO ~~y~~ T.tipo = REAL ~~~entonces \\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~E.cod := E_1.cod || \verb+"ItoR"+ || T.cod || \verb+"AddR"+ \\
+          & &            & ~~si\;\;no~~si~~E_1.tipo = REAL ~~y~~ T.tipo = ENTERO ~~~entonces \\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~E.cod := E_1.cod || T.cod || \verb+"ItoR"+ || \verb+"AddR"+ \\
+          & &            & ~~si\;\;no\\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~E.cod := E_1.cod || T.cod || \verb+"AddR"+ \\
+          & &            & ~~fsi \;\;\} \\
+\nter{E} \der \nter{T}   & \{\; E.cod := T.cod \\
+          & &            & ~~E.tipo := T.tipo \;\;\} \\
+\nter{T} \der \ter{nint} & \{\; T.cod := \verb+"LdI"+ || {\bf nint}.lexema \\
+          & &            & ~~T.tipo := ENTERO \;\} \\
+\nter{T} \der \ter{nfix} & \{\; T.cod := \verb+"LdR"+ ||{\bf nfix}.lexema \\
+          & &            & ~~T.tipo := REAL \;\} \\
+\nter{T} \der \ter{id}   & \{\; si~~Busca({\bf id}.lexema) = NO\_ENCONTRADO   \\
+          & &            & ~~~~entonces~~ErrorSemantico($\ldots$)             \\
+          & &            & ~~si\;\;no \\
+          & &            & ~~~~T.tipo := Tipo({\bf id}.lexema) \\
+          & &            & ~~~~si~~Tipo({\bf id}.lexema) = ENTERO~~~entonces \\
+          & &            & ~~~~~~~T.cod := \verb+"LdaI"+ || Direccion({\bf id}.lexema) \\
+          & &            & ~~~~si\;\;no\\
+          & &            & ~~~~~~~T.cod := \verb+"LdaR"+ || Direccion({\bf id}.lexema) \\
+          & &            & ~~~~fsi \\
+          & &            & ~~fsi \;\;\} \\
+\end{array}
+$$
+\end{footnotesize}
+\caption{Esquema de traducción que genera código para una máquina abstracta
+de pila utilizando la información de los tipos.} \label{figETDSgcexpr}
+\end{figure}
+
+ En general, el lenguaje C permite utilizar estos operadores con operandos
+de casi cualquier tipo, mientras que Pascal exige que sean enteros o
+reales. Esta característica hace que el compilador de C deba generar muchos
+más tipos de conversiones (además de la del párrafo anterior), mientras que
+el compilador de Pascal produce errores semánticos en esos casos.
+
+\item[Operadores relacionales:] Los operadores relacionales se utilizan
+para comparar valores, y son:
+
+\begin{center}
+\begin{tabular}{|c|l|}\hline
+{\sc Lenguaje} & {\sc Operadores} \\\hline
+C      & \verb!<! \verb!<=! \verb!>! \verb!>=! \verb!==! \verb+!=+ \\
+Pascal & \verb!<! \verb!<=! \verb!>! \verb!>=! \verb!=! \verb+<>+  \\\hline
+\end{tabular}
+\end{center}
+
+Además de utilizar distintos símbolos para los operadores de igualdad y desigualdad,
+las principales diferencias entre ambos lenguajes aparecen en el tratamiento
+de los tipos: mientras que en Pascal se exige que al utilizar los 
+operadores \verb!<!, \verb!<=!, \verb!>! y \verb!>=! los operandos sean 
+del mismo tipo (excepto con enteros y reales, donde sí se permiten distintos
+tipos, como en otros operadores), en C no existe tal restricción. 
+También el tipo del resultado es diferente: mientras que en C
+es un entero (que valdrá 0 si la comparación es falsa o un valor distinto de
+0 si es cierta), en Pascal es de tipo {\tt boolean}. 
+
+La generación de código intermedio para los operadores relacionales no
+plantea problemas diferentes a los de los operadores aritméticos, excepto los
+referentes a los tipos que se comentan en el párrafo anterior.
+
+\item[Operadores lógicos:] Los operadores lógicos son habitualmente los
+de la siguiente tabla:
+
+\begin{center}
+\begin{tabular}{|c|l|}\hline
+{\sc Lenguaje} & {\sc Operadores} \\\hline
+C      & \verb!||! \verb!&&! \verb+!+ \\
+Pascal & \verb!or! \verb!and! \verb!not! \\\hline
+\end{tabular}
+\end{center}
+
+ En el caso de Pascal, los operadores exigen que el operando sea de tipo
+{\tt boolean}, y el resultado es también {\tt boolean}, pero no existen
+grandes diferencias con los otros operadores en cuanto a la generación 
+de código intermedio. En cambio, en C los operadores ``\verb+||+'' y 
+``\verb+&&+'' se evaluan {\em en cortocircuito\/}, es decir, primero se
+evalua el operando de la izquierda y si su valor ya permite determinar el
+valor de toda la expresión, no se evalua el segundo operando. Esto sucede
+cuando el operando izquierdo se evalua a cierto y el operador es ``\verb+||+''
+(en ese caso el valor de la expresión será cierto independientemente del
+valor del segundo operando), o cuando el operando izquierdo es falso y
+el operador es ``\verb+&&+'' (en ese caso la expresión será falsa). Esta
+característica implica que el compilador debe traducir estos operadores
+como si fueran instrucciones condicionales:
+
+\begin{center}
+\begin{tabular}{ccl}\hline
+$a$ \verb+||+ $b$  & $\equiv$  & {\bf if} $a$ {\bf then true else} $b$ \\
+$a$ \verb+&&+ $b$  & $\equiv$  & {\bf if} $a$ {\bf then} $b$ {\bf else false} \\
+\end{tabular}
+\end{center}
+ 
+En Pascal se evaluan los dos operandos y posteriormente se realiza la
+operación lógica con los resultados de evaluarlos. Por este motivo, la
+generación de código intermedio para estos operadores es similar a la de
+los otros operadores.
+
+\end{description}
+
+
+\begin{ejemplo}
+El lenguaje {\tt m2r} (véase el apéndice~\ref{app:mdosr})
+utiliza un acumulador y variables temporales para evaluar las expresiones.
+Por ejemplo, si tenemos dos variables declaradas, una como entera (``\verb+a+'')
+y otra como real (``\verb+b+''), la traducción a {\tt m2r} de la expresión
+\begin{quote} 
+\begin{verbatim}
+   a + 3*b
+\end{verbatim}
+\end{quote}
+ sería, suponiendo que la variable ``\verb+a+'' tiene asignada la dirección
+de memoria 10 y ``\verb+b+'' tiene la 11,
+\begin{quote} 
+\begin{footnotesize}
+\begin{verbatim}
+mov 10 100  ; aunque no es necesario, movemos el valor 
+            ;  de 'a' a una temporal
+mov #3 101
+mov 11 102  ; lo mismo con 'b'
+mov 101 A    
+itor 
+mov A 103   ; convertir el '3' a real para operarlo con 'b'
+mov 103 A   ; poner '3.0' en el acumulador
+mulr 102    ; multiplicarlo por 'b'
+mov A 104   ; guardar el resultado en otra temporal
+mov 100 A     
+itor 
+mov A 105   ; convertir el valor de 'a' a real
+mov 105 A   ; poner el valor (real) de 'a' en el acumulador
+addr 104    ; sumarle el resultado de '3*b'
+mov A 106   ; dejar el resultado en una nueva temporal
+\end{verbatim}
+\end{footnotesize}
+\end{quote}
+
+ Como se puede observar, la generación de código para los operadores es
+sencilla: primero se pone el valor del primer operando
+en el acumulador, a continuación se opera con el segundo operando, y 
+finalmente se almacena el resultado en una temporal. El ETDS de la
+figura~\ref{figETDSm2r} muestra cómo generar este código\footnote{Puesto que
+en el lenguaje {\tt m2r} todos los tipos básicos ocupan solamente una posición
+de memoria  (aunque lo normal es que un real ocupe más que un entero), una
+variable temporal se puede utilizar tanto para almacenar un real como para almacenar
+un entero.} para la suma, aunque las tareas a realizar son similares para los
+demás operadores aritméticos, relacionales y lógicos.
+\end{ejemplo}
+
+\begin{figure}
+\begin{footnotesize}
+$$
+\begin{array}{lcll}
+\nter{E} \der \nter{$E_1$} \ter{\texttt{+}} \nter{T} & \{\; tmp := NuevaTemporal() \\
+          & &            & ~~E.tmp := tmp \\
+          & &            & ~~si~~E_1.tipo = ENTERO ~~y~~ T.tipo = ENTERO ~~~entonces \\
+          & &            & ~~~~E.tipo := ENTERO \\
+          & &            & ~~~~E.cod := E_1.cod || T.cod ||  \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov "+ || E_1.tmp || \verb+"A"+ || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"addi "+ || T.tmp || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov A "+ || tmp \\
+          & &            & ~~si\;\;no~~si~~E_1.tipo = ENTERO ~~y~~ T.tipo = REAL ~~~entonces \\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~tmpconv := NuevaTemporal() \\
+          & &            & ~~~~E.cod := E_1.cod || \verb+"mov "+ || E_1.tmp || \verb+"A"+ || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"itor"+ || \verb+"mov A"+ || tmpconv || T.cod || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov "+ || tmpconv || \verb+"A"+ || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"addr "+ || T.tmp || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov A "+ || tmp \\
+          & &            & ~~si\;\;no~~si~~E_1.tipo = REAL ~~y~~ T.tipo = ENTERO ~~~entonces \\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~tmpconv := NuevaTemporal() \\
+          & &            & ~~~~E.cod := E_1.cod || T.cod || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov "+ || T.tmp || \verb+"A"+ || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"itor"+ || \verb+"mov A"+ || tmpconv || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov "+ || E_1.tmp || \verb+"A"+ || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"addr "+ || tmpconv || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov A "+ || tmp \\
+          & &            & ~~si\;\;no\\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~E.cod := E_1.cod || T.cod ||  \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov "+ || E_1.tmp || \verb+"A"+ || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"addr "+ || T.tmp || \\
+          & &            & ~~~~~~~~~~~~~~~\verb+"mov A "+ || tmp \\
+          & &            & ~~fsi \;\;\} \\
+\nter{E} \der \nter{T}   & \{\; E.cod := T.cod \;;\;~~E.tipo := T.tipo \;;\;~~E.tmp  := T.tmp \;\;\} \\
+\nter{T} \der \ter{nint} & \{\; T.tipo := ENTERO \\
+          & &            & ~~tmp := NuevaTemporal() \;;\;~~T.tmp := tmp   \\
+          & &            & ~~T.cod := \verb+"mov #"+ || {\bf nint}.lexema || tmp \;\} \\
+\nter{T} \der \ter{nfix} & \{\; T.tipo := REAL \\
+          & &            & ~~tmp := NuevaTemporal() \;;\;~~T.tmp := tmp    \\
+          & &            & ~~T.cod := \verb+"mov $"+ || {\bf nfix}.lexema || tmp \;\} \\
+\nter{T} \der \ter{id}   & \{\; si~~Busca({\bf id}.lexema) = NO\_ENCONTRADO   \\
+          & &            & ~~~~entonces~~ErrorSemantico($\ldots$)             \\
+          & &            & ~~si\;\;no \\
+          & &            & ~~~~T.tipo := Tipo({\bf id}.lexema) \\
+          & &            & ~~~~tmp := NuevaTemporal() \;;\;~~T.tmp := tmp     \\
+          & &            & ~~~~T.cod := \verb+"mov "+ || Direccion({\bf id}.lexema) || tmp \\
+          & &            & ~~fsi \;\;\} \\
+\end{array}
+$$
+\end{footnotesize}
+\caption{Esquema de traducción que genera código para el lenguaje {\tt m2r}.} \label{figETDSm2r}
+\end{figure}
+
+
+\section{Código intermedio para instrucciones}
+
+
+ La semántica de los lenguajes de programación de alto nivel en lo
+referente a las instrucciones es muy similar. Como en la sección anterior,
+vamos a describir las distintas clases de instrucciones haciendo a la
+vez una comparación entre C y Pascal, que son los lenguajes en los que se
+basan la mayoría de los lenguajes de alto nivel.
+
+ Las instrucciones de un lenguaje se pueden clasificar en las
+siguientes clases o tipos:
+\begin{description}
+\item[Asignación:] Aunque en C el operador de asignación es un operador
+más, lo cual convierte a la asignación en un tipo de expresión más, la
+mayoría de las veces se emplea únicamente como instrucción, que es como
+la considera Pascal. La sintaxis en ambos lenguajes es similar:
+
+\begin{center}
+\begin{tabular}{|c|l|}\hline
+{\sc Lenguaje} & {\sc Sintaxis de la asignación} \\\hline
+C      & $v$ \verb+=+ $Expr$ \\
+Pascal & $v$ \verb+:=+ $Expr$ \\\hline
+\end{tabular}
+\end{center}
+
+Como en otras cuestiones, las diferencias más importantes entre C y Pascal
+en lo referente a la asignación tienen que ver con los tipos de los datos:
+mientras un compilador de Pascal no permite asignaciones entre tipos 
+distintos\footnote{Excepto si la expresión es entera y $v$ es
+real, en cuyo caso se convierte la expresión a real antes de la asignación.}, 
+en C se suelen permitir casi todas las
+asignaciones, produciendo avisos ({\em warnings}) si es necesario, lo cual 
+implica que el compilador debe generar código para realizar conversiones. 
+
+Algo en lo que coinciden ambos lenguajes es en la exigencia de que $v$ sea un
+{\em valor izquierdo\/}, es decir, una variable o una componente de un {\em array\/}
+o registro (o lo que es lo mismo, {\em algo\/} que represente 
+una dirección de memoria). 
+
+El esquema de la figura~\ref{CodAsig} representa el código que se generaría
+para una asignación (utilizando {\tt m2r} como lenguaje objeto). Puesto
+que es posible que sean necesarias conversiones de tipo, en el esquema se
+supone que el valor de la expresión convertida se quedaría en la temporal $t_1$; si no
+hubiera que realizar ninguna conversión, en lugar de $t_1$ se utilizaría
+\texttt{Expr.tmp}.
+ 
+\begin{figure}[h]
+\setlength{\unitlength}{3mm}
+\begin{center}
+\begin{picture}(10,8)
+\put(1,4){\framebox(8,4){}}
+\put(2,5.7){ $Expr.cod$ }
+\put(1,1.5){\framebox(8,1.5){}}
+\put(1,2){ {\em conversiones} }
+\put(1,0){ \texttt{mov} $t_1$ \texttt{Direccion(}$v${\tt )}}
+\end{picture}
+\end{center}\caption{Esquema del código para una asignación.} \label{CodAsig}
+\end{figure}
+
+\item[Entrada/Salida:] Las sentencias de entrada/salida son 
+imprescindibles en cualquier lenguaje de programación, y son implementadas
+de formas muy diferentes pero sencillas, por lo que aquí no pondremos más
+que un pequeño ejemplo del código que habría que generar (en {\tt m2r}) 
+para imprimir el número entero $27$ seguido de un cambio de línea:
+
+\begin{quote}
+\begin{small}
+\begin{verbatim}
+  wri #27
+  wrl
+\end{verbatim}
+\end{small}
+\end{quote}
+Lo más importante que debe tenerse en cuenta al compilar estas sentencias
+es que las de lectura son muy similares a las asignaciones, lo cual puede
+complicar el código (como se puede complicar en las asignaciones).
+\item[Condicional:] La sentencia condicional es indispensable en cualquier
+lenguaje de programación. La sintaxis de esta sentencia en C y Pascal no
+es muy diferente:
+\begin{center}
+\begin{tabular}{|c|l|}\hline
+{\sc Lenguaje} & {\sc Sintaxis de la sentencia condicional} \\\hline
+C      & \verb+if+ \verb+(+ $Expr$ \verb+)+ $Instr$  \\
+       & \verb+if+ \verb+(+ $Expr$ \verb+)+ $Instr_1$ \verb+else+ $Instr_2$ \\\hline
+Pascal & \verb+if+ $Expr$ \verb+then+ $Instr$  \\
+       & \verb+if+ $Expr$ \verb+then+ $Instr_1$ \verb+else+ $Instr_2$ \\
+\hline
+\end{tabular}
+\end{center}
+
+La diferencia entre ambos lenguajes está en los tipos: Pascal exige que la
+expresión sea de tipo {\tt boolean}, mientras que C no tiene este tipo y por
+tanto considerará como cierto un valor de la expresión distinto de 0 (sea 
+del tipo que sea; no debe ser necesariamente entero), y falso
+en otro caso. La figura~\ref{CodIf} muestra el código (en {\tt m2r}) que
+habría que generar para las dos sentencias condicionales (sin {\tt else} y
+con {\tt else}).
+
+\begin{figure}[h]
+\setlength{\unitlength}{3mm}
+\begin{center}
+\begin{picture}(10,19)
+\put(0,6){ \texttt{L1} }
+\put(2,7){ \framebox(8,4){}}
+\put(3,8.7){ $Instr.cod$ }
+\put(2,11.7){ \texttt{jz L1} }
+\put(2,13){ \texttt{mov} $Expr.tmp$ \texttt{~A}}
+\put(2,14.5){ \framebox(8,4){}}
+\put(3,16.2){ $Expr.cod$ }
+\end{picture}
+~~~~~~~~~\begin{picture}(10,19)
+\put(0,0){ \texttt{L2} }
+\put(2,1){ \framebox(8,4){}}
+\put(3,2.5){ $Instr_2.cod$ }
+\put(2,5.8){ \texttt{jmp L2} }
+\put(0,4){ \texttt{L1} }
+\put(2,7){ \framebox(8,4){}}
+\put(3,8.7){ $Instr_1.cod$ }
+\put(2,11.7){ \texttt{jz L1} }
+\put(2,13){ \texttt{mov} $Expr.tmp$ \texttt{~A}}
+\put(2,14.5){ \framebox(8,4){}}
+\put(3,16.2){ $Expr.cod$ }
+\end{picture}
+\end{center}\caption{Esquema del código para las sentencias condicionales.} \label{CodIf}
+\end{figure}
+
+\item[Iteración:] Los lenguajes de programación suelen definir al menos tres 
+sentencias de iteración:
+ \begin{description}
+  \item[Sentencias tipo {\tt while}:] Tanto C como Pascal tienen una
+ sentencia de este tipo, cuya sintaxis es, como en el caso de las instrucciones
+condicionales, muy similar:
+
+\begin{center}
+\begin{tabular}{|c|l|}\hline
+{\sc Lenguaje} & {\sc Sintaxis de la sentencia {\tt while}} \\\hline
+C      & \verb+while+ \verb+(+ $Expr$ \verb+)+ $Instr$  \\
+Pascal & \verb+while+ $Expr$ \verb+do+ $Instr$  \\
+\hline
+\end{tabular}
+\end{center}
+ 
+ También como en el caso de las instrucciones condicionales, la única
+diferencia entre ambos lenguajes es el diferente tratamiento de la expresión 
+como consecuencia de la ausencia del tipo {\tt boolean} en C. El esquema de
+la figura~\ref{CodWhile} muestra el código que habría que generar.
+
+\begin{figure}[h]
+\setlength{\unitlength}{3mm}
+\begin{center}
+\begin{picture}(10,16)
+\put(0,0){ \texttt{L2} }
+\put(2,1.3){ \texttt{jmp L1}}
+\put(2,2.4){ \framebox(8,4){}}
+\put(3,4){ $Instr.cod$ }
+\put(2,7){ \texttt{jz L2} }
+\put(2,8.3){ \texttt{mov} $Expr.tmp$ \texttt{~A}}
+\put(2,9.5){ \framebox(8,4){}}
+\put(3,11.2){ $Expr.cod$ }
+\put(0,12.8) {\texttt{L1}}
+\end{picture}
+\end{center}\caption{Esquema del código para la sentencia {\tt while}.} \label{CodWhile}
+\end{figure}
+
+ \item[Sentencias de repetición:] Este tipo de sentencias ejecutan al menos
+ una vez la instrucción que hay dentro del bucle. La sintaxis en C y Pascal
+sería:
+
+\begin{center}
+\begin{tabular}{|c|l|}\hline
+{\sc Lenguaje} & {\sc Sintaxis de la sentencia de repetición} \\\hline
+C      & \verb+do+ $Instr$ \verb+while+ \verb+(+ $Expr$ \verb+)+ \\
+Pascal & \verb+repeat+ $Instr$ \verb+until+ $Expr$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Además de las diferencias en el léxico y en el tratamiento de las expresiones
+booleanas, existe además una diferencia semántica: en C el bucle se termina
+cuando la expresión es falsa, mientras que en Pascal se termina cuando la
+expresión es cierta. La figura~\ref{CodRepe} muestra el esquema del
+{\tt do-while} a la izquierda y la del {\tt repeat-until} a la derecha; la
+única diferencia está en el tipo de salto condicional que se utiliza en
+una y otra sentencias.
+
+\begin{figure}[h]
+\setlength{\unitlength}{3mm}
+\begin{center}
+\begin{picture}(10,16)
+\put(2,0){ \texttt{jnz L1}}
+\put(2,1.3){ \texttt{mov} $Expr.tmp$ \texttt{~A}}
+\put(2,2.85){ \framebox(8,4){}}
+\put(3,4.5){ $Expr.cod$ }
+\put(2,7.2){ \framebox(8,4){}}
+\put(3,8.7){ $Instr.cod$ }
+\put(0,10.5) {\texttt{L1}}
+\end{picture}
+~~~~~~~~~~~~~~~~\begin{picture}(10,16)
+\put(2,0){ \texttt{jz L1}}
+\put(2,1.3){ \texttt{mov} $Expr.tmp$ \texttt{~A}}
+\put(2,2.85){ \framebox(8,4){}}
+\put(3,4.5){ $Expr.cod$ }
+\put(2,7.2){ \framebox(8,4){}}
+\put(3,8.7){ $Instr.cod$ }
+\put(0,10.5) {\texttt{L1}}
+\end{picture}
+\end{center}\caption{Esquema del código para las sentencias de 
+repetición {\tt do-while} y {\tt repeat-until}.} \label{CodRepe}
+\end{figure}
+
+ \item[Sentencias tipo {\tt for}:] Ambos lenguajes disponen de una sentencia
+de este tipo, pero la semántica es muy distinta. Mientras que en C un bucle
+{\tt for} no es muy diferente de un bucle {\tt while}, en Pascal esta sentencia
+tiene un cometido específico: hacer que un contador tome una serie de valores
+consecutivos dentro de un rango concreto. La sintaxis de ambas sentencias 
+{\tt for} es la siguiente:
+
+\begin{center}
+\begin{tabular}{|c|l|}\hline
+{\sc Lenguaje} & {\sc Sintaxis de la sentencia {\tt for}} \\\hline
+C      & \verb+for (+ $E_1$ \verb+;+ $E_2$ \verb+;+ $E_3$ \verb+)+ $Instr$ \\
+Pascal & \verb+for+ $v$ \verb+:=+ $E_1$ \verb+to+ $E_2$ \verb+do+ $Instr$ \\
+\hline
+\end{tabular}
+\end{center}
+
+ En cuanto a la semántica, C no pone ninguna restricción con respecto a las
+expresiones, mientras Pascal exige que tanto $v$ como las dos expresiones
+sean de tipo entero. La semántica del {\tt for} de Pascal es muy sencilla:
+primero, se inicializa $v$ con el valor de $E_1$; a continuación se ejecuta
+la instrucción, se incrementa en uno el valor de $v$ (el contador), y si
+el nuevo valor de $v$ no es mayor que el valor de $E_2$, se vuelve a ejecutar
+la instrucción (y el incremento y la comparación, por supuesto).
+Utilizando ``\verb+downto+'' en lugar de ``\verb+to+''
+el contador toma valores descendentes en lugar de ascendentes.
+
+ En la sentencia {\tt for} de C las tres expresiones que aparecen son
+opcionales, y el código que se generaría sería equivalente al
+siguiente código en C:
+
+\begin{quote}
+\begin{tabular}{l}
+$E_1$ \texttt{;} \\
+\texttt{while (} $E_2$ \texttt{)} \\
+\verb+{+ \\
+~~~~$Instr$ \\
+~~~~$E_3$ \texttt{;} \\
+\verb+}+ \\
+\end{tabular}
+\end{quote}
+
+ Si la segunda expresión $E_2$ no aparece, se toma como si fuera cierta
+(bucle infinito).
+
+En Pascal, la sentencia {\tt for} se puede sustituir por el siguiente
+código:
+
+\begin{quote}
+\begin{tabular}{l}
+$v$ \verb+:=+ $E_1$ \texttt{;} \\
+\texttt{repeat} \\
+~~~$Instr$ \texttt{;} \\
+~~~$v$ := $v+1$ \\
+\texttt{until} $v > E_2$ \\
+\end{tabular}
+\end{quote}
+\end{description}
+
+Además de estas sentencias, en C existen dos instrucciones para alterar
+el funcionamiento de los bucles: {\tt break} y {\tt continue}. La sentencia
+{\tt break} se utiliza para salir del bucle en que se encuentra (y también
+para salir de un {\tt case} en una sentencia {\tt switch}), y la sentencia
+{\tt continue} hace que el flujo de control salte hasta la expresión del
+bucle, evitando ejecutar las sentencias intermedias, si es que existen.
+
+\item[Selección:] Tanto en C como en Pascal existe una sentencia para
+la selección. Ambas tienen una expresión como principal argumento (en C se
+convierte a entero y en Pascal se exige que sea entera), y a continuación
+contienen una serie de valores enteros con los que se compara el valor de
+la expresión; cada valor tiene una secuencia de instrucciones asociada,
+que se ejecuta cuando el valor de la expresión coincide con dicho valor.
+
+\begin{ejemplo}
+Un ejemplo de sentencia {\tt switch} en C y su equivalente sentencia {\tt case}
+en Pascal podría ser el siguiente:
+
+\begin{small}
+\begin{tabular}{|l|l|}\hline\hline
+\multicolumn{1}{|c|}{{\sc C}} & \multicolumn{1}{|c|}{{\sc Pascal}} \\\hline
+\begin{minipage}[t]{0.4\textwidth}
+\begin{verbatim}
+switch(E)
+{
+  case 1:
+  case 2:
+  case 3: /* secuencia de 
+            instrucciones */
+         break;
+  case 4: /* otra secuencia */
+         break;
+  default: /* instrucciones 
+             por defecto */
+}
+
+\end{verbatim}
+\end{minipage} &
+\begin{minipage}[t]{0.4\textwidth}
+\begin{verbatim}
+case E of
+  1..3: (* secuencia de 
+          instrucciones *)
+
+
+
+
+  4: (* otra secuencia *)
+
+  default: (* instrucciones 
+              por defecto *)
+end
+
+\end{verbatim}
+\end{minipage} \\\hline
+\end{tabular}
+\end{small}
+\end{ejemplo}
+
+Como se puede observar en el ejemplo, las diferencias entre ambas sentencias
+son mínimas. La más importante es la utilización de la sentencia {\tt break}
+en C para terminar de ejecutar una secuencia de instrucciones; si no se pone
+{\tt break}, la ejecución sigue por la siguiente sentencia (aunque pertenezca
+a un {\tt case} diferente). Esta característica permite agrupar varios casos,
+lo cual se consigue en Pascal utilizando rangos de números.
+
+ La generación de código intermedio para una sentencia de selección es una
+de las decisiones más difíciles que debe tomar el compilador. Una vez
+compilada cada secuencia de instrucciones de cada {\tt case}, y suponiendo
+que tienen asignada cada una de ellas una etiqueta, el compilador tiene  
+varias posibilidades:
+\begin{enumerate}
+\item Generar una secuencia de comparaciones y saltos (algo parecido a la
+traducción de una secuencia de {\tt if-else} anidados). Cuando el número
+de casos es relativamente grande, esta aproximación es muy ineficiente.
+\item Construir una tabla ordenada de pares {\em valor}--{\em etiqueta}, y
+generar código que realice una búsqueda binaria del valor de la expresión
+entre los casos posibles y que cuando lo encuentre salte a la etiqueta
+correspondiente.
+\item Cuando los posibles valores están agrupados en un rango relativamente
+pequeño (p. ej. 0--255), lo más eficaz es construir una {\em tabla de saltos\/} 
+para todos los valores del rango, poniendo la etiqueta del {\tt default} en 
+los casos que no aparecen.
+\end{enumerate}
+
+Un buen compilador debe, en función de la sentencia {\tt switch} o {\tt case}
+que esté procesando, elegir una de las posibilidades anteriores (o bien una
+combinación eficiente de las mismas).
+
+\end{description}
+
+\subsubsection{Reciclado de variables temporales}
+
+ En un lenguaje que utiliza variables temporales (como el código de tres
+direcciones o el {\tt m2r}) es necesario establecer algún tipo de estrategia
+de reciclado de variables temporales. Aunque sería posible reciclar o 
+reutilizar las variables temporales en las expresiones (utilizando por
+ejemplo la temporal de uno de los operandos para almacenar el resultado),
+esta posibilidad dificultaría mucho la tarea del optimizador (sería más
+difícil la eliminación de subexpresiones comunes, por ejemplo). Por tanto,
+parece razonable reciclar las temporales al nivel de las instrucciones, es decir,
+una vez se ha generado todo el código de una instrucción (incluido el código
+de las expresiones o instrucciones que contenga), las variables temporales
+ya no son necesarias y se pueden reutilizar en la siguiente 
+instrucción.
+
+\section{Tipos compuestos}
+
+ Los lenguajes de programación permiten utilizar tipos más complejos que
+los tipos simples o básicos, que se definen en función de otros tipos. Los
+más comunes son: punteros, vectores o tablas ({\em arrays\/}) y registros.
+
+En el libro de~Aho, Sethi y Ullman (1990) se utiliza una
+notación para especificar el tipo de un componente de un programa, como,
+por ejemplo, una variable o una expresión. En la siguiente tabla se
+muestran los principales elementos de dicha notación, que permite escribir
+las llamadas {\em expresiones de tipos\/} para los elementos del lenguaje:
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|l|ll|}\hline
+{\sc Notación} & \multicolumn{2}{|c|}{\sc Ejemplos} \\\hline
+puntero(t)   & \texttt{int *p;} & puntero(entero) \\
+             & \texttt{float **q;}  & puntero(puntero(real)) \\
+array(rango,t) & \texttt{int c[10];}  & array(0..9,entero) \\
+               & \texttt{int d[3][6];} & array(0..2,array(0..5,entero)) \\
+               & \texttt{float *e[5];} & array(0..4,puntero(real)) \\\hline
+registro(campos) & \texttt{struct \{int a,b;\};}  & registro((a:entero) $\times$ (b:entero)) \\
+                 & \texttt{struct \{int *c;} & registro((c:puntero(entero))$\times$ \\
+                 & \texttt{         float d[4];\};}         & ~~~~(d:array(0..3,real))) \\\hline
+(argumentos) $\rightarrow$ t & \texttt{int f(int a,float b);} & (int $\times$ float) $\rightarrow$ int \\ 
+                             & \texttt{char *strdup(char *);} & puntero(char) $\rightarrow$ puntero(char) \\\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+La mayoría de los lenguajes permiten definir otros tipos de datos
+compuestos, además de los anteriores, como pueden ser los tipos enumerados 
+(\texttt{enum}) y las uniones (\texttt{union}) en C, pero no suponen muchas 
+dificultades añadidas, por lo que no hablaremos de ellos. Aunque en los 
+lenguajes orientados a objetos como C++ y Java, 
+el tipo \texttt{class} no es muy distinto de un registro, la compilación de
+este tipo de lenguajes es muy compleja y se sale del ámbito de este libro.
+
+Las principales características de los tipos más comunes son:
+
+\begin{description}
+\item[Punteros:] Son fundamentales en cualquier lenguaje de alto nivel, pero
+también son posiblemente la mayor fuente de errores de cualquier programa que
+los utilice. Probablemente por esto, algunos lenguajes recientemente diseñados
+(como Java) no permiten al programador utilizar punteros, aunque internamente
+el compilador sí los utiliza. En cuanto a la tarea del compilador, una variable
+de tipo puntero no es más que una variable que puede contener una dirección de
+memoria en la que hay datos. El tamaño que el compilador asigna a
+una variable de este tipo depende de la arquitectura de la máquina objeto: si
+utiliza, por ejemplo, direccionamiento de 32 bits, se utilizan 4 bytes 
+para un puntero.
+%
+\item[Arrays:] También son tipos fundamentales en cualquier lenguaje. Normalmente,
+se pueden definir {\em arrays\/} de una dimensión (también llamados vectores),
+de dos dimensiones (matrices), etc. En general, no suele haber límite en el 
+número de dimensiones de un {\em array}: depende del espacio que ocupe 
+en memoria (que sí suele estar limitado).
+
+ La forma de representar un {\em array\/} en memoria suele ser en todos los
+lenguajes la misma, y se basa en considerar un {\em array\/} $n$--dimensional
+como un {\em array\/} de {\em arrays\/} $(n-1)$--dimensionales.
+
+\begin{ejemplo}
+La siguiente tabla muestra cómo se almacenarían en
+memoria algunos {\em arrays\/} en C.
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{l||l}
+\texttt{int a[3];}       & \framebox[0.2cm]{}\framebox[0.2cm]{}\framebox[0.2cm]{} \\
+\texttt{int b[3][4];}    & \framebox[0.2cm]{}\framebox[0.2cm]{}\framebox[0.2cm]{}\framebox[0.2cm]{}\framebox[0.8cm]{}\framebox[0.8cm]{} \\
+\texttt{int c[2][3][5];} & \framebox[0.2cm]{}\framebox[0.2cm]{}\framebox[0.2cm]{}\framebox[0.2cm]{}\framebox[0.2cm]{}\framebox[1cm]{}\framebox[1cm]{}\framebox[3cm]{} \\
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+ El {\em array\/} ``\texttt{b}'' es un {\em array\/} de 3 {\em arrays\/} de 4
+enteros cada uno, y su {\em expresión de tipos\/} sería: 
+\begin{quote}
+ \mbox{array(0..2,array(0..3,entero))}
+\end{quote}
+\end{ejemplo}
+
+ Normalmente, el índice de un {\em array\/} es un valor entero\footnote{Algunos
+lenguajes permiten otros tipos como índices. Por ejemplo, AWK permite 
+que el índice de un {\em array\/} sea una cadena ({\em arrays\/} asociativos).} 
+(o se convierte
+a un valor entero, como ocurre en C). El rango de posibles valores del
+índice depende del lenguaje: en C, el rango va de 0 al tamaño de la
+dimensión correspondiente menos 1,
+mientras que en Pascal el rango de posibles valores se define al declarar
+el {\em array\/} y puede por tanto comenzar en valores distintos de 0 (e
+incluye los dos límites del rango).
+
+\begin{ejemplo}
+La siguiente tabla muestra los rangos de valores posibles
+para el índice en algunos {\em arrays\/} en C y en Pascal.
+
+\begin{center}
+\begin{tabular}{l|c|c}\hline
+{\sc Declaración}    & {\sc Lenguaje} & {\sc Rango} \\\hline
+\texttt{int a[3];}   & C & 0 -- 2 \\
+\texttt{float b[15];} & C & 0 -- 14 \\
+\texttt{c:array [1..7] of char} & Pascal & 1--7 \\
+\texttt{d:array [50..67] of real} & Pascal & 50 -- 67 \\\hline
+\end{tabular}
+\end{center}
+\end{ejemplo}
+
+ Mientras que en C, por cuestiones de eficiencia, no se comprueba que el 
+valor de un índice esté incluido en el rango de valores posibles, 
+ Pascal exige que el índice pertenezca a ese rango. Puesto
+que, en general, el compilador no puede conocer el valor del índice, debe
+generar código para que esta comprobación se realice en tiempo de ejecución
+(lo cual ralentiza el programa objeto). Existen multitud de librerías para C
+que realizan estas comprobaciones y otras similares relacionadas con los
+punteros, ya que la gran mayoría de los errores de ejecución de los programas  
+en C (y C++) están relacionados con esta comprobación y con el uso
+indebido de punteros.
+%
+\item[Registros:] Este tipo de datos es también indispensable en cualquier
+lenguaje de alto nivel, aunque algunos lenguajes orientados a objetos lo
+sustituyen por el tipo \texttt{class}. Un registro se almacena en memoria
+simplemente guardando consecutivamente todos los campos del registro\footnote{Esta 
+afirmación no es del todo cierta: algunos compiladores, para no tener que trabajar
+con direcciones de memoria impares (lo cual es más ineficiente en la mayoría de
+los procesadores actuales), rellenan con campos ficticios el registro para que
+la dirección de todos los campos sea par, e incluso se puede llegar a utilizar
+esta técnica para que las direcciones sean múltiplo de 4.}, por lo que el
+tamaño de un registro no suele ser más que la suma de los tamaños de sus campos.
+
+ Una de las tareas que debe realizar el compilador es almacenar eficientemente
+los campos de un registro. Para ello existen las siguientes posibilidades:
+\begin{enumerate}
+\item Crear una tabla de símbolos nueva para cada registro que se declare
+(pero no para cada variable de tipo registro).
+\item Utilizar una tabla de símbolos específica para almacenar todos los campos
+de todos los registros, distinta de la utilizada para
+almacenar variables y funciones. Esto implica añadir un campo más a dicha tabla para
+enlazar cada campo de un registro con el siguiente campo de dicho registro.
+\item Almacenar los campos de los registros en la tabla de símbolos global,
+para lo cual es necesario enlazar los símbolos globales entre sí, y enlazar
+también los campos de los registros. Esta alternativa es muy ineficiente pero
+puede ser necesario utilizarla cuando la memoria disponible sea escasa.
+\end{enumerate}
+
+ Independientemente de la alternativa que se utilice, la dirección de los
+campos de un registro debe ser relativa al comienzo de la variable de tipo
+registro (puede haber más de una variable declarada con ese tipo), por lo
+que la dirección del primer campo siempre debe ser 0, y las siguientes deben
+ser consecutivas (según el tamaño del campo anterior).
+%
+\end{description}
+
+\subsection{Tabla de tipos}
+
+ En la implementación de un compilador no es posible utilizar las expresiones
+de tipos presentadas anteriormente para representar los tipos de las variables. 
+Para almacenar eficientemente
+los tipos compuestos se utiliza una tabla de tipos, en la que inicialmente se
+almacenan los tipos básicos, y a la que se van añadiendo los tipos compuestos
+según aparecen en el programa fuente. Una vez almacenado un tipo en la tabla
+de tipos, las variables declaradas con ese tipo se pueden almacenar en la
+tabla de símbolos utilizando un índice a la tabla de tipos como tipo.
+
+\newpage
+\begin{ejemplo}
+Las siguientes declaraciones en C:
+
+\begin{small}
+\begin{verbatim}
+            int a;
+            float **b;
+            char c[10];
+            int d[4][7];
+            float *e[15];
+            struct {
+               float f;
+               int g;
+            } h;
+            int funcion(char,float,int);
+\end{verbatim}
+\end{small}
+
+se almacenarían de la siguiente manera en la tabla de tipos y en la tabla
+de símbolos\footnote{Para calcular las direcciones de memoria se ha supuesto
+que los caracteres ocupan una posición de memoria, los enteros y los punteros 
+ocupan dos posiciones y los reales 4. Asimismo, se supone que las variables
+globales se almacenan a partir de la dirección 100.}:
+
+\begin{footnotesize}
+\begin{center}
+\begin{minipage}[t]{0.48\textwidth}
+\begin{center}
+~
+
+\begin{tabular}{|c|l|c|c|}
+\multicolumn{4}{c}{\sc Tabla de tipos} \\\hline
+{\sc Núm.} & {\sc Tipo} & {\sc D/T} & {\sc T.Base} \\\hline\hline
+0 & {\sc Entero} &  & \\\hline
+1 & {\sc Real} &  & \\\hline
+2 & {\sc Carácter} &  & \\\hline
+3 & {\sc Puntero} &  & 1 \\\hline
+4 & {\sc Puntero} &  & 3 \\\hline
+5 & {\sc Array} & 10 & 2 \\\hline
+6 & {\sc Array} & 7 & 0 \\\hline
+7 & {\sc Array} & 4 & 6 \\\hline
+8 & {\sc Puntero} &  & 1 \\\hline
+9 & {\sc Array} & 15 & 8 \\\hline
+10 & {\sc Registro} &  & TS1 \\\hline
+11 & {\sc P.Cart.} & 2 & 1 \\\hline
+12 & {\sc P.Cart.} & 11 & 0 \\\hline
+13 & {\sc Función} & 12 & 0 \\\hline
+\end{tabular}
+\end{center}
+\end{minipage}
+\begin{minipage}[t]{0.40\textwidth}
+\begin{center}
+~
+
+\begin{tabular}{|c|c|c|}
+\multicolumn{3}{c}{\sc Tabla de símbolos global} \\\hline
+{\sc Nombre} & {\sc Tipo} & {\sc Dirección} \\\hline\hline
+a & 0 & 100 \\\hline
+b & 4 & 102 \\\hline
+c & 5 & 104 \\\hline
+d & 7 & 114 \\\hline
+e & 9 & 170 \\\hline
+h & 10 & 200 \\\hline
+funcion & 13 & - \\\hline
+\end{tabular}
+
+\vspace{1cm}
+~
+
+\begin{tabular}{|c|c|c|}
+\multicolumn{3}{c}{\sc Tabla de símbolos TS1} \\\hline
+{\sc Nombre} & {\sc Tipo} & {\sc Dirección} \\\hline\hline
+f & 1 & 0 \\\hline
+g & 0 & 4 \\\hline
+\end{tabular} 
+\end{center}
+\end{minipage}
+\end{center}
+\end{footnotesize}
+
+\paragraph{Observaciones:}
+
+\begin{itemize}
+\item Como se puede observar en el caso de los punteros 
+a \texttt{float} (entradas 3 y 8 en la tabla de tipos),
+cuando se va a añadir un tipo a la tabla de tipos no se suele perder el tiempo
+ buscándolo, sino que directamente se añade al final.
+\item En los {\em arrays\/} se puede almacenar la dimensión del {\em array\/}
+(como en el ejemplo) o bien, si el lenguaje fuente fuera Pascal o alguno similar,
+ el rango de valores posibles.
+\item En el caso de los
+registros, en la tabla de tipos se puede almacenar un puntero a la tabla de
+símbolos del registro, o bien la posición en la tabla de símbolos específica
+(o en la global) en la que se almacenan los campos del registro, según la 
+alternativa que se haya utilizado para almacenar los campos.
+\item Las funciones se almacenan guardando primero los productos cartesianos
+de sus argumentos (de izquierda a derecha), y después almacenando la función
+haciendo referencia al tipo de los argumentos y al tipo que devuelve.
+\end{itemize}
+\end{ejemplo}
+
+ La tabla de tipos, como la tabla de símbolos, es una variable global 
+del compilador y, por tanto, es necesario definir funciones para añadir tipos
+nuevos y para obtener información acerca de éstos.
+
+\begin{ejemplo}
+El ETDS de la figura~\ref{figETDSTT} procesa declaraciones de 
+variables simples y {\em arrays\/} en C, creando los tipos en la tabla de 
+tipos y
+almacenando después las variables en la tabla de símbolos. Las funciones
+que utiliza este ETDS son:
+
+\begin{center}
+\begin{small}
+\begin{description}
+\item \texttt{int NuevoTipoArray(int dim,int tbase)}~\newline
+           Crea un nuevo tipo {\em array\/} en la tabla 
+                        de tipos (con \texttt{dim} y \texttt{tbase} como la
+                        dimensión y el tipo base del {\em array\/} respectivamente) 
+                     y devuelve
+                        el número del nuevo tipo dentro de la tabla. 
+                        
+\item \texttt{void GuardaSimb(char *nom,int tipo,int tam)}~\newline
+              Almacena en la tabla de símbolos la variable de
+                        nombre \texttt{nom} con su tipo y su tamaño. Por 
+               simplificar, supondremos que esta función comprueba que la
+               variable no esté repetida y, además, se encarga de asignar una
+               dirección de memoria a la nueva variable al guardarla en la
+               tabla de símbolos.
+\end{description}
+\end{small}
+\end{center}
+\end{ejemplo}
+
+\begin{figure}[ht]
+\begin{small}
+$$
+\begin{array}{lcll}
+\nter{D} \der  \nter{D} \nter{Var}     &   \\
+\nter{D} \der  \nter{Var}     &   \\
+\nter{Var} \der  \nter{Tipo}  & \{\; L.th := Tipo.t\;\;;\;\;L.tamh := Tipo.tam \;\;\} \\
+          & &  \nter{L} \ter{\texttt{;}} & \\
+\nter{Tipo} \der \ter{int} & \{\; Tipo.t := ENTERO\;\;;\;\;Tipo.tam := 2 \;\;\} \\
+\nter{Tipo} \der \ter{float} & \{\; Tipo.t := REAL\;\;;\;\;Tipo.tam := 4 \;\;\} \\
+\nter{Tipo} \der \ter{char} & \{\; Tipo.t := CARACTER\;\;;\;\;Tipo.tam := 1 \;\;\} \\
+\nter{L}    \der            & \{\; L_1.th := L.th\;\;;\;\;L_1.tamh := L.tamh \;\;\} \\
+            & &  \nter{$L_1$} \ter{\texttt{,}} & \{\; V.th := L.th\;\;;\;\;V.tamh := L.tamh \;\;\} \\
+            & &  \nter{V}   & \\
+\nter{L}    \der            & \{\; V.th := L.th\;\;;\;\;V.tamh := L.tamh \;\;\} \\
+            & &  \nter{V}   & \\
+\nter{V}    \der \ter{id}   & \{\; A.th := V.th\;\;;\;\;A.tamh := V.tamh \;\;\} \\
+            & &  \nter{A}   & \{\; \texttt{GuardaSimb}({\bf id}.lexema,A.tipo,A.tam) \;\;\} \\
+\nter{A}    \der \ter{\texttt{[}} \ter{nint} \ter{\texttt{]}} & \{\; A_1.th := A.th\;\;;\;\;A_1.tamh := A.tamh \;\;\} \\
+            & &  \nter{$A_1$} & \{\; A.tipo := \texttt{NuevoTipoArray}({\bf nint}.valex,A_1.tipo); \\
+            & &               & ~~A.tam := A_1.tam * {\bf nint}.valex \;\;\} \\
+\nter{A}   \der \epsilon    & \{\; A.tipo := A.th\;\;;\;\;A.tam := A.tamh \;\;\} \\
+\end{array}
+$$
+\end{small}
+\caption{Esquema de traducción para procesar declaraciones de variables
+simples y {\em arrays\/}.} \label{figETDSTT}
+\end{figure}
+
+\subsection{Ámbitos y tabla de tipos}
+
+ La gestión de la tabla de símbolos cuando el lenguaje fuente permite 
+diferentes ámbitos de declaración se ha explicado en la sección correspondiente
+a la tabla de símbolos. Cuando se cierra el ámbito, el compilador elimina
+de la tabla de símbolos todos los que se hayan declarado dentro del ámbito (los
+{\em olvida\/}), puesto que dichos símbolos ya no son accesibles. De igual
+manera, los tipos que se han añadido a la tabla de tipos durante la compilación
+del ámbito se pueden también eliminar sin ningún problema (excepto quizá en
+la compilación de funciones, que estudiaremos en el capítulo siguiente).
+
+\subsection{Equivalencia de tipos}
+
+ Las expresiones de tipos se utilizan para especificar de una manera independiente
+del programa fuente el tipo de una construcción. Además, la mayoría de los
+lenguajes permiten que el usuario defina sus propios tipos de datos\footnote{Los
+identificadores utilizados por los usuarios para definir nuevos tipos se suelen
+almacenar en la tabla de símbolos o bien en una tabla especial (depende del
+lenguaje).}.
+Cuando el compilador debe
+comprobar si dos elementos tienen tipos iguales o equivalentes (en una
+asignación o en una llamada a una función, por ejemplo) dicha 
+comprobación puede hacerse de dos maneras:
+\begin{itemize}
+\item con respecto al nombre de los tipos ({\em equivalencia de nombre\/}):
+dos tipos son considerados iguales o equivalentes si tienen el
+exactamente mismo nombre. \newline
+{\bf Ejemplo:} Dadas las siguientes variables ``\verb+a+'' y ``\verb+b+'',
+\begin{center}
+\begin{small}
+\begin{verbatim}
+ int *a;
+ typedef int *punteroEntero;
+ punteroEntero b;
+\end{verbatim}
+\end{small}
+\end{center}
+sus tipos no son equivalentes si el lenguaje utiliza la equivalencia de
+nombres, como hace por ejemplo Pascal.
+\item con respecto a la estructura de los tipos ({\em equivalencia estructural\/}):
+dos tipos son considerados iguales o equivalentes si tienen la misma estructura.
+En el ejemplo anterior los tipos de las variables ``\verb+a+'' y ``\verb+b+''
+serían considerados iguales, aunque tuvieran distinto nombre (las dos son
+punteros a enteros). El lenguaje C utiliza este tipo de equivalencia.
+\end{itemize}
+
+\section{Código intermedio para {\em arrays\/}}
+
+ Además de procesar las declaraciones de {\em arrays\/} y crear los tipos
+correspondientes en la tabla de tipos, el compilador debe generar código
+intermedio para acceder a una posición concreta de un {\em array\/}. Aunque
+las referencias a una posición de un {\em array\/} pueden aparecer como
+parte de una expresión o en la parte izquierda de una asignación, el código
+que debe generar el compilador en ambos casos es similar: primero generará
+código para obtener (en tiempo de ejecución) la dirección de memoria 
+correspondiente a la posición del {\em array\/}, y después generará código
+para obtener el valor que hay almacenado en esa dirección (si la referencia
+aparece en una expresión) o bien para almacenar un valor en esa dirección.
+
+ Las referencias a posiciones de {\em arrays\/} están formadas
+por el nombre de la variable de tipo {\em array\/} y uno o más índices entre
+corchetes (o con una sintaxis similar); puesto que cualquier expresión
+(de tipo entero o convertida a tipo entero) puede ser el índice de un {\em array},
+y dado que el compilador no siempre puede conocer el valor de una expresión
+antes de que se ejecute el programa objeto, el {\em front end\/} genera
+código para calcular la dirección de memoria asociada a la posición del
+{\em array\/}, independientemente del valor de los índices. El optimizador, 
+en algunos casos (cuando detecta que los índices tienen un valor constante), 
+puede ahorrar ese cálculo y sustituir todo el
+código que se genera en el {\em front end\/} por la dirección de memoria
+correspondiente.
+
+ Para explicar cómo se debe generar código para acceder a una posición
+de un {\em array\/}, vamos a estudiar el caso concreto de un
+{\em array\/} tridimensional (los cálculos y el código a generar son
+generalizables para {\em arrays\/} $n$--dimensionales).
+Dada una declaración de un {\em array\/} en C como la siguiente:
+\begin{quote}
+\begin{center}
+    \texttt{int a[$D_1$][$D_2$][$D_3$];}
+\end{center}
+\end{quote}
+donde $D_1$, $D_2$ y $D_3$ son las dimensiones del {\em array\/}, si
+en el programa fuente aparece una referencia como:
+\begin{quote}
+\begin{center}
+    \texttt{a[$i$][$j$][$k$]}
+\end{center}
+\end{quote}
+ la dirección de memoria asociada a esa posición del {\em array\/} es:
+\begin{quote}
+$$
+\begin{array}{ll}
+\mbox{DirBase}(a) & +\; i \times ( D_2 \times D_3 \times \texttt{Tam(int)} ) \\
+                        & +\; j \times ( D_3 \times \texttt{Tam(int)} ) \\
+                        & +\; k \times \texttt{Tam(int)} \\
+\end{array}
+$$    
+\end{quote}
+
+ Todos los productos de las dimensiones del {\em array\/} son independientes
+de los índices y por tanto pueden realizarse en tiempo de compilación e incluso
+se pueden almacenar en la tabla de tipos. Es relativamente sencillo implementar
+esta fórmula en un compilador, pero existe una fórmula recursiva para realizar
+este cálculo que simplifica la generación de código. La implementación de 
+dicha fórmula recursiva sería en este caso:
+$$
+\begin{array}{lcl}
+ t_1 & := & 0  \\
+ t_2 & := & t_1 \times D_1 + i \\
+ t_3 & := & t_2 \times D_2 + j \\
+ t_4 & := & t_3 \times D_3 + k \\
+ t_5 & := & \mbox{DirBase}(a) + t_4 \times \texttt{Tam(int)} \\
+\end{array}
+$$
+ Como se puede observar, ambas fórmulaciones son equivalentes. En el caso
+base de la recursión se asigna un $0$ a una variable temporal y en el
+caso general se multiplica la temporal anterior por la dimensión correspondiente
+y se le suma el índice. Finalmente, una vez terminada la recursión, se
+multiplica la temporal resultante por el tamaño del tipo básico del {\em array\/}
+y se le suma la dirección base de comienzo del {\em array\/}.
+
+ De forma simultánea a este cálculo, el compilador debe realizar algunas
+comprobaciones semánticas:
+
+\begin{enumerate}
+\item Se debe comprobar que la subreferencia a la que se pone índice es
+efectivamente un {\em array\/}, es decir, que no se le ponen índices a una
+variable que no ha sido declarada como {\em array\/} ni se ponen más 
+índices que los que necesita el {\em array\/}.
+\item En la mayoría de los lenguajes, se exige además que una referencia
+a una posición de un {\em array\/} tenga todos los índices que necesita
+según su declaración, es decir, si el {\em array\/} se declara como 
+tridimensional (como el caso que estamos tratando), el compilador debe
+comprobar que todas las referencias tienen exactamente 3 índices.
+\item Los lenguajes del estilo de Pascal exigen que el índice sea de
+tipo entero (en C se convierte a entero si no lo es).
+\item El lenguaje Pascal exige que el índice se encuentre dentro del
+rango de posibles valores de la declaración. Como se ha comentado en
+la sección anterior, esta comprobación solamente puede hacerse en tiempo
+de ejecución, por lo que un compilador de Pascal genera código objeto para
+realizar esta comprobación.
+\end{enumerate}
+
+\begin{ejemplo}
+ El fragmento de ETDS de la figura~\ref{figETDSgA} realiza algunas de estas 
+comprobaciones semánticas\footnote{La generación de código para comprobar
+que el índice se encuentra dentro del rango de valores posibles no se
+muestra en el ETDS para evitar que sea excesivamente largo y complejo.}
+ a la vez que genera código \texttt{m2r}, utilizando
+la fórmula recursiva (que también es válida para referencias a variables que 
+no sean de tipo {\em array\/}). Este ETDS debería además realizar 
+comprobaciones semánticas y posiblemente conversiones de tipos en la regla 
+de la asignación, pero no se muestran aquí por simplificar. Las funciones 
+de la tabla de símbolos y la tabla
+de tipos que se utilizan en este ETDS son:
+
+\begin{center}
+\begin{small}
+\begin{tabular}{ll}
+\texttt{int TipoSimb(char *nom)} & \begin{minipage}[t]{0.45\textwidth}
+              Devuelve el tipo almacenado en la tabla de símbolos para
+             la variable de nombre \texttt{nom}. \vspace{0.2cm}
+                        
+                        \end{minipage}\\
+\texttt{int DirSimb(char *nom)} & \begin{minipage}[t]{0.45\textwidth}
+              Devuelve la dirección de memoria almacenada en la tabla
+             de símbolos para la variable \texttt{nom}. \vspace{0.2cm}
+
+                       \end{minipage}\\
+\texttt{int DimTipoArray(int t)} & \begin{minipage}[t]{0.45\textwidth}
+              Devuelve la dimensión almacenada en la tabla de tipos para
+             el tipo {\em array\/} \texttt{t}. \vspace{0.2cm}
+
+                       \end{minipage}\\
+\texttt{int TBaseTipoArray(int t)} & \begin{minipage}[t]{0.45\textwidth}
+              Devuelve el tipo base guardado en la tabla de tipos para
+             el tipo {\em array\/} \texttt{t}. \vspace{0.2cm}
+
+                       \end{minipage}\\
+\texttt{int TAMTIPO(int t)} & \begin{minipage}[t]{0.45\textwidth}
+              Devuelve el tamaño del tipo (simple) \texttt{t}. \vspace{0.2cm}
+                       \end{minipage}\\
+\end{tabular}
+\end{small}
+\end{center}
+
+ Suponiendo una variable declarada como ``\verb!int a[10][5]!'' y una
+referencia como ``\verb!a[7][4]!'', la figura~\ref{fg:arbARRAY} muestra el
+árbol sintáctico con los valores de los atributos de los no terminales.
+En esta figura se supone que la dirección de ``\verb!a!'' es 100 y que las
+variables temporales empiezan en la dirección 1000.
+Un buen optimizador se daría cuenta que los valores de los índices son
+constantes y calcularía la dirección completa de la referencia, sustituyendo
+todo el código de $\nter{Factor}$ por una instrucción; a pesar de esto, el
+generador de código intermedio debe generar todo el código, puesto que confía
+en el optimizador para mejorarlo cuando sea posible (como en este caso).
+\end{ejemplo}
+
+\begin{figure}[htp]
+\begin{small}
+$$
+\begin{array}{lcll}
+\nter{Ref} \der  \ter{id}     & \{\; Ref.tipo := TipoSimb({\bf id}.lexema)  \\
+           &  &               & ~~ Ref.dbase := DirSimb({\bf id}.lexema)  \\
+           &  &               & ~~ tmp := NuevaTemporal() \;;\;~~ Ref.tmp := tmp \\
+           &  &               & ~~ Ref.cod := \verb!"mov #0 "! || tmp \;\;\} \\
+\nter{Ref} \der  \nter{$Ref_1$} \ter{\texttt{[}} & \{\; si \;\; no \;\; EsArray(Ref_1.tipo) \;\; entonces \\
+           &  &               & ~~~~ ErrorSem\acute{a}ntico($\ldots$)  \\
+           &  &               & ~~ fsi \;\;\} \\
+           &  &  \nter{E} \ter{\texttt{]}} & \{\; si \;\; no \;\; EsEntero(E.tipo)~~ entonces \\
+           &  &               & ~~~~ ErrorSem\acute{a}ntico($\ldots$) \\
+           &  &               & ~~ si\; no \\
+           &  &               & ~~~~ Ref.tipo := TBaseTipoArray(Ref_1.tipo) \\
+           &  &               & ~~~~ Ref.dbase := Ref_1.dbase \\
+           &  &               & ~~~~ tmp := NuevaTemporal() \;;\;~~ Ref.tmp := tmp \\
+           &  &               & ~~~~ Ref.cod := Ref_1.cod || E.cod || \\
+           &  &               & ~~~~~~~~ \verb!"mov "! || Ref_1.tmp || \verb+"A"+ || \\
+           &  &               & ~~~~~~~~ \verb!"muli #"! || DimTipoArray(Ref_1.tipo) || \\
+           &  &               & ~~~~~~~~ \verb!"addi "! || E.tmp || \\
+           &  &               & ~~~~~~~~ \verb!"mov A"! || tmp  \\
+           &  &               & ~~ fsi \;\;\} \\
+\nter{Factor} \der \nter{Ref} & \{\; si~~ EsArray(Ref.tipo)~~ entonces \\
+           &  &               & ~~~~ ErrorSem\acute{a}ntico($\ldots$) \\
+           &  &               & ~~ si\; no \\
+           &  &               & ~~~~ Factor.tipo := Ref.tipo \\
+           &  &               & ~~~~ tmp := NuevaTemporal() \;;\;~~ Factor.tmp := tmp \\
+           &  &               & ~~~~ Factor.cod := Ref.cod || \verb!"mov "! || Ref.tmp || \verb+"A"+ || \\
+           &  &               & ~~~~~~~~~ \verb+"muli #"+ || TAMTIPO(Ref.tipo) || \\
+           &  &               & ~~~~~~~~~ \verb+"addi #"+ || Ref.dbase || \\
+           &  &               & ~~~~~~~~~ \verb+"mov @A"+ || tmp \\
+           &  &               & ~~ fsi \;\;\} \\
+\nter{Instr} \der \nter{Ref} \ter{\texttt{:=}} & \{\; si~~ EsArray(Ref.tipo)~~ entonces \\
+           &  &               & ~~~~ ErrorSem\acute{a}ntico($\ldots$) \\
+           &  &               & ~~ fsi \;\;\} \\
+           &  & \nter{E}      & \{\; \textit{/* comprobaciones semanticas con Ref y E */} \\
+           &  &               & ~~ Instr.cod := Ref.cod || E.cod || \\
+           &  &               & ~~~~~~~~~ \verb!"mov "! || Ref.tmp || \verb+"A"+ || \\
+           &  &               & ~~~~~~~~~ \verb+"muli #"+ || TAMTIPO(Ref.tipo) || \\
+           &  &               & ~~~~~~~~~ \verb+"addi #"+ || Ref.dbase || \\
+           &  &               & ~~~~~~~~~ \verb+"mov "+ || E.tmp || \verb+"@A"+ \\
+           &  &               & ~~ \;\;\} \\
+%\nter{Instr} \der \ter{\texttt{leer}} \nter{Ref} & \{\; \texttt{/* aprox. como en la asignación */} \;\} \\
+\end{array}
+$$
+\end{small}
+\caption{Esquema de traducción que genera código {\tt m2r} para acceder a
+una posición de un {\em array\/}. } \label{figETDSgA}
+\end{figure}
+
+\begin{figure}[htp]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{cap8f4.pdf}
+\end{center}
+\caption{Árbol sintáctico con los valores de los atributos para ``\texttt{a[7][4]}''.}
+\label{fg:arbARRAY}
+\end{figure}
+
+ Debe tenerse en cuenta que, si el lenguaje fuente es Pascal (o uno similar),
+los {\em arrays\/} se declaran con un rango de valores posibles, es decir, los
+índices no comienzan necesariamente en la posición 0 (como en C). Además,
+ambos tanto el límite inferior como el superior del rango están incluidos
+dentro del rango y son valores válidos. Para {\em arrays\/} declarados
+en Pascal, de la siguiente forma:
+\begin{quote}
+\begin{center}
+\texttt{var a:array[$LI_1$..$LS_1$,$LI_2$..$LS_2$,$LI_3$..$LS_3$];}
+\end{center}
+\end{quote}
+\noindent las fórmulas anteriores quedarían de la siguiente manera:
+\begin{small}
+$$
+\begin{array}{ll}
+\mbox{DirBase}(a) & +\; (i-LI_1) \times ( (LS_2-LI_2+1) \times (LS_3-LI_3+1) \times \texttt{Tam(int)} ) \\
+                        & +\; (j-LI_2) \times ( (LS_3-LI_3+1) \times \texttt{Tam(int)} ) \\
+                        & +\; (k-LI_3) \times \texttt{Tam(int)} \\
+\end{array}
+$$    
+\end{small}
+
+La fórmula recursiva sería:
+\begin{small}
+$$
+\begin{array}{lcl}
+ t_1 & := & 0  \\
+ t_2 & := & t_1 \times (LS_1 - LI_1 + 1)  + (i - LI_1) \\
+ t_3 & := & t_2 \times (LS_2 - LI_2 + 1)  + (j - LI_2) \\
+ t_4 & := & t_3 \times (LS_3 - LI_3 + 1)  + (k - LI_3) \\
+ t_5 & := & \mbox{DirBase}(a) + t_4 \times \texttt{Tam(int)} \\
+\end{array}
+$$
+\end{small}
+
+\section{Código intermedio para registros}
+
+ Un lenguaje fuente que permitiera solamente tipos simples y registros no
+plantearía un gran problema para el compilador, ya que la dirección de
+cualquier campo de cualquier registro se podría calcular en tiempo de
+compilación simplemente sumando la dirección base del registro con el
+desplazamiento relativo del campo. Por tanto, el código intermedio para
+acceder a un campo de un registro sería exactamente el mismo que habría
+que generar para acceder a una variable de tipo simple.
+
+ Sin embargo, lo normal es que un lenguaje fuente permita tanto {\em arrays\/}
+como registros, lo cual implica que no se puede calcular la dirección de
+un campo (en tiempo de compilación) en todos los casos, por lo que el
+{\em front end\/} generaría código para acceder tanto a referencias de
+variables simples, como a campos de registros y a posiciones de {\em arrays\/}.
+
+ En el ETDS de la figura~\ref{figETDSgA}, se utilizan dos atributos ({\em tmp\/} 
+y {\em cod\/}) en las
+reglas de {\em Ref\/} para calcular el desplazamiento dentro del {\em array\/},
+mientras que se utiliza otro atributo para la dirección base, que siempre
+es constante (se obtiene de la tabla de símbolos). Si el lenguaje fuente 
+permite también los registros, el principal
+cambio en dicho ETDS sería que la dirección base dejaría de ser una constante
+(un {\em array\/} puede ser un campo de un registro, y se pueden declarar 
+{\em arrays\/} de registros), por lo que se debe generar código para calcular
+la dirección base en tiempo de ejecución. Esto implicaría sustituir el
+atributo que contiene la dirección base por dos atributos (uno para el
+código y otro para una variable temporal). Además, habría que añadir al
+ETDS una regla para permitir las referencias a campos de registros:
+
+$$
+\begin{array}{lcl}
+\nter{Ref} \der \nter{Ref} \ter{\texttt{.}} \ter{id} \\
+\end{array}
+$$
+
+ 
+\begin{ejemplo}
+Dada la siguiente declaración en C
+
+\begin{small}
+\begin{verbatim}
+ struct { 
+    int a,b;
+    char c[10];
+ } d[5];
+\end{verbatim}
+\end{small}
+
+ y dada la referencia 
+
+\begin{small}
+\begin{verbatim}
+   d[i].c[j]
+\end{verbatim}
+\end{small}
+
+ suponiendo que los enteros ocupan dos posiciones de memoria y los 
+caracteres una, y suponiendo que el {\em array\/} ``\texttt{d}'' está 
+almacenado a partir de la dirección de memoria 100, los valores de los
+atributos de {\em Ref} para las distintas subreferencias que componen la
+referencia deberían ser (utilizando un esquema similar al de la 
+figura~\ref{figETDSgA}) los que se muestran en la figura~\ref{figGAR}.
+En las reglas del {\em Factor\/} y de las instrucciones se debe
+generar código para hacer la suma del desplazamiento con la dirección
+base.
+\end{ejemplo}
+
+\newcommand{\ac}{\texttt{~~ /* ~~}}
+\newcommand{\cc}{\texttt{~~ */ ~~}}
+
+\begin{figure}[hp]
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|l|l|}\hline
+{\sc Referencia} & {\sc Atributos de {\em Ref}} \\\hline\hline
+\texttt{d}       & .tipo = 4  \ac {\em array($0..4$, registro($\ldots$))} \cc \\
+                 & .tamaño = 70 \\
+                 & .dbase = $t_1$ \\
+                 & .cbase = \verb+mov #100 + $t_1$ \\
+                 & .tmp = $t_2$ \\
+                 & .cod = \verb+mov #0+ $t_2$ \\
+\hline
+\texttt{d[i]}    & .tipo = 3  \ac {\em registro($\ldots$)} \cc \\
+                 & .tamaño = 14 \\
+                 & .dbase = $t_1$ \\
+                 & .cbase = \verb+mov #100+ $t_1$ \\
+                 & .tmp = $t_3$ \\
+                 & .cod = \verb+mov #0+ $t_2$ \\
+                 & ~~~~~~~~ \verb+mov + $t_2$ \verb+A+ \\
+                 & ~~~~~~~~ \verb+muli #5+ \ac dimension del {\em array\/} \cc \\
+                 & ~~~~~~~~ \verb+addi+ $E.tmp$  \ac $E$ $\equiv$ \texttt{i} \cc \\
+                 & ~~~~~~~~ \verb+mov A + $t_3$ \\
+\hline
+\texttt{d[i].c}  & .tipo = 2  \ac {\em array($0..9$,char)} \cc \\
+                 & .tamaño = 10 \\
+                 & .dbase = $t_4$ \\
+                 & .cbase = \verb+mov #100+ $t_1$ \\
+                 & ~~~~~~~~ \verb+mov #0+ $t_2$ \\
+                 & ~~~~~~~~ \verb+mov + $t_2$ \verb+A+ \\
+                 & ~~~~~~~~ \verb+muli #5+ \\
+                 & ~~~~~~~~ \verb+addi+ $E.tmp$  \\
+                 & ~~~~~~~~ \verb+mov A + $t_3$ \\
+                 & ~~~~~~~~ \verb+mov + $t_3$ \verb+A+ \\
+                 & ~~~~~~~~ \verb+muli #14+  \ac tamaño del registro \cc \\
+                 & ~~~~~~~~ \verb+addi + $t_1$ \\
+                 & ~~~~~~~~ \verb+addi #4+ \ac {\em offset} de \texttt{c} \cc \\
+                 & ~~~~~~~~ \verb+mov A+ $t_4$ \\
+                 & .tmp = $t_5$ \\
+                 & .cod = \verb+mov #0+ $t_5$ \\
+\hline
+\texttt{d[i].c[j]} & .tipo = 1 \ac {\em char} \cc \\
+                 & .tamaño = 1 \\
+                 & .dbase = $t_4$ \\
+                 & .cbase = $\ldots$ \\
+                 & .tmp = $t_6$ \\
+                 & .cod = \verb+mov #0+ $t_5$ \\
+                 & ~~~~~~~~ \verb+mov + $t_5$ \verb+A+ \\
+                 & ~~~~~~~~ \verb+muli #10+ \ac dimension del {\em array\/} \cc \\
+                 & ~~~~~~~~ \verb+addi+ $E.tmp$  \ac $E$ $\equiv$ \texttt{j} \cc \\
+                 & ~~~~~~~~ \verb+mov A + $t_6$ \\
+\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+\caption{Generación de código intermedio para {\em arrays\/} y registros.}
+\label{figGAR}
+\end{figure}
+
+\clearpage
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{6.3, 3.3, 8.1, 6.4, 8.1, 8.2.1, 8.4, 6.4.1, 6.4.3 y 8.3}
+\refb{\cite{ASU90}}{2.7, 7.6, 2.8, 8.1, 6.1, 6.2, 6.3, 6.4, 8.3, 8.4 y 8.5}
+\refb{\cite{Ben90}}{5.1.1, 9.1 y 10.3.3}
+\refb{\cite{FL91}}{8.3, 7.3, 14.2, 8.4.1, 11.2.3 y 11.3.1}
+\end{rbib}
+
+\clearpage
+%\section{Ejercicios}
+\Ejercicios
+
+\begin{ejercicio}
+
+Dada la siguiente declaraci\'on de variables en C:
+\begin{small}
+\begin{verbatim}
+
+   struct {
+       int a;
+       float b[10][5];
+       char **c[4];
+       struct {
+          float a;
+          int *c;
+      } d,e;
+   } f,g;
+
+\end{verbatim}
+\end{small}
+\begin{enumerate}
+\item Escríbanse las expresiones de tipos correspondientes
+a las variables declaradas.
+\item Descríbanse brevemente los contenidos de la tabla de tipos y
+de la tabla de s\'{\i}mbolos global.
+\item Suponiendo que los tipos b\'{a}sicos ({\tt int}, {\tt float}
+y {\tt char}) ocupan todos lo mismo (una posici\'on de memoria), y que los
+punteros ocupan tambi\'en una posici\'on de memoria, ?`cu\'{a}l
+ser\'{\i}a
+la direcci\'{o}n de {\tt g.e.a} si la direcci\'{o}n donde comienza
+{\tt f} es
+la 100? ?`Es posible calcular esta direcci\'{o}n durante la
+compilaci\'{o}n?
+¿Y la de {\tt g.b[f.a][g.a]}?
+\end{enumerate}
+\end{ejercicio}
+
+\begin{ejercicio}
+Dada la siguiente declaración de variables en C:
+\begin{small}
+\begin{verbatim}
+ int a,*b[10];
+ int principal(int numargs,char **argumentos);
+ struct {
+     float c[4][5];
+     struct {
+         float x,y;
+     } puntos[15];
+ } d,f;
+\end{verbatim}
+\end{small}
+y suponiendo que los tipos básicos y los punteros ocupan sólo una posición de 
+memoria, 
+\begin{enumerate}
+\item Escríbanse las expresiones de tipos de cada uno de los símbolos que 
+aparecen en esas declaraciones.
+\item Dibújese la tabla de tipos y la tabla de símbolos en el estado en que 
+quedarían después de procesar las declaraciones.
+\item Explíquese cómo se calcularía la posición de memoria en la que está \newline
+{\tt d.puntos[7].y}.
+\item ¿Puede el compilador calcular {\em en todos los casos} esa posición 
+de memoria u otras con distinto índice para {\tt puntos}? ¿por qué?
+\end{enumerate}
+\end{ejercicio}
+
+\begin{ejercicio}
+Escríbase un ETDS que realice la siguiente traducci\'{o}n:
+
+\begin{description}
+\item[Lenguaje fuente:] expresiones aritm\'{e}ticas con enteros, 
+reales, identificadores de variables
+{\em predeclaradas}, los operadores ``{\tt  +}'', ``{\tt -}'', 
+``{\tt (}'', ``{\tt )''},  ``{\tt [}'' i ``{\tt ]}'',
+donde los operadores tienen la misma precedencia y asociatividad
+que en C o en Pascal (excepto los corchetes, que funcionan como los
+par\'{e}ntesis pero entregan la parte entera de la expresi\'{o}n que
+engloban; por ejemplo, {\tt [3.5+1]} vale {\tt 4}). La gramática
+que describe este lenguaje es muy similar a las utilizadas en los ejemplos
+de este y otros capítulos.
+\item[Lenguaje objeto:] un lenguaje basado en enteros,
+reales, identificadores y las funciones siguientes:
+\begin{center}
+\begin{tabular}{ll}
+{\tt int si(int, int)} & suma entera \\
+{\tt int ri(int, int)} & resta entera \\
+{\tt float sr(float, float)} & suma real \\
+{\tt float rr(float, float)} & resta real \\
+{\tt int t(float)}           & truncamiento a parte entera \\
+{\tt float r(int)}           & conversi\'{o}n de entero a real
+\end{tabular}
+\end{center}
+Al contrario que en el lenguaje fuente, en el lenguaje objeto no se
+permiten las conversiones implícitas de tipos, y por tanto los par\'ametros de estas
+funciones deben ser del tipo indicado en el prototipo\footnote{Es decir,
+no se puede hacer una llamada como {\tt sr(si(3,4.5),3.0)}.}.
+%
+\item[Restricciones sem\'{a}nticas:]
+Cuando un operador encuentra dos operandos enteros, el resultado es entero;
+si alguno de los operandos es real, el resultado tiene que ser real.
+\item[Ejemplos:] si {\tt a} es real y {\tt b} es entero, la
+siguiente tabla muestra las traducciones de algunas expresiones:
+
+\begin{tabular}{l|l}
+{\tt a+b-3.5}   & {\tt rr(sr(a,r(b)),3.5)}\\
+{\tt a+[b-3.5]} & {\tt  sr(a,r(t(rr(r(b),3.5))))} \\
+\end{tabular}
+\end{description}
+\end{ejercicio}
+
+\begin{ejercicio}
+Diséñese un ETDS que genere código objeto {\tt m2r} a partir de un lenguaje
+fuente con {\em arrays\/} que se declaran y utilizan como en el lenguaje Pascal. 
+
+ La parte del ETDS que se encarga de crear los tipos en la tabla de tipos
+y de almacenar los símbolos en la tabla de símbolos se debe suponer que ya
+está hecha. Solamente se debe hacer la parte del ETDS que genera código para
+acceder a las posiciones de un {\em array\/} o variable simple.
+
+\paragraph{Ejemplo:} Suponiendo las siguientes declaraciones de variables 
+globales,
+\begin{small}
+\begin{verbatim}
+   var
+       entero : a,b;
+       tabla 4..7 de real : ar;
+       tabla 10..11 de tabla 1..6 de entero : abe;
+   fvar
+\end{verbatim}
+\end{small}
+la parte del ETDS encargada de procesar las declaraciones 
+almacenaría los tipos y los símbolos en las tablas correspondientes,
+que quedarían de esta manera:
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|} \hline
+\multicolumn{6}{|c|}{\sc Tabla de Tipos} \\\hline
+{\sc Posición} & {\sc Tipo} & {\sc Tipo}   & {\sc Límite }    & {\sc Límite}   & {\sc Tamaño} \\
+               &            & {\sc básico} & {\sc inferior}   & {\sc superior} &              \\\hline\hline
+  0            & {\sc Entero} &  -         & -                & -              & - \\\hline
+  1            & {\sc Real}   &  -         & -                & -              & - \\\hline
+  2            & {\sc Array}  &  1         & 4                & 7              & 4 \\\hline
+  3            & {\sc Array}  &  0         & 1                & 6              & 6 \\\hline
+  4            & {\sc Array}  &  3         & 10               & 11             & 2 \\\hline             
+\end{tabular}
+\end{center}
+\end{small}
+
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|c|c|c|} \hline
+\multicolumn{4}{|c|}{\sc Tabla de Símbolos} \\\hline
+{\sc Posición} & {\sc Nombre} & {\sc Tipo} & {\sc Dirección } \\\hline
+  0            & {\tt a}      &  0         & 0                \\\hline
+  1            & {\tt b}      &  0         & 1                \\\hline
+  2            & {\tt ar}     &  2         & 2                \\\hline
+  3            & {\tt abe}    &  4         & 6                \\\hline
+\end{tabular}
+\end{center}
+\end{small}
+
+En este ETDS se supone que los tipos básicos (entero y real) ocupan solamente
+una posición de memoria, y debe tenerse en cuenta que
+en las tablas tanto el límite inferior como el superior están incluidos en
+el rango de valores posibles. Las funciones para acceder a los valores de las
+tablas de tipos y símbolos son:
+
+\begin{footnotesize}
+\begin{verbatim}
+booleano TT_EsArray(entero:posicion)    
+entero TT_TipoBasico(entero:posicion)
+entero TT_LimiteInferior(entero:posicion)
+entero TT_LimiteSuperior(entero:posicion)
+entero TT_Tamanyo(entero:posicion)
+entero TS_BuscaId(cadena:identificador) // devuelve la posicion o -1  
+                                            si no se ha declarado
+entero TS_TipoId(cadena:identificador)
+entero TS_DireccionId(cadena:identificador)
+\end{verbatim}
+\end{footnotesize}
+El fragmento de ETDS que se debe hacer es el asociado a las siguientes
+reglas:
+$$
+\begin{array}{lcl}
+\nter{Instr} \der \nter{Ref} \ter{assop} \nter{Expr} \\
+\nter{Factor}  \der \nter{Ref} \\
+\nter{Ref}   \der \ter{id} \\
+\nter{Ref}  \der \nter{Ref}  \ter{lcor} \nter{Esimple} \ter{rcor} \\
+\end{array}
+$$
+Se supone que {\em Factor}, {\em Esimple} y {\em Expr} tienen (al menos) tres
+atributos sintetizados: {\bf cod}, {\bf tipo} y {\bf tmp}, con el mismo
+significado que en los ejemplos de este capítulo. Las restricciones
+de tipos son las mismas que en Pascal y, aunque un compilador de Pascal 
+genera código para comprobar que el índice de un {\em array\/} está dentro del
+rango permitido, en este ETDS no se debe hacer.
+\end{ejercicio}
+

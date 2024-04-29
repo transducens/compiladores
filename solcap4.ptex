@@ -1,0 +1,1288 @@
+
+\section{Soluciones a los ejercicios del capítulo 4}
+
+\stepcounter{contcapitulo}
+\setcounter{contsoleje}{0}
+
+\begin{soleje}
+Compru\'ebese que la siguiente gram\'atica es LL(1) sin
+modificarla (en esta y en el resto de gram\'aticas de estos
+ejercicios se supondr\'a que el s\'{\i}mbolo inicial es el
+primero).
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{B} \nter{C} \nter{D} \\
+\nter{B} \der \ter{a} \nter{C} \ter{b} \\
+\nter{B} \der \epsilon \\
+\nter{C} \der \ter{c} \nter{A} \ter{d} \\
+\nter{C} \der \ter{e} \nter{B} \ter{f} \\
+\nter{C} \der \ter{g} \nter{D} \ter{h} \\
+\nter{C} \der \epsilon \\
+\nter{D} \der \ter{i}
+\end{array}
+$$
+\solucion
+
+A simple vista esta gramática no presenta ninguna característica que
+nos indique que no es LL(1), ya que no tiene ninguna regla con recursividad
+por la izquierda ni símbolos comunes por la izquierda en ninguna producción.
+
+A continuación pasamos a comprobar si cumple la condición LL(1). Para ello
+en primer lugar se calculan los conjuntos de primeros para cada no terminal
+de la gramática\footnote{El conjunto de primeros de cada terminal es el
+conjunto formado por el propio terminal.}:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\prim(\nter{D}) = & \prim(\;\ter{i}) = \{\;\ter{i}\} \\
+\prim(\nter{C}) = & \prim(\;\ter{c} \nter{A} \ter{d}) 
+                           \cup \prim(\;\ter{e} \nter{B} \ter{f}) 
+                           \cup \prim(\;\ter{g} \nter{D} \ter{h}) \cup 
+                           \prim(\;\epsilon\;) = \\ 
+                          & \{\;\ter{c},\;\ter{e},\;\ter{g},\;\epsilon\;\} \\
+\prim(\nter{B}) = & \prim(\;\ter{a} \nter{C} \ter{b}) \cup 
+                          \prim(\;{\epsilon}\;) = 
+                          \{\;\ter{a},\;\epsilon\;\} \\
+\prim(\nter{A}) = & \prim(\nter{B} \nter{C} \nter{D}) = 
+                          (\prim(\nter{B})-\{\;\epsilon\;\}) \cup 
+                          \prim(\nter{C} \nter{D}) = \\
+                          &  \{\;\ter{a}\} \cup 
+                          \prim(\nter{C} \nter{D}) = \\
+                          & \{\;\ter{a}\} \cup 
+                          (\prim(\nter{C})-\{\epsilon\}) \cup 
+                          \prim(\nter{D}) = \\
+                          & \{\;\ter{a},\;\ter{c},\;\ter{e},\;\ter{g}\} \cup 
+                          \prim(\nter{D}) = 
+                          \{\;\ter{a},\;\ter{c},\;\ter{e},\;\ter{g},\;\ter{i}\}
+\end{array}
+\end{displaymath}
+\end{small}
+
+Como se puede ver, para calcular los primeros de $A$, se comprueba si
+entre los primeros de $B$ se encuentra $\epsilon$; como es así,
+$\epsilon$ no se incluye en $\prim(A)$, pero se añaden los conjuntos de 
+primeros de los símbolos que siguen a $B$ en la regla; en este
+caso $C$. Con $\prim(\nter{C})$ ocurre lo mismo por lo que se añade el
+conjunto $\prim(\nter{C})-\{\;\epsilon\;\}$, y se hace la misma comprobación 
+para el conjunto de primeros de $\nter{D}$.
+
+En segundo lugar se calculan los conjuntos de siguientes para cada no
+terminal de la gramática.
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{A}) = & \{\;\$\;\} \cup \{\;\ter{d}\} = \{\;\$\;,\;\ter{d}\} \\
+\sig(\nter{B}) = & \prim(\nter{C} \nter{D}) \cup \{\;\ter{f}\} = 
+                \{\;\ter{c},\;\ter{e},\;\ter{g},\;\ter{i},\;\ter{f}\} \\
+\sig(\nter{C}) = & \prim(\nter{D}) \cup \{\;\ter{b}\} = 
+                \{\;\ter{i},\;\ter{b}\} \\
+\sig(\nter{D}) = & \{\;\ter{h}\} \cup \sig(\nter{A}) = 
+                \{\;\ter{h},\;\$\;,\;\ter{d}\} 
+\end{array}
+\end{displaymath}
+\end{small}
+
+El conjunto de siguientes del símbolo inicial siempre contendrá ``$\$$''. El
+resto de elementos de este conjunto se calcula igual que el conjunto de
+siguientes de cualquier otro no terminal. Para ello se observan las partes
+derechas de aquellas reglas donde aparezca el no terminal. En este ejemplo
+el único conjunto de siguientes que presenta alguna dificultad es el de
+$\nter{D}$, ya que se le añade el conjunto $\sig(\nter{A})$, porque
+$\nter{D}$ es el último símbolo de la regla de $\nter{A}$.
+
+Por último se calculan los conjuntos de predicción para cada regla de la
+gramática:
+\begin{small}
+\begin{displaymath}
+\begin{array}{lll}
+\pred(\nter{A} \flecha \nter{B} \nter{C} \nter{D}) & = &
+  \prim(\nter{B} \nter{C} \nter{D}) = 
+  \{\;\ter{a},\;\ter{c},\;\ter{e},\;\ter{g},\;\ter{i}\} \\
+\pred(\nter{B} \flecha \ter{a} \nter{C} \ter{b}) & = & 
+  \prim(\;\ter{a} \nter{C} \ter{b}) =  \{\;\ter{a}\} \\
+\pred(\nter{B} \flecha \epsilon\;) & = &
+  \sig(\nter{B}) =  
+  \{\;\ter{c},\;\ter{e},\;\ter{g},\;\ter{i},\;\ter{f}\} \\ 
+\pred(\nter{C} \flecha \ter{c} \nter{A} \ter{d}) & = &
+  \prim(\;\ter{c} \nter{A} \ter{d}) =  \{\;\ter{c}\} \\
+\pred(\nter{C} \flecha \ter{e} \nter{B} \ter{f}) & = & 
+  \prim(\;\ter{e} \nter{B} \ter{f}) =  \{\;\ter{e}\} \\
+\pred(\nter{C} \flecha \ter{g} \nter{D} \ter{h}) & = &
+  \prim(\;\ter{g} \nter{D} \ter{h}) =  \{\;\ter{g}\} \\
+\pred(\nter{C} \flecha \epsilon\;) & = &
+  \sig(\nter{C}) =  \{\;\ter{i},\;\ter{b}\} \\
+\pred(\nter{D} \flecha \ter{i}) & = &
+  \prim(\;\ter{i}) =  \{\;\ter{i}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+La única dificultad para calcular los conjuntos de predicción se presenta en
+las reglas del tipo $\nter{B} \flecha \epsilon\;$. En estos casos el conjunto
+de predicción de la regla se calcula como 
+$(\prim(\;\epsilon\;)-\{\;\epsilon\;\}) \cup
+\sig(\nter{B})$; es decir, solamente $\sig(\nter{B})$.
+
+Como podemos observar la gramática es LL(1), ya que los conjuntos de
+predicción que corresponden a reglas con la misma parte izquierda son
+disjuntos entre sí.
+\end{soleje}
+
+\begin{soleje}
+¿Es LL(1) la siguiente gram\'atica?
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{B} \nter{C} \nter{D} \\
+\nter{B} \der \ter{b} \opt \epsilon \\
+\nter{C} \der \ter{c} \opt \epsilon \\
+\nter{D} \der \ter{d} \opt \epsilon \\
+\end{array}
+$$
+\solucion
+
+Cálculo de los conjuntos de primeros:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\prim(\nter{D}) = & \{\;\ter{d},\;\epsilon\;\} \\
+\prim(\nter{C}) = & \{\;\ter{c},\;\epsilon\;\} \\
+\prim(\nter{B}) = & \{\;\ter{b},\;\epsilon\;\} \\
+\prim(\nter{A}) = & \{\;\ter{b},\;\ter{c},\;\ter{d},\;\epsilon\;\}
+\end{array}
+\end{displaymath}
+\end{small}
+
+Como podemos observar en el conjunto de primeros de $\nter{A}$ se incluye
+$\epsilon$; esto se debe a que todos los símbolos de la parte derecha de
+la regla de $\nter{A}$ derivan a $\epsilon\;$.
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{A}) = & \{\;\$\;\} \\
+\sig(\nter{B}) = & \{\;\ter{c},\;\ter{d},\;\$\;\} \\
+\sig(\nter{C}) = & \{\;\ter{d},\;\$\;\} \\
+\sig(\nter{D}) = & \{\;\$\;\} 
+\end{array}
+\end{displaymath}
+\end{small}
+
+Cálculo de los conjuntos de predicción:
+\begin{small}
+\begin{displaymath}
+\begin{array}{lll}
+\pred(\nter{A} \flecha \nter{B} \nter{C} \nter{D}) & = &
+  \{\;\ter{b},\;\ter{c},\;\ter{d},\;\$\;\} \\
+\pred(\nter{B} \flecha \ter{b}) & = & \{\;\ter{b}\} \\
+\pred(\nter{B} \flecha \epsilon\;) & = &
+  \{\;\ter{c},\;\ter{d},\;\$\;\} \\ 
+\pred(\nter{C} \flecha \ter{c}) & = & \{\;\ter{c}\} \\
+\pred(\nter{C} \flecha \epsilon\;) & = & \{\;\ter{d},\;\$\;\} \\
+\pred(\nter{D} \flecha \ter{d}) & = & \{\;\ter{d}\} \\
+\pred(\nter{D} \flecha \epsilon\;) & = & \{\;\$\;\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+\end{soleje}
+
+\begin{soleje}
+De un simple vistazo se puede comprobar
+que la siguiente gram\'atica no es LL(1): 
+
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \\
+\nter{S} \der \nter{S} \ter{var} \nter{D} \\
+\nter{S} \der \epsilon \\
+\nter{D} \der \nter{D} \ter{ident} \nter{E} \\
+\nter{D} \der \nter{D} \ter{ident} \ter{sep} \\
+\nter{D} \der \ter{int} \\
+\nter{D} \der \ter{float} \\
+\nter{E} \der \nter{S} \ter{fproc}
+\end{array}
+$$
+
+Elim\'{\i}nese la recursividad por la
+izquierda y los factores comunes por la izquierda y compru\'ebese
+si la gram\'atica equivalente resultante cumple la condici\'on
+LL(1).
+\solucion
+
+En primer lugar eliminamos la recursividad por la izquierda de la gramática,
+aplicando la regla general:
+$$
+\begin{array}{lclclcl}
+\nter{S} \der \nter{S} \ter{inst} & & \nter{S} \der \nter{$S'$} \\
+\nter{S} \der \nter{S} \ter{var} \nter{D} &\Rightarrow & 
+                            \nter{$S'$} \der \ter{inst} \nter{$S'$} \\
+\nter{S} \der \epsilon & &  \nter{$S'$} \der \ter{var} \nter{D} \nter{$S'$} \\
+        &    &         & &  \nter{$S'$} \der \epsilon \\
+ & & & & \\
+%\end{array}
+%$$
+%$$
+%\begin{array}{lclclcl}
+\nter{D} \der \nter{D} \ter{ident} \nter{E} & & 
+                       \nter{D} \der \ter{int} \nter{$D'$} \\
+\nter{D} \der \nter{D} \ter{ident} \ter{sep} & &
+                        \nter{D} \der \ter{float} \nter{$D'$} \\
+\nter{D} \der \ter{int} & \Rightarrow &
+                         \nter{$D'$} \der \ter{ident} \nter{E} \nter{$D'$} \\
+\nter{D} \der \ter{float} & &
+                         \nter{$D'$} \der \ter{ident} \ter{sep} \nter{$D'$} \\
+        &    &            & & \nter{$D'$} \der \epsilon
+\end{array}
+$$
+
+A continuación eliminamos los factores comunes por la izquierda que han
+quedado al eliminar la recursividad por la izquierda:
+$$
+\begin{array}{lclclcl}
+\nter{$D'$} \der \ter{ident} \nter{E} \nter{$D'$} & & 
+                           \nter{$D'$} \der \ter{ident} \nter{$D''$} \\
+\nter{$D'$} \der \ter{ident} \ter{sep} \nter{$D'$} &\Rightarrow &
+                           \nter{$D''$} \der \nter{E} \nter{$D'$} \\
+        &    &            & & \nter{$D''$} \der \ter{sep} \nter{$D'$}
+\end{array}
+$$
+
+Pasemos ahora a comprobar que efectivamente es LL(1).
+
+Cálculo de los conjuntos de primeros:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\prim(\nter{S}) = & \{\;\ter{inst},\;\ter{var},\;\epsilon\;\} \\
+\prim(\nter{$S'$}) = & \{\;\ter{inst},\;\ter{var},\;\epsilon\;\} \\
+\prim(\nter{D}) = & \{\;\ter{int},\;\ter{float}\} \\
+\prim(\nter{$D'$}) = & \{\;\ter{ident},\;\epsilon\;\} \\
+\prim(\nter{$D''$}) = & 
+               \{\;\ter{inst},\;\ter{var},\;\ter{fproc},\;\ter{sep}\} \\
+\prim(\nter{E}) = & 
+               \{\;\ter{inst},\;\ter{var},\;\ter{fproc}\}
+\end{array}
+\end{displaymath}
+\end{small}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{S}) = & \{\;\$\;,\;\ter{fproc}\} \\
+\sig(\nter{$S'$}) = & \{\;\$\;,\;\ter{fproc}\} \\
+\sig(\nter{D}) = & 
+                \{\;\ter{inst},\;\ter{var},\;\$\;,\;\ter{fproc}\} \\
+\sig(\nter{$D'$}) = & 
+                \{\;\ter{inst},\;\ter{var},\;\$\;,\;\ter{fproc}\} \\
+\sig(\nter{$D''$}) = & 
+                \{\;\ter{inst},\;\ter{var},\;\$\;,\;\ter{fproc}\} \\
+\sig(\nter{E}) = & 
+                \{\;\ter{ident},\;\ter{inst},\;\ter{var},\;\$\;,\;\ter{fproc}\}
+\end{array}
+\end{displaymath}
+\end{small}
+
+Cálculo de los conjuntos de predicción:
+\begin{small}
+\begin{displaymath}
+\begin{array}{lll}
+\pred(\nter{S} \flecha \nter{$S'$}) & = &
+  \{\;\ter{inst},\;\ter{var},\;\$\;,\;\ter{fproc}\} \\
+\pred(\nter{$S'$} \flecha \ter{inst} \nter{$S'$}) & = & 
+  \{\;\ter{inst}\} \\
+\pred(\nter{$S'$} \flecha \ter{var} \nter{D} \nter{$S'$}) & = & 
+  \{\;\ter{var}\} \\
+\pred(\nter{$S'$} \flecha \epsilon\;) & = &
+  \{\;\$\;,\;\ter{fproc}\} \\ 
+\pred(\nter{D} \flecha \ter{int} \nter{$D'$}) & = & 
+  \{\;\ter{int}\} \\
+\pred(\nter{D} \flecha \ter{float} \nter{$D'$}) & = & 
+  \{\;\ter{float}\} \\
+\pred(\nter{$D'$} \flecha \ter{ident} \nter{$D''$}) & = & 
+  \{\;\ter{ident}\} \\
+\pred(\nter{$D'$} \flecha \epsilon\;) & = & 
+  \{\;\ter{inst},\;\ter{var},\;\$\;,\;\ter{fproc}\} \\
+\pred(\nter{$D''$} \flecha \nter{E} \nter{$D'$}) & = & 
+  \{\;\ter{inst},\;\ter{var},\;\ter{fproc}\} \\  
+\pred(\nter{$D''$} \flecha \ter{sep} \nter{$D'$}) & = & 
+  \{\;\ter{sep}\} \\
+\pred(\nter{E} \flecha \nter{S} \ter{fproc}) & = & 
+  \{\;\ter{inst},\;\ter{var},\;\ter{fproc}\}
+\end{array}
+\end{displaymath}
+\end{small}
+
+La nueva gramática cumple la condición LL(1).
+
+\end{soleje}
+
+
+
+\begin{soleje}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \nter{B} \\
+\nter{A} \der \ter{begin} \nter{S} \ter{end} \nter{B} \ter{theend} \\
+\nter{A} \der \epsilon \\
+\nter{B} \der \ter{var} \nter{L} \ter{:} \ter{tipo} \\
+\nter{B} \der \nter{B} \ter{fvar} \\
+\nter{B} \der \epsilon \\
+\nter{L} \der \nter{L} \ter{,} \nter{id} \\
+\nter{L} \der \ter{id}
+\end{array}
+$$
+\begin{enumerate}
+\item H\'aganse
+        las transformaciones necesarias para eliminar la recursividad por la
+        izquierda.
+\item Calc\'ulense
+        los conjuntos de primeros y siguientes de cada no terminal.
+\item Compru\'ebese
+        que la gram\'atica modificada cumple la condici\'on LL(1).
+\item Constr\'uyase
+        la tabla de an\'alisis sint\'actico LL(1) para esa nueva
+        gram\'atica.
+\item Finalmente h\'agase la traza del an\'alisis de la cadena: 
+  \begin{verbatim}
+
+      begin 
+        var a,b:tipo 
+        var c:tipo 
+        fvar 
+      end 
+        var d:tipo 
+      theend
+
+ \end{verbatim}
+        comprobando que las derivaciones son correctas mediante la
+        construcci\'on del \'arbol de an\'alisis sint\'actico.
+\end{enumerate}
+\solucion
+
+Eliminación de la recursión por la izquierda:
+$$
+\begin{array}{lclclcl}
+\nter{B} \der \ter{var} \nter{L} \tertt{:} \ter{tipo} & & 
+       \nter{B} \der \ter{var} \nter{L} \tertt{:} \ter{tipo} \nter{$B'$} \\
+\nter{B} \der \nter{B} \ter{fvar} &\Rightarrow & 
+                            \nter{$B$} \der \nter{$B'$} \\
+\nter{S} \der \epsilon & &  \nter{$B'$} \der \ter{fvar} \nter{$B'$} \\
+        &    &         & &  \nter{$B'$} \der \epsilon \\
+ & & & & \\
+\nter{L} \der \nter{L} \tertt{,} \ter{id} & & 
+                       \nter{L} \der \ter{id} \nter{$L'$} \\
+\nter{L} \der \ter{id} & \Rightarrow &
+                        \nter{$L'$} \der \tertt{,} \ter{id} \nter{$L'$} \\
+        &    &         & & \nter{$L'$} \der \epsilon
+\end{array}
+$$
+
+Cálculo de los conjuntos de primeros:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\prim(\nter{S}) = & \{\;\ter{begin},\;\ter{var},\;\ter{fvar},\;\epsilon\;\} \\
+\prim(\nter{A}) = & \{\;\ter{begin},\;\epsilon\;\} \\
+\prim(\nter{B}) = & \{\;\ter{var},\;\ter{fvar},\;\epsilon\;\} \\
+\prim(\nter{$B'$}) = & \{\;\ter{fvar},\;\epsilon\;\} \\
+\prim(\nter{L}) = & \{\;\ter{id}\} \\
+\prim(\nter{$L'$}) = & 
+               \{\;\tertt{,},\;\epsilon\;\}
+\end{array}
+\end{displaymath}
+\end{small}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{S}) = & \{\;\$\;,\;\ter{end}\} \\
+\sig(\nter{A}) = & 
+                \{\;\ter{var},\;\ter{fvar},\;\$\;,\;\ter{end}\} \\
+\sig(\nter{B}) = & 
+                \{\;\ter{theend},\;\$\;,\;\ter{end}\} \\
+\sig(\nter{$B'$}) = & 
+                \{\;\ter{theend},\;\$\;,\;\ter{end}\} \\
+\sig(\nter{L}) = & 
+                \{\;\tertt{:}\} \\
+\sig(\nter{$L'$}) = & 
+                \{\;\tertt{:}\}
+\end{array}
+\end{displaymath}
+\end{small}
+
+Cálculo de los conjuntos de predicción:
+\begin{small}
+\begin{displaymath}
+\begin{array}{llll}
+(1) & \pred(\nter{S} \flecha \nter{A} \nter{B}) & = &
+  \{\;\ter{begin},\;\ter{var},\;\ter{fvar},\;\$\;,\;\ter{end}\} \\
+(2) & \pred(\nter{A} \flecha \ter{begin} \nter{S} \ter{end} \nter{B}
+\ter{theend}) & = & 
+  \{\;\ter{begin}\} \\
+(3) & \pred(\nter{A} \flecha \epsilon\;) & = &
+  \{\;\ter{var},\;\ter{fvar},\;\$\;,\;\ter{end}\} \\ 
+(4) & \pred(\nter{B} \flecha \ter{var} \nter{L} \tertt{:} \ter{tipo}
+\nter{$B'$}) & = & 
+  \{\;\ter{var}\} \\
+(5) & \pred(\nter{B} \flecha \nter{$B'$}) & = & 
+  \{\;\ter{fvar},\;\ter{theend},\;\$\;,\;\ter{end}\} \\ 
+(6) &\pred(\nter{$B'$} \flecha \ter{fvar} \nter{$B'$}) & = & 
+  \{\;\ter{fvar}\} \\
+(7) & \pred(\nter{$B'$} \flecha \epsilon\;) & = & 
+  \{\;\ter{theend},\;\$\;,\;\ter{end}\} \\
+(8) & \pred(\nter{L} \flecha \ter{id} \nter{$D'$}) & = & 
+  \{\;\ter{id}\} \\
+(9) & \pred(\nter{$L'$} \flecha \tertt{,} \ter{id} \nter{$L'$}) & = & 
+  \{\;\tertt{,}\} \\  
+(10) & \pred(\nter{$L'$} \flecha \epsilon\;) & = & 
+  \{\;\tertt{:}\}  
+\end{array}
+\end{displaymath}
+\end{small}
+
+La tabla de análisis correspondiente es:
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|}\hline
+\multicolumn{1}{|c|}{ } & \multicolumn{1}{|c|}{$\ter{begin}$} &
+\multicolumn{1}{|c|}{$\ter{end}$} & \multicolumn{1}{|c|}{$\ter{theend}$} & 
+\multicolumn{1}{|c|}{$\ter{var}$} & \multicolumn{1}{|c|}{$\tertt{:}$} & 
+\multicolumn{1}{|c|}{$\ter{tipo}$} & \multicolumn{1}{|c|}{$\ter{fvar}$} & 
+\multicolumn{1}{|c|}{$\ter{id}$} & \multicolumn{1}{|c|}{$\tertt{,}$} & 
+\multicolumn{1}{|c|}{$\$$} \\\hline\hline
+$\nter{S}$    & $(1)$ 
+              & $(1)$ 
+              & 
+              & $(1)$ 
+              & 
+              & 
+              & $(1)$ 
+              & 
+              & 
+              & $(1)$ \\\hline
+$\nter{A}$    & $(2)$ 
+              & $(3)$
+              & 
+              & $(3)$
+              & 
+              & 
+              & $(3)$
+              & 
+              & 
+              & $(3)$ \\\hline
+$\nter{B}$    & 
+              & $(5)$
+              & $(5)$
+              & $(4)$
+              & 
+              & 
+              & $(5)$
+              & 
+              & 
+              & $(5)$ \\\hline
+$\nter{$B'$}$ & 
+              & $(7)$
+              & $(7)$
+              & 
+              & 
+              & 
+              & $(6)$ 
+              & 
+              & 
+              & $(7)$ \\\hline
+$\nter{L}$    & 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & $(8)$ 
+              & 
+              & \\\hline
+$\nter{$L'$}$ & 
+              & 
+              & 
+              & 
+              & $(10)$
+              & 
+              & 
+              & 
+              & $(9)$ 
+              & \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La traza de la cadena de entrada 
+``{\tt begin var a,b:tipo var c:tipo fvar end var d:tipo theend}''
+es como sigue:
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|l|r|c|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+$\$\nter{S}$  
+       & \verb+ begin var a,b: tipo+ \ldots & $(1)$ \\
+$\$\nter{B} \nter{A}$  
+       &  \verb+ begin var a,b: tipo+ \ldots & $(2)$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{S} \ter{begin}$    
+       & \verb+ begin var a,b: tipo+ \ldots & emparejar $\ter{begin}$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{S}$    
+       & \verb+ var a,b:tipo var+ \ldots & $(1)$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{B} \nter{A}$    
+       & \verb+ var a,b:tipo var+ \ldots & $(3)$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{B}$    
+       & \verb+ var a,b:tipo var+ \ldots & $(4)$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo} \tertt{:}
+\nter{L} \ter{var}$    
+       & \verb+ var a,b:tipo var+ \ldots & emparejar $\ter{var}$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo} \tertt{:}
+\nter{L}$    
+       & \verb+ a,b:tipo var c+ \ldots & $(8)$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo} \tertt{:}
+\nter{$L'$} \ter{id}$    
+       & \verb+ a,b:tipo var c+ \ldots & emparejar $\ter{id}$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo} \tertt{:}
+\nter{$L'$}$    
+       & \verb+ ,b:tipo var c:+ \ldots & $(9)$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo} \tertt{:}
+\nter{$L'$} \ter{id} \tertt{,}$    
+       & \verb+ ,b:tipo var c:+ \ldots & emparejar $\tertt{,}$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo} \tertt{:}
+\nter{$L'$} \ter{id}$    
+       & \verb+ b:tipo var c:+ \ldots & emparejar $\ter{id}$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo} \tertt{:}
+\nter{$L'$}$    
+       & \verb+ :tipo var c:+ \ldots & $(10)$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo} \tertt{:}$    
+       & \verb+ :tipo var c:+ \ldots & emparejar $\tertt{:}$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$} \ter{tipo}$    
+       & \verb+ tipo var c:+ \ldots & emparejar $\ter{tipo}$ \\
+$\$\nter{B} \ter{theend} \nter{B} \ter{end} \nter{$B'$}$    
+       & \verb+ var c:+ \ldots & error \\\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+El error que se debe generar en este caso es: \\
+``{\small \verb+Error: encontrado 'var' esperaba 'fvar', 'theend', 'end' o fin de fichero+}''
+\end{soleje}
+
+\begin{soleje}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \\
+\nter{S} \der \nter{T} \nter{R} \nter{V} \\
+\nter{T} \der \ter{tipo} \\
+\nter{T} \der \epsilon \\
+\nter{R} \der \ter{blq} \nter{V} \ter{fblq} \\
+\nter{R} \der \epsilon \\
+\nter{V} \der \ter{id} \nter{S} \ter{fin} \\
+\nter{V} \der \ter{id} \ter{;} \\
+\nter{V} \der \epsilon
+\end{array}
+$$
+
+Constr\'uyase
+un analizador sint\'actico descendente recursivo (ASDR) para la
+gram\'atica LL(1) equivalente a esta gram\'atica. Sup\'ongase
+que ya existen las funciones \verb!analex! (analizador l\'exico), 
+\verb!emparejar! (funci\'on de emparejamiento) y \verb!error!
+(emisi\'on de error sint\'actico). La funci\'on \verb!error!
+se debe llamar con una cadena de caracteres que indique exactamente
+qu\'e lexema ha provocado el error y qu\'e s\'{\i}mbolos
+se esperaban en lugar del encontrado en la entrada.
+
+\solucion
+
+Eliminación de la recursión por la izquierda:
+$$
+\begin{array}{lclclcl}
+\nter{S} \der \nter{S} \ter{inst} & & 
+       \nter{S} \der \nter{T} \nter{R} \nter{V} \nter{$S'$}\\
+\nter{S} \der \nter{T} \nter{R} \nter{V} &\Rightarrow & 
+                            \nter{$S'$} \der \ter{inst} \nter{$S'$} \\
+        &    &         & &  \nter{$S'$} \der \epsilon \\
+\end{array}
+$$
+Eliminación de factores comunes por la izquierda:
+$$
+\begin{array}{lclclcl}
+\nter{V} \der \ter{id} \nter{S} \ter{fin} & & 
+                           \nter{V} \der \ter{id} \nter{$V'$} \\
+\nter{V} \der \ter{id} \tertt{;}  &\Rightarrow & \nter{V} \der \epsilon \\
+\nter{V} \der \epsilon  & & \nter{$V'$} \der \nter{S} \ter{fin} \\
+        &    &            & & \nter{$V'$} \der \tertt{;} \\
+\end{array}
+$$
+Pasemos ahora a comprobar que efectivamente es LL(1).
+
+Cálculo de los conjuntos de primeros:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\prim(\nter{S}) = & 
+  \{\;\ter{tipo},\;\ter{blq},\;\ter{id},\;\ter{inst},\;\epsilon\;\} \\
+\prim(\nter{$S'$}) = & \{\;\ter{inst},\;\epsilon\;\} \\
+\prim(\nter{T}) = & \{\;\ter{tipo},\;\epsilon\;\} \\
+\prim(\nter{R}) = & \{\;\ter{blq},\;\epsilon\;\} \\
+\prim(\nter{V}) = & \{\;\ter{id},\;\epsilon\;\} \\
+\prim(\nter{$V'$}) = & 
+\{\;\ter{tipo},\;\ter{blq},\;\ter{id},\;\ter{inst},\;\tertt{;},\;\ter{fin}\}
+\end{array}
+\end{displaymath}
+\end{small}
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{S}) = & \{\;\$\;,\;\ter{fin}\} \\
+\sig(\nter{$S'$}) = & \{\;\$\;,\;\ter{fin}\} \\
+\sig(\nter{T}) = & 
+                \{\;\ter{blq},\;\ter{id},\;\ter{inst},\;\$\;,\;\ter{fin}\} \\
+\sig(\nter{R}) = & 
+                \{\;\ter{id},\;\ter{inst},\;\$\;,\;\ter{fin}\} \\
+\sig(\nter{V}) = & 
+                \{\;\ter{inst},\;\$\;,\;\ter{fin},\;\ter{fbloq}\} \\
+\sig(\nter{$V'$}) = & 
+                \{\;\ter{inst},\;\$\;,\;\ter{fin},\;\ter{fbloq}\}
+\end{array}
+\end{displaymath}
+\end{small}
+Cálculo de los conjuntos de predicción:
+\begin{small}
+\begin{displaymath}
+\begin{array}{lll}
+\pred(\nter{S} \flecha \nter{T} \nter{R} \nter{V} \nter{$S'$}) & = &
+  \{\;\ter{tipo},\;\ter{blq},\;\ter{id},\;\ter{inst},\;\$\;,\;\ter{fin}\} \\
+\pred(\nter{$S'$} \flecha \ter{inst} \nter{$S'$}) & = & 
+  \{\;\ter{inst}\} \\
+\pred(\nter{$S'$} \flecha \epsilon\;) & = &
+  \{\;\$\;,\;\ter{fin}\} \\ 
+\pred(\nter{T} \flecha \ter{tipo}) & = & 
+  \{\;\ter{tipo}\} \\
+\pred(\nter{T} \flecha \epsilon\;) & = &
+  \{\;\ter{blq},\;\ter{id},\;\ter{inst},\;\$\;,\;\ter{fin}\} \\ 
+\pred(\nter{R} \flecha \ter{blq} \nter{V} \ter{fbloq}) & = & 
+  \{\;\ter{blq}\} \\
+\pred(\nter{R} \flecha \epsilon\;) & = & 
+  \{\;\ter{id},\;\ter{inst},\;\$\;,\;\ter{fin}\} \\
+\pred(\nter{V} \flecha \ter{id} \nter{$V'$}) & = & 
+  \{\;\ter{id}\} \\  
+\pred(\nter{V} \flecha \epsilon\;) & = & 
+  \{\;\ter{inst},\;\ter{fbloq},\;\$\;,\;\ter{fin}\} \\
+\pred(\nter{$V'$} \flecha \nter{S} \ter{fin}) & = & 
+  \{\;\ter{tipo},\;\ter{blq},\;\ter{id},\;\ter{inst},\;\ter{fin}\} \\
+\pred(\nter{$V'$} \flecha \tertt{;}) & = & 
+  \{\;\tertt{;}\}
+\end{array}
+\end{displaymath}
+\end{small}
+
+El ASDR correspondiente sería:
+\begin{small}
+\begin{verbatim}
+void S(void);
+
+void V2(void)
+{
+  if (preanalisis==PUNTCO)
+     Emparejar(PUNTCO);
+  else
+   if ((preanalisis==TIPO)||(preanalisis==BLQ)||
+       (preanalisis==ID)||(preanalisis==INST)||(preanalisis==FIN))
+               S(); Emparejar(FIN);
+   else
+     error(lexema,PUNTCO,TIPO,BLQ,ID,INST,FIN);
+}
+
+void V(void)
+{
+  if (preanalisis==ID)
+     Emparejar(ID); V2();
+  else
+   if ((preanalisis==INST)||(preanalisis==FBLOQ)||
+       (preanalisis==FIN)||(preanalisis==FINDEFICHERO))
+               break;
+   else
+     error(lexema,ID,INST,FBLOQ,FIN,FINDEFICHERO);
+}
+
+void R(void)
+{
+  if (preanalisis==BLQ)
+     Emparejar(BLQ); V(); Emparejar(FBLOQ);
+  else
+   if ((preanalisis==ID)||(preanalisis==INST)||
+       (preanalisis==FIN)||(preanalisis==FINDEFICHERO))
+               break;
+   else
+     error(lexema,BLQ,ID,INST,FIN,FINDEFICHERO);
+}
+
+void T(void)
+{
+  if (preanalisis==TIPO)
+     Emparejar(TIPO);
+  else
+   if ((preanalisis==BLQ)||(preanalisis==ID)||
+       (preanalisis==INST)||(preanalisis==FIN)||
+       (preanalisis==FINDEFICHERO))
+               break;
+   else
+     error(lexema,TIPO,BLQ,ID,INST,FIN,FINDEFICHERO);
+}
+
+void S2(void)
+{
+  if (preanalisis==INST)
+     Emparejar(INST); S2();
+  else
+   if ((preanalisis==FIN)||(preanalisis==FINDEFICHERO))
+               break;
+   else
+     error(lexema,INST,FIN,FINDEFICHERO);
+}
+
+void S(void)
+{
+  if ((preanalisis==TIPO)||(preanalisis==BLQ)||(preanalisis==ID)||
+      (preanalisis==INST)||(preanalisis==FIN)||(preanalisis==FINDEFICHERO))
+     T(); R(); V(); S2();
+  else  error(lexema,TIPO,BLQ,ID,INST,FIN,FINDEFICHERO);
+}
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+
+\newpage
+\begin{soleje}
+H\'aganse las mismas operaciones que
+en el ejercicio anterior para la gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{E} \der \tertt{[} \nter{L} \\
+\nter{E} \der \ter{a} \\
+\nter{L} \der \nter{E} \nter{Q} \\
+\nter{Q} \der \tertt{,} \nter{L} \\
+\nter{Q} \der \tertt{]}
+\end{array}
+$$
+Con los mismos supuestos y condiciones que en aquel caso. Escr\'{\i}base
+la secuencia de llamadas recursivas a las funciones que har\'{\i}a
+el ASDR durante su ejecuci\'on, incluidas las llamadas a la
+funci\'on de emparejamiento, para la cadena de entrada 
+``\verb![a,a]!''.
+
+\solucion
+
+Cálculo de los conjuntos de primeros:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\prim(\nter{E}) = & \{\;\tertt{[},\;\ter{a}\} \\
+\prim(\nter{L}) = & \{\;\tertt{[},\;\ter{a}\} \\
+\prim(\nter{Q}) = & \{\;\tertt{,},\;\tertt{]}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{E}) = & \{\;\$\;,\;\tertt{,},\;\tertt{]}\} \\
+\sig(\nter{L}) = & \{\;\$\;,\;\tertt{,},\;\tertt{]}\} \\
+\sig(\nter{Q}) = & \{\;\$\;,\;\tertt{,},\;\tertt{]}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+Cálculo de los conjuntos de predicción:
+\begin{small}
+\begin{displaymath}
+\begin{array}{lll}
+\pred(\nter{E} \flecha \tertt{[} \nter{L}) & = &
+  \{\;\tertt{[}\} \\
+\pred(\nter{E} \flecha \ter{a}) & = & 
+  \{\;\ter{a}\} \\
+\pred(\nter{L} \flecha \nter{E} \nter{Q}) & = &
+  \{\;\tertt{[},\;\ter{a}\} \\ 
+\pred(\nter{Q} \flecha \tertt{,} \nter{L}) & = & 
+  \{\;\tertt{,}\} \\
+\pred(\nter{Q} \flecha \tertt{]}) & = &
+  \{\;\tertt{]}\} \\ 
+\end{array}
+\end{displaymath}
+\end{small}
+
+Como podemos comprobar esta gramática es LL(1).
+
+La secuencia de llamadas que haría su correspondiente ASDR para la cadena 
+\verb![a,a]! es:
+\begin{small}
+\begin{verbatim}
+E(); 
+Emparejar(LCOR); L(); 
+E(); Emparejar(a); Q();
+Emparejar(COMA); L();
+E(); Emparejar(a); Q();
+Emparejar(RCOR);
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+\begin{soleje}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{P} \der \nter{D} \nter{S} \\
+\nter{D} \der \nter{D} \nter{V} \\
+\nter{D} \der \epsilon \\
+\nter{S} \der \nter{S} \nter{I} \\
+\nter{S} \der \epsilon \\
+\nter{V} \der \ter{decl} \ter{id} \ter{;} \\
+\nter{V} \der \ter{decl} \ter{id} \ter{(} \nter{P} \ter{)} \ter{;}\\
+\nter{V} \der \ter{decl} \ter{[} \nter{D} \ter{]} \ter{id} \ter{;}\\
+\nter{I} \der \ter{id} \ter{;} \\
+\nter{I} \der \ter{begin} \nter{P} \ter{end}
+\end{array}
+$$
+\begin{enumerate}
+\item H\'aganse las transformaciones necesarias para que cumpla la condici\'on
+        LL(1). 
+\item Constr\'uyase
+        la tabla de an\'alisis sint\'actico LL(1) para esa nueva
+        gram\'atica.
+\item Finalmente
+        h\'agase la traza del an\'alisis de las cadenas:
+      \begin{verbatim}
+  decl id ( begin id ; )
+
+  decl id ( decl [ decl id ; ] id ; ) ; id ;
+      \end{verbatim}
+Si durante el an\'alisis se produjera alg\'un error sint\'actico ind\'{\i}quese
+        qu\'e s\'{\i}mbolos podr\'{\i}an esperarse en lugar del
+        {\em token\/} de prean\'alisis que entr\'o.
+\end{enumerate}
+\solucion
+
+Eliminación de la recursión por la izquierda:
+$$
+\begin{array}{lclclcl}
+\nter{D} \der  \nter{D} \nter{V}  & & 
+       \nter{D} \der \nter{$D'$} \\
+\nter{D} \der \epsilon &\Rightarrow & 
+                            \nter{$D'$} \der \nter{V} \nter{$D'$} \\
+        &    &         & &  \nter{$D'$} \der \epsilon \\
+ & & & & \\
+\nter{S} \der \nter{S} \nter{I} & & 
+                       \nter{S} \der \nter{$S'$} \\
+\nter{S} \der \epsilon & \Rightarrow &
+                        \nter{$S'$} \der \nter{I} \nter{$S'$} \\
+        &    &         & & \nter{$S'$} \der \epsilon
+\end{array}
+$$
+
+Eliminación de factores comunes por la izquierda:
+$$
+\begin{array}{lclclcl}
+\nter{V} \der \ter{decl} \ter{id} \tertt{;} 
+        & & \nter{V} \der \ter{decl} \nter{$V'$} \\
+\nter{V} \der \ter{decl} \ter{id} \tertt{(} \nter{P} \tertt{)} \tertt{;} 
+        & & \nter{$V'$} \der \ter{id} \nter{$V''$} \\
+\nter{V} \der \ter{decl} \tertt{[} \nter{D} \tertt{]} \ter{id} \tertt{;}  
+        &\Rightarrow & 
+         \nter{$V'$} \der \tertt{[} \nter{D} \tertt{]} \ter{id} \tertt{;} \\
+        &    &            & & \nter{$V''$} \der \tertt{;} \\
+        &    &            & & 
+         \nter{$V''$} \der \tertt{(} \nter{P} \tertt{)} \tertt{;} \\
+\end{array}
+$$
+
+Pasemos ahora a comprobar que efectivamente es LL(1).
+
+Cálculo de los conjuntos de primeros:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\prim(\nter{P}) = & 
+  \{\;\ter{decl},\;\ter{id},\;\ter{begin},\;\epsilon\;\} \\
+\prim(\nter{D}) = & \{\;\ter{decl},\;\epsilon\;\} \\
+\prim(\nter{$D'$}) = & \{\;\ter{decl},\;\epsilon\;\} \\
+\prim(\nter{S}) = & \{\;\ter{id},\;\ter{begin},\;\epsilon\;\} \\
+\prim(\nter{$S'$}) = & \{\;\ter{id},\;\ter{begin},\;\epsilon\;\} \\
+\prim(\nter{V}) = & \{\;\ter{decl}\} \\
+\prim(\nter{$V'$}) = & \{\;\ter{id},\;\tertt{[}\} \\
+\prim(\nter{$V''$}) = & \{\;\tertt{;},\;\tertt{(}\} \\
+\prim(\nter{I}) = & \{\;\ter{id},\;\ter{begin}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{P}) = & 
+  \{\;\$\;,\tertt{)},\;\ter{end}\} \\
+\sig(\nter{D}) = & 
+  \{\;\ter{id},\;\ter{begin},\;\$\;,\tertt{)},\;\ter{end},\;\tertt{]}\} \\
+\sig(\nter{$D'$}) = & 
+  \{\;\ter{id},\;\ter{begin},\;\$\;,\tertt{)},\;\ter{end},\;\tertt{]}\} \\
+\sig(\nter{S}) = & 
+  \{\;\$\;,\tertt{)},\;\ter{end}\} \\
+\sig(\nter{$S'$}) = & 
+  \{\;\$\;,\tertt{)},\;\ter{end}\} \\
+\sig(\nter{V}) = & 
+  \{\;\ter{decl},\;\ter{id},\;\ter{begin},\;\$\;,\tertt{)},
+    \;\ter{end},\;\tertt{]}\} \\
+\sig(\nter{$V'$}) = & 
+  \{\;\ter{decl},\;\ter{id},\;\ter{begin},\;\$\;,\tertt{)},
+    \;\ter{end},\;\tertt{]}\} \\
+\sig(\nter{$V''$}) = & 
+  \{\;\ter{decl},\;\ter{id},\;\ter{begin},\;\$\;,\tertt{)},
+    \;\ter{end},\;\tertt{]}\} \\
+\sig(\nter{I}) = & 
+  \{\;\ter{id},\;\ter{begin},\;\$\;,\tertt{)},\;\ter{end}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+Cálculo de los conjuntos de predicción:
+\begin{small}
+\begin{displaymath}
+\begin{array}{llll}
+(1) & \pred(\nter{P} \flecha \nter{D} \nter{S}) & = &
+  \{\;\ter{decl},\;\ter{id},\;\ter{begin},\;\$\;,\;\tertt{)},\;\ter{end}\} \\
+(2) & \pred(\nter{D} \flecha \nter{$D'$}) & = & 
+  \{\;\ter{decl},\;\ter{id},\;\ter{begin},\;\$\;,
+    \;\tertt{)},\;\ter{end},\;\tertt{]}\} \\
+(3) & \pred(\nter{$D'$} \flecha \nter{V} \nter{$D'$}) & = &
+  \{\;\ter{decl}\} \\ 
+(4) & \pred(\nter{$D'$} \flecha \epsilon\;) & = & 
+  \{\;\ter{id},\;\ter{begin},\;\$\;,\;\tertt{)},\;\ter{end},\;\tertt{]}\} \\
+(5) & \pred(\nter{S} \flecha \nter{$S'$}) & = &
+  \{\;\ter{id},\;\ter{begin},\;\$\;,\;\tertt{)},\;\ter{end}\} \\
+(6) & \pred(\nter{S} \flecha \nter{I} \nter{$S'$}) & = & 
+  \{\;\ter{id},\;\ter{begin}\} \\
+(7) & \pred(\nter{$S'$} \flecha \epsilon\;) & = & 
+  \{\;\$\;,\;\tertt{)},\;\ter{end}\} \\
+(8) & \pred(\nter{V} \flecha \ter{decl} \nter{$V'$}) & = & 
+  \{\;\ter{decl}\} \\  
+(9) & \pred(\nter{$V'$} \flecha \ter{id} \nter{$V''$}) & = & 
+  \{\;\ter{id}\} \\
+(10) & \pred(\nter{$V'$} \flecha \tertt{[} \nter{D} \tertt{]} 
+                                   \ter{id} \tertt{;}) 
+& = & \{\;\tertt{[}\} \\
+(11) & \pred(\nter{$V''$} \flecha \tertt{;}) & = & 
+  \{\;\tertt{;}\} \\
+(12) & \pred(\nter{$V''$} \flecha \tertt{(} \nter{P} \tertt{)} \tertt{;}) 
+& = & \{\;\tertt{(}\} \\
+(13) & \pred(\nter{I} \flecha \ter{id} \tertt{;}) & = & 
+  \{\;\ter{id}\} \\
+(14) & \pred(\nter{I} \flecha \ter{begin} \nter{P} \ter{end}) & = & 
+  \{\;\ter{begin}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+La tabla de análisis correspondiente es:
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|}\hline
+\multicolumn{1}{|c|}{ } & \multicolumn{1}{|c|}{$\ter{decl}$} &
+\multicolumn{1}{|c|}{$\ter{id}$} & \multicolumn{1}{|c|}{$\tertt{[}$} & 
+\multicolumn{1}{|c|}{$\tertt{]}$} & \multicolumn{1}{|c|}{$\tertt{;}$} & 
+\multicolumn{1}{|c|}{$\tertt{(}$} & \multicolumn{1}{|c|}{$\tertt{)}$} & 
+\multicolumn{1}{|c|}{$\ter{begin}$} & \multicolumn{1}{|c|}{$\ter{end}$} & 
+\multicolumn{1}{|c|}{$\$$} \\\hline\hline
+$\nter{P}$    & $(1)$ 
+              & $(1)$ 
+              & 
+              &  
+              & 
+              & 
+              & $(1)$ 
+              & $(1)$
+              & $(1)$
+              & $(1)$ \\\hline
+$\nter{D}$    & $(2)$ 
+              & $(2)$
+              & 
+              & $(2)$
+              & 
+              & 
+              & $(2)$
+              & $(2)$
+              & $(2)$
+              & $(2)$ \\\hline
+$\nter{$D'$}$ & $(3)$
+              & $(4)$
+              & 
+              & $(4)$
+              & 
+              & 
+              & $(4)$
+              & $(4)$
+              & $(4)$
+              & $(4)$ \\\hline
+$\nter{S}$    & 
+              & $(5)$
+              & 
+              & 
+              & 
+              & 
+              & $(5)$ 
+              & $(5)$
+              & $(5)$
+              & $(5)$ \\\hline
+$\nter{$S'$}$ & 
+              & $(6)$
+              & 
+              & 
+              & 
+              & 
+              & $(7)$
+              & $(6)$ 
+              & $(7)$
+              & $(7)$ \\\hline
+$\nter{V}$    & $(8)$
+              & 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & 
+              &  
+              & \\\hline
+$\nter{$V'$}$ & 
+              & $(9)$
+              & $(10)$
+              & 
+              & 
+              & 
+              & 
+              & 
+              &  
+              & \\\hline
+$\nter{$V''$}$ & 
+              & 
+              & 
+              & 
+              & $(11)$
+              & $(12)$
+              & 
+              & 
+              &  
+              & \\\hline
+$\nter{I}$    & 
+              & $(13)$
+              & 
+              & 
+              & 
+              & 
+              & 
+              & $(14)$
+              &  
+              & \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La traza de la cadena de entrada
+``\verb+decl id ( begin id ; )+''
+es como sigue:
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|l|r|c|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+$\$\nter{P}$  
+       & \verb+ decl id ( begin+ \ldots & $(1)$ \\
+$\$\nter{S} \nter{D}$  
+       & \verb+ decl id ( begin+ \ldots & $(2)$ \\
+$\$\nter{S} \nter{$D'$}$    
+       & \verb+ decl id ( begin+ \ldots & $(3)$ \\
+$\$\nter{S} \nter{$D'$} \nter{V}$    
+       & \verb+ decl id ( begin+ \ldots & $(8)$ \\
+$\$\nter{S} \nter{$D'$} \nter{$V'$} \ter{decl}$    
+       & \verb+ decl id ( begin+ \ldots & emparejar $\ter{decl}$ \\
+$\$\nter{S} \nter{$D'$} \nter{$V'$}$    
+       & \verb+ id ( begin id+ \ldots & $(9)$ \\
+$\$\nter{S} \nter{$D'$} \nter{$V''$} \ter{id}$    
+       & \verb+ id ( begin id+ \ldots & emparejar $\ter{id}$ \\
+$\$\nter{S} \nter{$D'$} \nter{$V''$}$    
+       & \verb+ ( begin id ;+ \ldots & $(12)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{P} \tertt{(}$    
+       & \verb+ ( begin id ;+ \ldots & emparejar $\tertt{(}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{P}$    
+       & \verb+ begin id ; )+ \ldots & $(1)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{D}$    
+       & \verb+ begin id ; )+ \ldots & $(2)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$}$    
+       & \verb+ begin id ; )+ \ldots & $(4)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S}$    
+       & \verb+ begin id ; )+ \ldots & $(5)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$}$    
+       & \verb+ begin id ; )+ \ldots & $(6)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \nter{I}$    
+       & \verb+ begin id ; )+ \ldots & $(14)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{P}
+\ter{begin}$    
+       & \verb+ begin id ; )+ \ldots & emparejar $\ter{begin}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{P}$    
+       & \verb+ id ; ) $+ & $(1)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{S}
+\nter{D}$    
+       & \verb+ id ; ) $+ & $(2)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{S}
+\nter{$D'$}$    
+       & \verb+ id ; ) $+ & $(4)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{S}$    
+       & \verb+ id ; ) $+ & $(5)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{$S'$}$    
+       & \verb+ id ; ) $+ & $(6)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{$S'$}
+\nter{I}$    
+       & \verb+ id ; ) $+ & $(13)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{$S'$}
+\tertt{;} \ter{id}$    
+       & \verb+ id ; ) $+ & emparejar $\ter{id}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{$S'$}
+\tertt{;}$    
+       & \verb+  ; ) $+  & emparejar $\tertt{;}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end} \nter{$S'$}$    
+       & \verb+  ) $+  & $(7)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$} \ter{end}$    
+       & \verb+  ) $+  & error \\\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+El error que se debe generar en este caso es: \\
+``{\small \verb+Error: encontrado ')' esperaba 'end'+}''
+
+
+La traza de la cadena de entrada
+``{\tt decl id ( decl [ decl id ; ] id ; ) ; id ;}'' 
+es como sigue:
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|l|r|c|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+$\$\nter{P}$  
+       & \verb+ decl id ( decl [+ \ldots & $(1)$ \\
+$\$\nter{S} \nter{D}$  
+       & \verb+ decl id ( decl [+ \ldots & $(2)$ \\
+$\$\nter{S} \nter{$D'$}$    
+       & \verb+ decl id ( decl [+ \ldots & $(3)$ \\
+$\$\nter{S} \nter{$D'$} \nter{V}$    
+       & \verb+ decl id ( decl [+ \ldots & $(8)$ \\
+$\$\nter{S} \nter{$D'$} \nter{$V'$} \ter{decl}$    
+       & \verb+ decl id ( decl [+ \ldots & emparejar $\ter{decl}$ \\
+$\$\nter{S} \nter{$D'$} \nter{$V'$}$    
+       & \verb+ id ( decl [ decl+ \ldots & $(9)$ \\
+$\$\nter{S} \nter{$D'$} \nter{$V''$} \ter{id}$    
+       & \verb+ id ( decl [ decl+ \ldots & emparejar $\ter{id}$ \\
+$\$\nter{S} \nter{$D'$} \nter{$V''$}$    
+       & \verb+ ( decl [ decl id+ \ldots & $(12)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{P} \tertt{(}$    
+       & \verb+ ( decl [ decl id+ \ldots & emparejar $\tertt{(}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{P}$    
+       & \verb+ decl [ decl id ;+ \ldots & $(1)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{D}$    
+       & \verb+ decl [ decl id ;+ \ldots & $(2)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$}$    
+       & \verb+ decl [ decl id ;+ \ldots & $(3)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \nter{V}$    
+       & \verb+ decl [ decl id ;+ \ldots & $(8)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \nter{$V'$} 
+\ter{decl}$    
+       & \verb+ decl [ decl id ;+ \ldots & emparejar $\ter{decl}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \nter{$V'$}$    
+       & \verb+ [ decl id ; ]+ \ldots & $(10)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{D} \tertt{[}$    
+       & \verb+ [ decl id ; ]+ \ldots & emparejar $\tertt{[}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{D}$    
+       & \verb+ decl id ; ] id+ \ldots & $(2)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{$D'$}$    
+       & \verb+ decl id ; ] id+ \ldots & $(3)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{$D'$} \nter{V}$    
+       & \verb+ decl id ; ] id+ \ldots & $(8)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{$D'$} \nter{$V'$} \ter{decl}$    
+       & \verb+ decl id ; ] id+ \ldots & emparejar $\ter{decl}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{$D'$} \nter{$V'$}$    
+       & \verb+ id ; ] id ;+ \ldots & $(9)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{$D'$} \nter{$V''$} \ter{id}$    
+       & \verb+ id ; ] id ;+ \ldots & emparejar $\ter{id}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{$D'$} \nter{$V''$}$    
+       & \verb+  ; ] id ; )+ \ldots & $(11)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{$D'$} \tertt{;}$    
+       & \verb+  ; ] id ; )+ \ldots & emparejar $\tertt{;}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]} \nter{$D'$}$    
+       & \verb+  ] id ; ) ;+ \ldots & $(4)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id} \tertt{]}$    
+       & \verb+  ] id ; ) ;+ \ldots & emparejar $\tertt{]}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}
+\ter{id}$    
+       & \verb+  id ; ) ; + \ldots & emparejar $\ter{id}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}$    
+       & \verb+   ; ) ; id ;+ \ldots & emparejar $\ter{id}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$} \tertt{;}$    
+       & \verb+   ; ) ; id ;+ \ldots & emparejar $\tertt{;}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S} \nter{$D'$}$    
+       & \verb+   ) ; id ; $+  &  $(4)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{S}$    
+       & \verb+   ) ; id ; $+  & $(5)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)} \nter{$S'$}$    
+       & \verb+   ) ; id ; $+  &  $(7)$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;} \tertt{)}$    
+       & \verb+   ) ; id ; $+  &  emparejar $\tertt{)}$ \\
+$\$\nter{S} \nter{$D'$} \tertt{;}$    
+       & \verb+   ; id ; $+  &  emparejar $\tertt{;}$ \\
+$\$\nter{S} \nter{$D'$}$    
+       & \verb+   id ; $+  &  $(4)$ \\
+$\$\nter{S}$    
+       & \verb+   id ; $+  &  $(5)$ \\
+$\$\nter{$S'$}$    
+       & \verb+   id ; $+  &  $(6)$ \\
+$\$\nter{$S'$} \nter{I}$    
+       & \verb+   id ; $+  &  $(13)$ \\
+$\$\nter{$S'$} \tertt{;} \ter{id}$    
+       & \verb+   id ; $+  &  emparejar $\ter{id}$ \\
+$\$\nter{$S'$} \tertt{;}$    
+       & \verb+   ; $+  &  emparejar $\tertt{;}$ \\
+$\$\nter{$S'$}$    
+       & \verb+   $+  &  $(7)$ \\
+$\$$    
+       & \verb+   $+  &  Aceptar \\\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+\end{soleje}
+

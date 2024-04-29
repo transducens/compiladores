@@ -1,0 +1,766 @@
+\newcommand{\obr}{\;\{\;}
+\newcommand{\tanc}{\;\}\;}
+
+
+% al final está un "cacho sin procesar" que tiene algunas soluciones
+
+\section{Soluciones a los ejercicios del capítulo 6}
+
+\stepcounter{contcapitulo}
+\setcounter{contsoleje}{0}
+
+
+\begin{soleje}
+ Dise\~nar un esquema de traducci\'on
+para asignar tipo a una lista de variables declaradas en Pascal,
+siendo la sintaxis la siguiente.
+$$
+\begin{array}{lcl}
+\nter{Variables} \der \ter{var} \nter{Declaración} \\
+\nter{Declaración} \der \ter{identificador} \nter{Lista} \\
+\nter{Lista} \der \ter{coma} \ter{identificador} \nter{Lista} \\
+\nter{Lista} \der \ter{dosptos} \nter{Tipo} \ter{ptocoma} \\
+\nter{Tipo} \der \ter{integer} \opt \ter{real} \\
+\end{array}
+$$
+\solucion
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{Variables} \der \ter{var} \nter{Declaración} \\
+\nter{Declaración} \der \ter{identificador} 
+\obr Guarda(\textbf{identificador}.lexema) \tanc \nter{Lista} \\
+& & \{\; AsignarTipo(\textbf{identificador}.lexema,Lista.ts) \;\} \\
+\nter{Lista} \der \ter{coma} \ter{identificador} 
+\obr Guarda(\textbf{identificador}.lexema) \tanc \nter{$Lista_1$} \\
+& & \{\; AsignarTipo(\textbf{identificador}.lexema,Lista_1.ts); \; \\
+& & \;\; Lista.ts:=Lista_1.ts \;\} \\
+\nter{Lista} \der \ter{dosptos} \nter{Tipo} \ter{ptocoma}
+\obr Lista.ts:=Tipo.ts \;\}  \\
+\nter{Tipo} \der \ter{integer} \obr Tipo.ts:=integer \;\} \\
+\nter{Tipo} \der \ter{real} \obr Tipo.ts:=real \;\} \\
+\end{array} 
+$$
+\end{small}
+
+\underline{Nota:} Los identificadores se almacenan sin tipo en la tabla de 
+símbolos según aparecen. La función {\em AsignarTipo} los busca en la tabla
+y les asigna el tipo.
+
+\end{soleje}
+
+\begin{soleje}
+Dise\~nar un esquema de traducci\'on
+para asignar tipo a una lista de variables declaradas en C, siendo la
+sintaxis la siguiente.
+$$
+\begin{array}{lcl}
+\nter{Declaración} \der \nter{Tipo} \ter{identificador} \nter{Lista} \ter{ptocoma} \\
+\nter{Lista} \der \ter{coma} \ter{identificador} \nter{Lista} \\
+\nter{Lista} \der \epsilon \\
+\nter{Tipo} \der \ter{int} \opt \ter{float} \\
+\end{array}
+$$
+\solucion
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{Declaración} \der \nter{Tipo} \ter{identificador} \\
+& & \{\; GuardaconTipo(\textbf{identificador}.lexema,Tipo.ts); \; \\
+& & \;\; Lista.h:=Tipo.ts \tanc \nter{Lista} \ter{ptocoma} \\
+\nter{Lista} \der \ter{coma} \ter{identificador} \\
+& & \{\; GuardaconTipo(\textbf{identificador}.lexema,Lista.h); \; \\
+& & \;\; Lista_1.h:=Lista.h \tanc \nter{$Lista_1$} \\
+\nter{Lista} \der \epsilon \\
+\nter{Tipo} \der \ter{int} \obr Tipo.ts:=int \;\} \\
+\nter{Tipo} \der \ter{float} \obr Tipo.ts:=float \;\} \\
+\end{array} 
+$$
+\end{small}
+
+
+\end{soleje}
+
+\begin{soleje}
+Dise\~nar un ETDS para traducir
+declaraciones de arrays de tipos simples de C a Pascal, como en los
+siguientes ejemplos:
+\begin{small}
+\begin{verbatim}
+int c[10];             var c: array [0..9] of integer;
+float d[5][6];         var d: array [0..4,0..5] of real;
+char e;                var e: char;
+char f[3][5][7];       var f: array [0..2,0..4,0..6] of char;
+\end{verbatim}
+\end{small}
+
+El lenguaje fuente est\'a generado
+por la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \nter{V} \tertt{;} \\
+\nter{V} \der \ter{id} \nter{$V'$} \\
+\nter{$V'$} \der \tertt{[} \ter{nint} \tertt{]} \nter{$V'$} \\
+\nter{$V'$} \der \epsilon \\
+\nter{T} \der \ter{int} \opt \ter{float} \opt \ter{char} \\
+\end{array}
+$$
+\solucion
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \obr V.th:=T.trad \tanc \nter{V} \tertt{;}
+\obr S.trad:=V.trad \;\} \\
+\nter{V} \der \ter{id} \nter{$V'$} \obr \\
+& & \;\;\;\; if \;\; (V'.trad==NULL) \\
+& & \;\;\;\;\;\; V.trad:=\;$``\verb+var+''$\;||\;\textbf{id}.lexema\;
+             ||\;$``\verb+:+''$\;||\;V.th\;||\;$``\verb+;+''$ \\
+& & \;\;\;\; else \\
+& & \;\;\;\;\;\; V.trad:=\;$``\verb+var+''$\;||\;\textbf{id}.lexema\;
+             ||\;$``\verb+: array[+''$\;||\;V'.trad\;||\;$``\verb+] of +''$\;
+             ||\;V.th\;||\;$``\verb+;+''$ \\
+& & \} \\
+\nter{$V'$} \der \tertt{[} \ter{nint} \tertt{]} \nter{$V'_1$} \obr \\
+& & \;\;\;\; if \;\; (V'_1.trad==NULL) \\
+& & \;\;\;\;\;\; V'.trad:=\;$``\verb+0..+''$\;||\;\textbf{nint}.lexema-1 \\
+& & \;\;\;\; else \\
+& & \;\;\;\;\;\; V'.trad:=\;$``\verb+0..+''$\;||\;\textbf{nint}.lexema-1\;
+             ||\;$``\verb+,+''$\;||\;V'_1.trad \\
+& & \} \\
+\nter{$V'$} \der \epsilon \obr V'.trad:=NULL \;\} \\
+\nter{T} \der \ter{int} \obr T.trad:=\;$``\verb+integer+''$ \;\} \\
+\nter{T} \der \ter{float} \obr T.trad:=\;$``\verb+real+''$ \;\} \\
+\nter{T} \der \ter{char} \obr T.trad:=\;$``\verb+char+''$ \;\} \\
+\end{array}
+$$
+\end{small}
+\end{soleje}
+
+\begin{soleje}  
+Dise\~nar un ETDS para traducir
+secuencias de declaraciones de variables en C a otro lenguaje de alto
+nivel, como se especifica en los siguientes ejemplos de traducciones:
+\begin{small}
+\begin{verbatim}
+int a,b[10],c[5][4];      variables
+                             enteras : a;
+                             tabla[10] : enteras : b;
+                             tabla[5] : tabla[4] : enteras : c
+                          fvar
+
+int **a[10][5];           variables
+                             tabla[10] : tabla[5] : puntero :
+                                  puntero : enteras : a
+                          fvar
+
+float **a;                variables
+                             puntero : puntero : reales : a
+                          fvar
+\end{verbatim}
+\end{small}
+El lenguaje fuente est\'a generado por la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \nter{D} \tertt{;} \\
+\nter{D} \der \nter{D} \tertt{,} \nter{V} \\
+\nter{D} \der \nter{V} \\
+\nter{V} \der \nter{E} \\
+\nter{V} \der \nter{V} \tertt{[} \ter{nint} \tertt{]} \\
+\nter{E} \der \tertt{*} \nter{E} \\
+\nter{E} \der \ter{id} \\
+\nter{T} \der \ter{int} \opt \ter{float} \opt \ter{char} \\
+\end{array}
+$$
+\solucion
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \obr D.th:=T.trad \tanc \nter{D} \tertt{;} 
+\obr S.trad:=\;$``\verb+variables+''$\;||\;D.trad\;||\;$``\verb+fvar+''$ \tanc \\
+\nter{D} \der \obr D_1.th:=D.th \tanc \nter{$D_1$} \tertt{,} 
+\obr V.th:=D.th \tanc \nter{V} \obr \\
+& & \;\;\;\; if \;\; (V.tab==NULL) \\
+& & \;\;\;\;\;\; D.trad:=D_1.trad\;||\;$``\verb+;+''$\;||\;V.trad \\
+& & \;\;\;\; else \\
+& & \;\;\;\;\;\; D.trad:=D_1.trad\;||\;$``\verb+;+''$\;||\;V.tab\;||\;V.trad \\
+& & \} \\
+\nter{D} \der \obr V.th:=D.th \tanc \nter{V} \obr \\
+& & \;\;\;\; if \;\; (V.tab==NULL) \\
+& & \;\;\;\;\;\; D.trad:=V.trad \\
+& & \;\;\;\; else \\
+& & \;\;\;\;\;\; D.trad:=V.tab\;||\;V.trad \\
+& & \} \\
+\nter{V} \der \obr E.th:=V.th \tanc \nter{E} 
+\obr V.trad:=E.trad;\;V.tab:=NULL \tanc \\
+\nter{V} \der \obr V_1.th:=V.th \tanc \nter{$V_1$} \tertt{[} \ter{nint} \tertt{]} \obr \\
+& & \;\;\;\; V.trad:=V_1.trad; \\
+& & \;\;\;\; if \;\; (V_1.tab==NULL) \\
+& & \;\;\;\;\;\; V.tab:=\;$``\verb+tabla [+''$\;||\;\textbf{nint}.lexema\;
+                        ||\;$``\verb+] : +''$ \\
+& & \;\;\;\; else \\
+& & \;\;\;\;\;\; V.tab:=V_1.tab\;||\;$``\verb+tabla [+''$\;||\;\textbf{nint}.lexema\;
+                        ||\;$``\verb+] : +''$ \\
+& & \} \\
+\nter{E} \der \tertt{*} \obr E_1.th:=E.th \tanc \nter{$E_1$} 
+\obr E.trad:=\;$``\verb+puntero: +''$\;||E_1.trad \tanc \\
+\nter{E} \der \ter{id} \obr E.trad:=E.th\;||\;\textbf{id}.lexema \tanc\\
+\nter{T} \der \ter{int} \obr T.trad:=\;$``\verb+enteras : +''$ \tanc \\
+\nter{T} \der \ter{float} \obr T.trad:=\;$``\verb+reales : +''$ \tanc \\
+\nter{T} \der \ter{char} \obr T.trad:=\;$``\verb+caracteres : +''$ \tanc \\
+\end{array}
+$$
+\end{small}
+\end{soleje}
+
+\newpage
+\begin{soleje} 
+Dise\~nar e implementar un ETDS para la traducci\'on de los siguientes ejemplos:
+\begin{small}
+\begin{verbatim}
+   int a,b;             a,b : integer; 
+
+   struct s {           d,e : registro [
+      int a,b;                  a(s),b(s):integer;
+      float c;                  c(s):real;
+   } d,e;                     ];
+
+   struct s1 {          h : registro [
+      int a,b,b2;             a(s1),b(s1),b2(s1):integer;
+      struct s2 {             e(s1),f(s1):registro [
+         float c,d;                         c(s2),d(s2):real;
+      } e,f;                              ];
+   } h;                     ];
+
+\end{verbatim}
+\end{small}
+El lenguaje fuente est\'a generado por la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{D} \\
+\nter{D} \der \nter{T} \ter{id} \nter{L} \tertt{;} \\
+\nter{T} \der \ter{int} \\ 
+\nter{T} \der \ter{float} \\
+\nter{T} \der \ter{char} \\
+\nter{T} \der \ter{struct} \ter{id} \ter{lbra} \nter{D} \nter{M} \ter{rbra} \\
+\nter{M} \der \nter{D} \nter{M} \\
+\nter{M} \der \epsilon \\
+\nter{L} \der \tertt{,} \ter{id} \nter{L} \\
+\nter{L} \der \epsilon \\
+\end{array}
+$$
+\pagebreak
+\solucion
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \obr D.vh:=NULL \tanc \nter{D} \obr S.trad:=D.trad \tanc \\
+\nter{D} \der \nter{T} \ter{id} \obr L.vh:=D.vh \tanc \nter{L} \tertt{;} \obr \\
+& & \;\;\;\; if \;\; (D.vh==NULL) \\
+& & \;\;\;\;\;\; D.trad:=\textbf{id}.lexema\;||\;L.trad\;||\;T.trad\;||\;$``\verb+;+''$ \\
+& & \;\;\;\; else \\
+& & \;\;\;\;\;\; D.trad:=\textbf{id}.lexema\;||\;$``\verb+(+''$\;||\;D.vh\;
+                         ||\;$``\verb+)+''$\;||\;L.trad\;||\;T.trad\;
+                         ||\;$``\verb+;+''$ \\
+& & \} \\
+\nter{T} \der \ter{int} \obr T.trad:=\;$``\verb+integer+''$ \tanc \\ 
+\nter{T} \der \ter{float} \obr T.trad:=\;$``\verb+real+''$ \tanc \\
+\nter{T} \der \ter{char} \obr T.trad:=\;$``\verb+char+''$ \tanc \\
+\nter{T} \der \ter{struct} \ter{id} \ter{lbra} 
+\obr D.vh:=\textbf{id}.lexema \tanc \nter{D} \obr M.vh:=\textbf{id}.lexema \tanc \nter{M} 
+\ter{rbra} \obr \\
+& & \;\; T.trad:=\;$``\verb+registro [+''$\;||\;D.trad\;||\;M.trad\;
+                        ||\;$``\verb+]+''$ \tanc \\
+\nter{M} \der \obr D.vh:=M.vh \tanc \nter{D} \obr M_1.vh:=M.vh \tanc \nter{$M_1$} \obr \\
+& & \;\;\;\; if \;\; (M_1.trad==NULL) \\
+& & \;\;\;\;\;\; M.trad:=D.trad \\
+& & \;\;\;\; else \\
+& & \;\;\;\;\;\; M.trad:=D.trad\;||\;M_1.trad \\
+& & \} \\
+\nter{M} \der \epsilon \obr M.trad:=NULL \tanc \\
+\nter{L} \der \tertt{,} \ter{id} \obr L_1.vh:=L.vh \tanc \nter{$L_1$} \obr \\
+& & \;\;\;\; if \;\; (L.vh==NULL) \\
+& & \;\;\;\;\;\; L.trad:=\;$``\verb+,+''$\;||\;\textbf{id}.lexema\;||\;L_1.trad \\
+& & \;\;\;\; else \\
+& & \;\;\;\;\;\; L.trad:=\;$``\verb+,+''$\;||\;\textbf{id}.lexema\;||\;$``\verb+(+''$\;
+                         ||\;L.vh\;||\;$``\verb+)+''$\;||\;L_1.trad \\
+& & \} \\
+\nter{L} \der \epsilon \obr L.trad:=\;$``\verb+:+''$ \tanc \\
+\end{array}
+$$
+\end{small}
+\end{soleje}
+
+\begin{soleje}
+?`Por qu\'e no se puede escribir un ETDS directamente a partir
+de la siguiente DDS (sin modificarla, solamente introduciendo las acciones
+sem\'anticas en la parte derecha de las reglas)?
+
+\begin{center}
+\begin{tabular}{l|l}
+\hline\hline
+{\sc Producci\'on} &
+{\sc Regla Sem\'antica}
+\\
+\hline
+$\nter{A} \longrightarrow \nter{B} \nter{C}$     &  $\nter{B.h := C.s}$ \\
+$\nter{B} \longrightarrow \nter{$B_1$} \ter{b}$  &  $\ter{if}~~B.h >= 0~~\ter{then}$ \\
+                                                 &  $~~~~B_1.h := B.h - 1;$\\
+                                                 &  $~~~~mark(\ter{b}.dir);$\\
+                                                 &  $\ter{endif}$ \\
+$\nter{B} \longrightarrow \epsilon$              &             \\
+$\nter{C} \longrightarrow \ter{c} \nter{$C_1$}$  &  $C.s := C_1.s + 1$ \\
+$\nter{C} \longrightarrow \epsilon$              &  $C.s := 0$ \\
+\hline
+\end{tabular}
+\end{center}
+\pagebreak
+\solucion
+
+La primera acción semántica, $\nter{B.h := C.s}$, impide que la DDS se pueda
+implementar como un ETDS, ya que al atributo heredado $\nter{B.h}$ se le debe
+asignar valor antes del símbolo al que pertenece, $\nter{B}$, pero el valor
+que se le asigna es el atributo sintetizado $\nter{C.s}$ que tendrá valor
+después de analizar el símbolo $\nter{C}$ de la regla. Es decir, esta acción
+implica una herencia de derecha a izquierda en el árbol, lo cual hace que la
+DDS incumpla las restricciones de una GAI (que un ETDS debe cumplir).
+
+La segunda acción semántica tampoco se puede implementar, ya que se debe
+situar antes del símbolo $B_1$, y está actuando sobre un atributo,
+$\textbf{b}.dir$, que todavía no tiene valor, ya que aún no se ha leído 
+$\textbf{b}$.
+
+\end{soleje}
+
+\begin{soleje}
+Transformar la siguiente DDS en un ETDS, situando las acciones
+sem\'anticas en los lugares apropiados en las partes derechas de las 
+reglas. 
+
+\begin{center}
+\begin{tabular}{l|l}
+\hline\hline
+{\sc Producci\'on} &
+{\sc Regla Sem\'antica}
+\\
+\hline
+$\nter{S} \longrightarrow \ter{lbra} \nter{B} \ter{rbra}$     &  $\nter{B.bh := {\rm NULL}; S.cs := B.cs;}$\\
+                                                          &  $\nter{B.ch := {\rm NULL};}$ \\
+\hline
+$\nter{B} \longrightarrow \nter{I} \ter{;} \nter{$B_1$}$  &  $\nter{$B_1$.bh := B.bh; B.cs := I.cs $\parallel$ $B_1$.cs;}$ \\
+                                                          &  $\nter{I.bh := B.bh; $B_1$.ch := B.ch;}$ \\
+                                                          &  $\nter{I.ch := B.ch;}$\\
+\hline
+$\nter{B} \longrightarrow \epsilon$                       &  $\nter{B.cs := {\rm NULL};}$ \\
+\hline
+$\nter{I} \longrightarrow \ter{lbra} \nter{B} \ter{rbra}$     &  $\nter{B.bh := I.bh; I.cs := B.cs;}$\\
+                                                          &  $\nter{B.ch := I.ch;}$ \\
+\hline
+$\nter{I} \longrightarrow \ter{while} \ter{(} \nter{E} \ter{)} \nter{$I_1$}$ &  $\nter{$I_1$.bh := e1; e1 := {\rm etiqnueva}();}$\\
+                                                          &  $\nter{$I_1$.ch := e2; e2 := {\rm etiqnueva}();}$\\
+                                                          &  $\nter{I.cs := {\rm gen}(e2 ":") $\parallel$ E.cs}$\\
+                                                          &  $\nter{~~~$\parallel$ {\rm gen}("jumpz~" e1) $\parallel$ $I_1$.cs}$\\
+                                                          &  $\nter{~~~$\parallel$ {\rm gen}(e1 ":");}$\\
+\hline
+$\nter{I} \longrightarrow \ter{print} \nter{E}$           &  $\nter{I.cs := {\rm gen}("print~") $\parallel$ E.cs;}$\\ 
+\hline
+$\nter{I} \longrightarrow \ter{break}$                    &  $\ter{if} I.bh~!=~{\rm NULL}~~\ter{then}$ \\ 
+                                                          &  $\nter{~~~~I.cs := {\rm gen}("jump~" I.bh)}$\\
+                                                          &  $\ter{else} error()$ \\
+                                                          &  $\ter{endif}$\\
+\hline
+$\nter{I} \longrightarrow \ter{continue}$                 &  $\ter{if} I.ch~!=~{\rm NULL}~~\ter{then}$ \\ 
+                                                          &  $\nter{~~~~I.cs := {\rm gen}("jump~" I.ch)}$\\
+                                                          &  $\ter{else} error()$ \\
+                                                          &  $\ter{endif}$\\
+\hline
+$\nter{E} \longrightarrow \ter{a} $                       &  $\nter{E.cs := {\rm gen}("~a~");}$ \\
+\hline
+\end{tabular}
+\end{center}
+\pagebreak
+\solucion
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{lbra} \obr B.bh:=NULL;\;B.ch:=NULL \tanc 
+              \nter{B} \ter{rbra} \obr S.cs:=B.cs \tanc \\
+\nter{B} \der \obr I.bh:= B.bh;\;I.ch:=B.ch \tanc \nter{I} \tertt{;}
+              \obr B_1.bh:=B.bh;\;B_1.ch:=B.ch \tanc \nter{$B_1$} \obr \\
+& &           \;\;  B.cs:=I.cs\;||\;B_1.cs \tanc \\
+\nter{B} \der \epsilon \obr B.cs:=NULL \tanc \\
+\nter{I} \der \ter{lbra} \obr B.bh:=I.bh;\;B.ch:=I.ch \tanc \nter{B} \ter{rbra}
+              \obr I.cs:=B.cs \tanc \\
+\nter{I} \der \ter{while} \tertt{(} \nter{E} \tertt{)}
+              \obr e1:=etiqnueva();\; I_1.bh:=e1;\; e2:=etiqnueva();\;
+              I_1.ch:=e2; \tanc \\
+& &           \nter{$I_1$}
+              \obr I.cs:=gen(e2$``\verb+:+''$)\;||\;E.cs\;||\;
+                         gen($``\verb+jumpz +''$e1)\;||\;I_1.cs\;||\;
+                         gen(e1$``\verb+:+''$) \tanc \\
+\nter{I} \der \ter{print} \nter{E} 
+              \obr I.cs:=gen($``\verb+print +''$)\;||\;E.cs \tanc \\
+\nter{I} \der \ter{break} \obr \\
+& & \;\;\;\; \textbf{if} \;\; (I.bh\;!=NULL) \;\; \textbf{then} \\
+& & \;\;\;\;\;\; I.cs:=gen($``\verb+jump +''$I.bh) \\
+& & \;\;\;\; \textbf{else} \\
+& & \;\;\;\;\;\; error() \\
+& & \;\;\;\; \textbf{endif} \;\} \\
+\nter{I} \der \ter{continue} \obr \\
+& & \;\;\;\; \textbf{if} \;\; (I.ch\;!=NULL) \;\; \textbf{then} \\
+& & \;\;\;\;\;\; I.cs:=gen($``\verb+jump +''$I.ch) \\
+& & \;\;\;\; \textbf{else} \\
+& & \;\;\;\;\;\; error() \\
+& & \;\;\;\; \textbf{endif} \;\} \\
+\nter{E} \der \ter{a} \obr E.cs:=gen($``\verb+ a +''$) \tanc \\
+\end{array}
+$$
+\end{small}
+
+\end{soleje}
+
+\begin{soleje}
+Explicar si la siguiente DDS se puede convertir en un ETDS (situando
+las acciones sem\'{a}nticas donde corresponda sin
+modificar la gram\'{a}tica en absoluto). 
+\begin{center}
+\begin{tabular}{l|l}
+\hline\hline
+{\sc Producci\'{o}n} & {\sc Reglas sem\'{a}nticas} \\\hline
+$D\rightarrow T\; L$ & $\begin{array}{rcl}
+                   L.tip & := & T.tipo\\
+                   \end{array}$\\[3mm]
+$T\rightarrow {\bf int}$ & $\begin{array}{rcl}
+                   T.tipo & := & \mbox{integer}\\
+                   \end{array}$\\[3mm]
+$T\rightarrow {\bf real}$ & $\begin{array}{rcl}
+                   T.tipo & := & \mbox{real}\\
+                   \end{array}$\\[3mm]
+$L\rightarrow L_1\; {\bf ,} \; I$ & $\begin{array}{rcl}
+                   L_1.tip & :=& L.tip \;\;;\;\; I.tip  := L.tip \\
+                   \end{array}$\\[3mm]
+$L\rightarrow I$ & $\begin{array}{rcl}
+                   I.tip & :=& L.tip \\
+                   \end{array}$\\[3mm]
+$I\rightarrow I_1\;{\bf [}\;{\bf num}\;{\bf ]}$ &
+                   $\begin{array}{rcl}
+                   I_1.tip & :=& {\rm array}({\bf num}.val,I.tip) \\
+                   \end{array}$\\[3mm]
+$I\rightarrow {\bf id}$ & $\begin{array}{rcl}
+                           {\rm introtip}({\bf id}.lexema,I.tip) \\
+                           \end{array}$\\ \hline
+
+\end{tabular} 
+\end{center}
+\solucion
+
+No se puede convertir en un ETDS porque la acción 
+$I_1.tip:={\rm array}({\bf num}.val,I.tip)$ se debe situar antes del
+símbolo $I_1$, pero está utilizando el valor de un atributo sintetizado,
+${\bf num}.val$, que todavía no tiene valor porque {\bf num} no ha sido
+analizado.
+
+\end{soleje}
+
+
+\come{ % cacho sin procesar 
+\underbar{SOLUCI\'ON:}
+
+Para la resoluci\'on utilizaremos
+una notaci\'on m\'as c\'omoda:
+
+V        
+  var  D
+
+D        
+  id  L
+
+L        
+  {\bf ,}  D  \hbox{$|$}  {\bf :}  Tipo  {\bf ;}
+
+T        
+  Integer  \hbox{$|$}  Real
+
+1) \underbar{Atributos} 	Usualmente los
+\'unicos {\em tokens} que tienen atributo son los n\'umeros
+e identificadores. En este caso consideraremos que el identificador
+s\'olo tiene como atributo el lexema y de los no terminales el
+atributo ser\'a el tipo para D, L y T (V no usa ning\'un
+atributo).
+
+	
+  	     V
+	
+		
+ 	var     D
+	
+		
+  	    id       L    \{AsignarTipo(\"{}a\"{},ENT);
+        D.tipo:=L.tipo\}
+	
+		
+  	         {\bf ,}        D    \{
+        L.tipo:=D.tipo\}
+	
+		
+	 	      id       L  \{AsignarTipo(\"{}b\"{},ENT);
+        D.tipo:=L.tipo\}
+	
+		
+	 	           {\bf :}     T    {\bf ;}  \{
+        L.tipo:=T.tipo\}
+	
+		
+	 	               integer   \{
+        T.tipo:=ENT\}
+	
+	2) \underbar{Acciones sem\'anticas:}	La mejor forma de saber
+qu\'e acciones sem\'anticas hay que insertar en la
+gram\'atica es plantear un ejemplo de frase que pueda generar el
+lenguaje y que requiera la participaci\'on de todas las
+producciones. Se dibuja el \'arbol de an\'alisis y se
+a\~naden las acciones sem\'anticas como otras ramas m\'as.
+Utilizaremos el ejemplo  \"{}var
+ a,b : Integer;\"{}
+\begin{itemize}
+	\item 
+\fbox{\tt sv1611712.gif \footnotemark}\fbox{\tt sv1611713.gif \footnotemark}Hasta
+        llegar a T  Integer no se
+        sabe el tipo, que se asigna al atributo de T y luego se va
+        propagando hacia arriba para ser atribuido a los identificadores.
+	\item 
+	\fbox{\tt sv1611714.gif \footnotemark}\fbox{\tt sv1611715.gif \footnotemark}\fbox{\tt sv1611716.gif \footnotemark}\fbox{\tt sv1611717.gif \footnotemark}El
+        atributo de L es s\'olo para transmitir el tipo hacia arriba.
+	\item 
+	\fbox{\tt sv1611718.gif \footnotemark}\fbox{\tt sv1611719.gif \footnotemark}El
+        de D asigna el tipo al identificador, operaci\'on que se supone
+        que se realizar\'a en la tabla de s\'{\i}mbolos (da igual
+        c\'omo), y tambi\'en transmite el tipo hacia arriba.
+\end{itemize}
+
+Con estas consideraciones y observando c\'omo se posicionan
+estas acciones sobre el \'arbol (posiciones que coincidir\'an
+siempre con su ubicaci\'on en las respectivas producciones de la
+gram\'atica), podemos concluir que el esquema de traducci\'on
+queda dise\~nado as\'{\i}:
+
+V        
+  var  D
+
+D        
+  id  L  \{ AsignarTipo(id.lexema,L.tipo);
+D.tipo:=L.tipo \}
+
+L        
+  {\bf ,}  D  \{ L.tipo:=D.tipo
+\}  \&frac12;  {\bf :}  Tipo  {\bf ; }
+\{ L.tipo:=T.tipo \}
+
+T        
+  Integer  \{ T.tipo:=entero
+\}  \&frac12;  Real  \{ T.tipo:=real
+\}
+
+3) ?'\underbar{Sintetizados o heredados?}
+
+	Como la propagaci\'on de los valores siempre se ha realizado
+hacia arriba por el \'arbol, y los de los {\em tokens} son
+siempre sintetizados (proporcionados por el A.L.), entonces son todos
+sintetizados.
+
+4) ?'\underbar{Se
+cumplen las condiciones para ser una GAI?}
+
+Al ser todos los atributos sintetizados s\'olo se aplica la
+primera, que se cumple porque todas las acciones sem\'anticas
+est\'an al final de las producciones.
+
+\underbar{{\bf Ejercicio 2}:} Dise\~nar un esquema de traducci\'on
+para asignar tipo a una lista de variables declaradas en C, siendo la
+sintaxis la siguiente.
+
+Declaraci\'on        
+ Tipo  identificador  Lista  ptocoma
+
+Lista                
+ coma  identificador  Lista  \&frac12;
+ e
+
+Tipo                
+ int  \&frac12;  float
+
+\underbar{SOLUCI\'ON:}
+
+Para la resoluci\'on utilizaremos
+una notaci\'on m\'as c\'omoda:
+
+D        
+  T  id  L  {\bf ;}
+
+L        
+  {\bf ,}  id  L  \hbox{$|$}  e
+
+T        
+  int  \hbox{$|$}  float
+
+1) \underbar{Atributos} 	Igual que en el
+ejercicio anterior consideraremos que el identificador tiene como
+atributo el lexema y de los no terminales el atributo ser\'a el
+tipo para L y T (para D no hace falta).
+
+2) \underbar{Acciones
+sem\'anticas:}	utilizaremos el ejemplo  \"{}int
+ a,b;\"{}
+\begin{itemize}
+	\item 
+\fbox{\tt sv1611720.gif \footnotemark}La
+        producci\'on T  int es
+        la que da valor al atributo del tipo que se propagar\'a luego
+        hacia abajo mediante el desarrollo del s\'{\i}mbolo L.
+	\item 
+	en (*) ya se conoce el tipo de la declaraci\'on y el primer
+        identificador luego ya disponemos de la informaci\'on (en
+        T.tipo) para asignar el tipo al identificador (mediante
+        AsignarTipo(id.lexema,T.Tipo), pero por otro lado hace falta pasar
+        el tipo a L para que se propague hacia abajo, y eso hay que hacerlo
+        antes de que se produzca la llamada a L,es decir, tambi\'en en
+        (*).
+	\item 
+Lo equivalente sucede en (**),
+        donde ya disponemos de la informaci\'on que ha proporcionado el
+        tipo (llega en L.tipo desde arriba) y conocemos el identificador
+        (id.lexema), luego ya tenemos toda la informaci\'on necesaria
+        para hacer la asignaci\'on de tipo. Pero tambi\'en hay que
+        hacer ah\'{\i} la transmisi\'on del tipo hacia abajo, antes
+        del L hijo (L\(_{1}\)) para que L\(_{1}\).tipo tenga valor
+        antes de desarrollar dicho nodo (con L\(_{1}\).tipo:=L.tipo).
+\end{itemize}
+
+As\'{\i} pues,
+con la inclusi\'on de estas acciones sem\'anticas, el
+esquema de traducci\'on queda:
+
+D        	T
+ id  \{ AsignarTipo(id.lexema,T.tipo);
+L.tipo:=T.tipo \}  L  {\bf ;}
+
+L\(_{0}\)		{\bf ,}
+ id  \{ AsignarTipo(id.lexema,L\(_{0}\).tipo);
+L\(_{1}\).tipo:=L\(_{0}\).tipo \}  L\(_{1}\)  
+
+L        	e
+
+T        	int
+ \{ T.tipo:=entero
+\}
+
+T        
+	float  \{ T.tipo:=real
+\}
+
+3) ?'\underbar{Sintetizados
+o heredados?}
+
+T.tipo es sintetizado, pues su valor le
+ha llegado siempre \"{}desde abajo\"{} en el \'arbol, L.tipo
+es heredado pues su valor le llega desde nodos padre o hermanos y los
+de los {\em tokens} son siempre sintetizados. 
+
+4) ?'\underbar{Se
+cumplen las condiciones para ser una GAI?}
+
+2.A: L.tipo es
+heredado por lo que debe calcularse antes de que aparezca L: se
+cumple.
+
+2.B: los
+sintetizados no deben usarse antes que sus s\'{\i}mbolos: S\'{\i}
+se cumple, porque T.tipo e id.lexema aparecen despu\'es de T e
+id siempre.
+
+2.C: los
+sintetizados deben tomar valor tras analizar todos los s\'{\i}mbolos
+a los que hace referencia: como s\'olo hay un sintetizado para T
+y toma valor en T   int  \hbox{$|$} 
+float, y para estas producciones las acciones est\'an a la
+derecha del todo, entonces se cumple.
+
+{\bf \underbar{Ejercicio 3:}} Dise\~nar un ETDS para traducir
+declaraciones de arrays de tipos simples de C a Pascal, como en los
+siguientes ejemplos:
+
+int
+c \hbox{$[$}10\hbox{$]$};        var c : array \hbox{$[$}0..9\hbox{$]$} of integer;
+
+float
+d\hbox{$[$}5\hbox{$]$}\hbox{$[$}6\hbox{$]$};        var d : array \hbox{$[$}0..4,0..5\hbox{$]$} of real;
+
+char
+e;        var e : char;
+
+char
+f\hbox{$[$}3\hbox{$]$}\hbox{$[$}5\hbox{$]$}\hbox{$[$}7\hbox{$]$};        var f : array \hbox{$[$}0..2,0..4,0..6\hbox{$]$} of char;
+
+El lenguaje fuente est\'a generado
+por la siguiente gram\'atica:
+
+S        	T
+ V{\bf   ;}
+
+V        	id
+ V'
+
+V'        	\hbox{$[$}
+ nint  \hbox{$]$}  V'
+
+V'        	e
+
+T        	int
+ \&frac12;  float  \&frac12;
+ char
+
+\underbar{SOLUCI\'ON:}
+
+Haciendo un par de \'arboles con acciones, se puede comprobar
+que el ETDS es:
+
+S        	T
+ V  L  {\bf ;}  \{ S.trad
+:= \"{}var\"{} \hbox{$|$}\hbox{$|$} V.trad \hbox{$|$}\hbox{$|$} T.trad \hbox{$|$}\hbox{$|$} \"{};\"{} \}
+
+V        	{\bf id}
+ V'  \{ if
+V'.trad\&sup1;\"{}
+\"{} then V'trad:=\"{}array\hbox{$[$}\"{} \hbox{$|$}\hbox{$|$} V'trad;
+
+					V.trad := id.lexema \hbox{$|$}\hbox{$|$} \"{}:\"{} \hbox{$|$}\hbox{$|$} V'.trad \}
+
+V'\(_{0}\)		\hbox{$[$}
+ nint  \hbox{$]$}  V'\(_{1}\)  \{ if
+V'\(_{1}\).trad = \"{} \"{} then V'\(_{0}\) := \"{}0..\"{}
+\hbox{$|$}\hbox{$|$} nint.lexema-1
+\hbox{$|$}\hbox{$|$} \"{}\hbox{$]$} of\"{}
+
+						 else V'\(_{0}\)
+:= \"{}0..\"{} \hbox{$|$}\hbox{$|$} nint.lexema-1
+\hbox{$|$}\hbox{$|$} \"{},\"{} \hbox{$|$}\hbox{$|$} V'\(_{1}\).trad \}  L\(_{1}\)
+ 
+V'        	e
+ \{ V'.trad
+= \"{} \"{} \}
+
+T        	int
+ \{ T.trad
+:= \"{}integer\"{} \}
+
+T        	char
+ \{ T.trad
+:= \"{}char\"{} \}
+
+T        
+	float  \{ T.trad
+:= \"{}real\"{} \}
+
+Como todos los atributos son sintetizados, las acciones sem\'anticas
+se han ubicado al final de las producciones.
+
+} % come

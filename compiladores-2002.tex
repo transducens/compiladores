@@ -1,0 +1,103 @@
+%\documentclass[a4paper,12pt,titlepage]{book}
+\documentclass[a4paper,11pt,titlepage]{book}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+
+%--------------- para el capítulo 9 (J.A. Pérez) ----------------------
+\usepackage[scale={0.7,0.8}]{geometry}
+\usepackage{hhline}
+
+%\usepackage[bf,small]{caption}
+\usepackage{subfigure}
+%----------------------------------------------------------------------
+
+\newcommand{\echapter}{\newpage\thispagestyle{empty}}
+%\pagestyle{plain}
+
+
+\title{{\Huge Diseño de Compiladores}\\
+       {\large Departamento de Lenguajes y Sistemas Informáticos}\\
+       {\large Universidad de Alicante}}
+
+\author{{Alicia Garrido Alenda, José Manuel Iñesta Quereda,} \\
+        {Francisco Moreno Seco, Juan Antonio Pérez Ortiz}}
+
+\date{2002}
+
+\input{comandos.ptex}
+
+\begin{document}
+\frontmatter
+\thispagestyle{empty}
+\maketitle
+\tableofcontents
+\echapter
+
+\mainmatter
+\chapter*{Prólogo} \addcontentsline{toc}{chapter}{\numberline{} Prólogo}
+\input{prologo.ptex}
+\echapter
+
+\chapter{Introducción}
+\input{capitulo1.ptex}
+\echapter
+
+\chapter{Análisis léxico}
+\input{capitulo2.ptex}
+\echapter
+
+\chapter{Análisis sintáctico}
+\input{capitulo3.ptex}
+\echapter
+
+\chapter{Análisis sintáctico descendente}
+\input{capitulo4.ptex}
+\echapter
+
+\chapter{Análisis sintáctico ascendente}
+\input{capitulo5.ptex}
+\echapter
+
+\chapter{Traducción dirigida por la sintaxis}
+\input{capitulo6.ptex}
+\echapter
+
+\chapter{Implementación de traductores}
+\input{capitulo7.ptex}
+\echapter
+
+\chapter{Tipos y generación de código}
+\input{capitulo8.ptex}
+\echapter
+
+\chapter{Compilación de subprogramas}
+\input{capitulo9.ptex}
+\echapter
+
+\appendix
+\chapter{Soluciones a los ejercicios} \label{app:soleje}
+\setcounter{contcapitulo}{1}   % el capítulo 1 no tiene ejercicios
+\input{solcap2.ptex}\clearpage
+\input{solcap3.ptex}\clearpage
+\input{solcap4.ptex}\clearpage
+\input{solcap5.ptex}\clearpage
+\input{solcap6.ptex}\clearpage
+\input{solcap7.ptex}\clearpage
+\input{solcap8.ptex}\clearpage
+\input{solcap9.ptex}
+\echapter
+
+\chapter{Ejercicios prácticos propuestos} \label{app:prac}
+\input{appprac.ptex}
+\echapter
+
+\chapter{El lenguaje intermedio \texttt{m2r}} \label{app:mdosr}
+\input{appm2r.ptex}
+\echapter
+
+\begin{thebibliography}{} \addcontentsline{toc}{chapter}{Bibliografía}
+\input{bibliografia.ptex}
+\end{thebibliography}
+
+\end{document}

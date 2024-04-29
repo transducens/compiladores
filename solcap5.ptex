@@ -1,0 +1,1300 @@
+
+\section{Soluciones a los ejercicios del capítulo 5}
+
+\stepcounter{contcapitulo}
+\setcounter{contsoleje}{0}
+
+\begin{soleje}
+A partir de la siguiente gram\'atica (de 
+expresiones aritm\'eticas), construir la tabla de an\'alisis
+SLR a partir del aut\'omata reconocedor de prefijos viables
+y, a continuaci\'on, hacer la traza del an\'alisis
+ascendente de la cadena ``{\bf id \verb!*! id \verb!+! id}'':
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \\
+\nter{E} \der \nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \tertt{(} \nter{E} \tertt{)} \\
+\nter{F} \der \ter{id} \\
+\end{array}
+$$
+\solucion
+
+\includegraphics[width=0.90\textwidth]{scap5f1.pdf}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{E}) = & \{\;\$\;,\;\tertt{+},\;\tertt{)}\} \\
+\sig(\nter{T}) = & \{\;\$\;,\;\tertt{+},\;\tertt{)},\;\tertt{*}\} \\
+\sig(\nter{F}) = & \{\;\$\;,\;\tertt{+},\;\tertt{)},\;\tertt{*}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+\pagebreak
+La tabla de análisis correspondiente es:
+\begin{center}
+\begin{small}
+\begin{tabular}{|c||c|c|c|c|c|c||c|c|c|}\hline
+  & \multicolumn{6}{|c||}{\bf Acción} & \multicolumn{3}{|c|}{\bf Ir\_a}
+\\\cline{2-10}
+ {\bf Estado} & $\ter{id}$ & $\tertt{+}$ & $\tertt{*}$ & $\tertt{(}$ & 
+   $\tertt{)}$ & $\$$ & 
+   $\nter{E}$ & $\nter{T}$ & $\nter{F}$ \\\hline\hline
+0             & d5 
+              &  
+              & 
+              & d4 
+              & 
+              & 
+              & 1 
+              & 2
+              & 3 \\\hline
+1             &  
+              & d6
+              & 
+              & 
+              & 
+              & aceptar
+              & 
+              & 
+              & \\\hline
+2             & 
+              & r2
+              & d7
+              & 
+              & r2
+              & r2
+              & 
+              & 
+              &  \\\hline
+3             & 
+              & r4
+              & r4
+              & 
+              & r4
+              & r4
+              &  
+              & 
+              & \\\hline
+4             & d5
+              & 
+              & 
+              & d4
+              & 
+              & 
+              & 8
+              & 2 
+              & 3 \\\hline
+5             & 
+              & r6 
+              & r6
+              & 
+              & r6
+              & r6
+              & 
+              & 
+              & \\\hline
+6             & d5
+              &  
+              & 
+              & d4
+              & 
+              & 
+              & 
+              & 9
+              & 3 \\\hline
+7             & d5
+              &  
+              & 
+              & d4
+              & 
+              & 
+              & 
+              & 
+              & 10 \\\hline
+8             & 
+              & d6 
+              & 
+              & 
+              & d11
+              & 
+              & 
+              & 
+              & \\\hline
+9             & 
+              & r1 
+              & d7
+              & 
+              & r1
+              & r1
+              & 
+              & 
+              & \\\hline
+10            & 
+              & r3 
+              & r3
+              & 
+              & r3
+              & r3
+              & 
+              & 
+              & \\\hline
+11            & 
+              & r5 
+              & r5
+              & 
+              & r5
+              & r5
+              & 
+              & 
+              & \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La traza de la cadena de entrada
+``{\tt id*id+id}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! id * id + id $! & d5 \\
+0 5 & \verb! * id + id $! & r6 ($\nter{F} \flecha \ter{id}$) \\
+0 3 & \verb! * id + id $! & r4 ($\nter{T} \flecha \nter{F}$) \\
+0 2 & \verb! * id + id $! & d7 \\
+0 2 7 & \verb! id + id $! & d5 \\
+0 2 7 5 & \verb! + id $! & r6 ($\nter{F} \flecha \ter{id}$) \\
+0 2 7 10 & \verb! + id $! & 
+           r3 ($\nter{T} \flecha \nter{T} \tertt{*} \nter{F}$) \\
+0 2 & \verb! + id $! & r2 ($\nter{E} \flecha \nter{T}$) \\
+0 1 & \verb! + id $! & d6 \\
+0 1 6 & \verb! id $! & d5 \\
+0 1 6 5 & \verb! $! & r6 ($\nter{F} \flecha \ter{id}$) \\
+0 1 6 3 & \verb! $! & r4 ($\nter{T} \flecha \nter{F}$) \\
+0 1 6 9 & \verb! $! & 
+           r1 ($\nter{E} \flecha \nter{E} \tertt{+} \nter{T}$) \\
+0 1  & \verb! $! & aceptar \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+\end{soleje}
+
+\begin{soleje}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \\
+\nter{S} \der \nter{T} \nter{R} \nter{V} \\
+\nter{T} \der \ter{tipo} \\
+\nter{T} \der \epsilon \\
+\nter{R} \der \ter{blq} \nter{V} \ter{fblq} \\
+\nter{R} \der \epsilon \\
+\nter{V} \der \ter{id} \nter{S} \ter{fin} \\
+\nter{V} \der \ter{id} \ter{;} \\
+\nter{V} \der \epsilon
+\end{array}
+$$
+Escribid la tabla de an\'alisis sint\'actico SLR para esta
+gram\'atica y 
+haced la traza del funcionamiento del analizador SLR para las cadenas 
+``{\tt tipo id blq id ; fblq fin inst}'' e ``{\tt id tipo id fin ;}''
+
+\solucion
+
+\includegraphics[width=0.90\textwidth]{scap5f2.pdf}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{S}) = & \{\;\$\;,\;\ter{inst},\;\ter{fin}\} \\
+\sig(\nter{T}) = & 
+     \{\;\ter{blq},\;\ter{id},\;\$\;,\;\ter{inst},\;\ter{fin}\} \\
+\sig(\nter{R}) = & 
+     \{\;\ter{id},\;\$\;,\;\ter{inst},\;\ter{fin}\} \\
+\sig(\nter{V}) = & 
+     \{\;\ter{fblq},\;\$\;,\;\ter{inst},\;\ter{fin}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+\pagebreak
+La tabla de análisis correspondiente es:
+\begin{center}
+\begin{small}
+\begin{tabular}{|c||c|c|c|c|c|c|c|c||c|c|c|c|}\hline
+  & \multicolumn{8}{|c||}{\bf Acción} & \multicolumn{4}{|c|}{\bf Ir\_a}
+\\\cline{2-13}
+ {\bf Estado} & $\ter{inst}$ & $\ter{tipo}$ & $\ter{blq}$ & $\ter{fblq}$ & 
+   $\ter{id}$ & $\ter{fin}$ & $\tertt{;}$ & $\$$ & 
+   $\nter{S}$ & $\nter{T}$ & $\nter{R}$ & $\nter{V}$ \\\hline\hline
+0             & r4 
+              & d3 
+              & r4
+              &  
+              & r4
+              & r4
+              &  
+              & r4
+              & 1
+              & 2
+              & 
+              &  \\\hline
+1             & d4 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & aceptar 
+              & 
+              & 
+              & 
+              & \\\hline
+2             & r6 
+              &  
+              & d6
+              &  
+              & r6
+              & r6
+              &  
+              & r6
+              & 
+              & 
+              & 5
+              &  \\\hline
+3             & r3 
+              &  
+              & r3
+              &  
+              & r3
+              & r3
+              &  
+              & r3
+              & 
+              & 
+              & 
+              &  \\\hline
+4             & r1 
+              &  
+              & 
+              &  
+              & 
+              & r1
+              &  
+              & r1
+              & 
+              & 
+              & 
+              &  \\\hline
+5             & r9 
+              &  
+              & 
+              & r9 
+              & d8
+              & r9
+              &  
+              & r9
+              & 
+              & 
+              & 
+              & 7 \\\hline
+6             & r9
+              &  
+              & 
+              & r9 
+              & d8
+              & r9
+              &  
+              & r9
+              & 
+              & 
+              & 
+              & 9 \\\hline
+7             & r2
+              &  
+              & 
+              &  
+              & 
+              & r2
+              &  
+              & r2
+              & 
+              & 
+              & 
+              &  \\\hline
+8             & r4
+              & d3 
+              & r4
+              &  
+              & r4
+              & r4
+              & d11 
+              & r4
+              & 10
+              & 2
+              & 
+              &  \\\hline
+9             & 
+              &  
+              & 
+              & d12 
+              & 
+              & 
+              &  
+              & 
+              & 
+              & 
+              & 
+              &  \\\hline
+10            & d4
+              &  
+              & 
+              &  
+              & 
+              & d13
+              &  
+              & 
+              & 
+              & 
+              & 
+              &  \\\hline
+11            & r8
+              &  
+              & 
+              & r8 
+              & 
+              & r8
+              &  
+              & r8
+              & 
+              & 
+              & 
+              &  \\\hline
+12            & r5
+              &  
+              & 
+              &  
+              & r5
+              & r5
+              &  
+              & r5
+              & 
+              & 
+              & 
+              &  \\\hline
+13            & r7
+              &  
+              & 
+              & r7 
+              & 
+              & r7
+              &  
+              & r7
+              & 
+              & 
+              & 
+              &  \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La traza de la cadena de entrada
+``{\tt tipo id blq id ; fblq fin inst}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! tipo id blq id ; fblq fin inst $! & d3 \\
+0 3 & \verb! id blq id ; fblq fin inst $!  & 
+                r3 ($\nter{T} \flecha \ter{tipo}$) \\
+0 2 & \verb! id blq id ; fblq fin inst $! & 
+                r6 ($\nter{R} \flecha \epsilon$) \\
+0 2 5 & \verb! id blq id ; fblq fin inst $! & d8 \\
+0 2 5 8 & \verb! blq id ; fblq fin inst $! & 
+                r4 ($\nter{T} \flecha \epsilon$) \\
+0 2 5 8 2 & \verb! blq id ; fblq fin inst $! & d6 \\
+0 2 5 8 2 6 & \verb! id ; fblq fin inst $! & d8 \\
+0 2 5 8 2 6 8 & \verb! ; fblq fin inst $! & d11 \\
+0 2 5 8 2 6 8 11 & \verb! fblq fin inst $! & 
+                r8 ($\nter{V} \flecha \ter{id} \tertt{;}$) \\
+0 2 5 8 2 6 9 & \verb! fblq fin inst $! & d12 \\
+0 2 5 8 2 6 9 12 & \verb! fin inst $! & 
+                r5 ($\nter{R} \flecha \ter{blq} \nter{V} \ter{fblq}$) \\
+0 2 5 8 2 5 & \verb! fin inst $! & r9 ($\nter{V} \flecha \epsilon$) \\
+0 2 5 8 2 5 7 & \verb! fin inst $! & 
+                r2 ($\nter{S} \flecha \nter{T} \nter{R} \nter{V}$) \\
+0 2 5 8 10 & \verb! fin inst $! & d13 \\
+0 2 5 8 10 13 & \verb! inst $! & 
+                r7 ($\nter{V} \flecha \ter{id} \nter{S} \ter{fin}$) \\
+0 2 5 7 & \verb! inst $! & 
+                r2 ($\nter{S} \flecha \nter{T} \nter{R} \nter{V}$) \\
+0 1 & \verb! inst $! & d4 \\
+0 1 4 & \verb! $! & r1 ($\nter{S} \flecha \nter{S} \ter{inst}$) \\
+0 1  & \verb! $! & aceptar \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+\pagebreak
+La traza de la cadena de entrada
+``{\tt id tipo id fin ;}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! id tipo id fin ; $! & r4 ($\nter{T} \flecha \epsilon$) \\
+0 2  & \verb! id tipo id fin ; $! & r6 ($\nter{R} \flecha \epsilon$) \\
+0 2 5 & \verb! id tipo id fin ; $! & d8 \\
+0 2 5 8 & \verb! tipo id fin ; $! & d3 \\
+0 2 5 8 3 & \verb! id fin ; $! & r3 ($\nter{T} \flecha \ter{tipo}$) \\
+0 2 5 8 2 & \verb! id fin ; $! & r6 ($\nter{R} \flecha \epsilon$) \\
+0 2 5 8 2 5 & \verb! id fin ; $! & d8 \\
+0 2 5 8 2 5 8 & \verb! fin ; $! & r4 ($\nter{T} \flecha \epsilon$)  \\
+0 2 5 8 2 5 8 2 & \verb! fin ; $! & r6 ($\nter{R} \flecha \epsilon$)  \\
+0 2 5 8 2 5 8 2 5 & \verb! fin ; $! & r9 ($\nter{V} \flecha \epsilon$)  \\
+0 2 5 8 2 5 8 2 5 7 & \verb! fin ; $! & 
+              r2 ($\nter{S} \flecha \nter{T} \nter{R} \nter{V}$)  \\
+0 2 5 8 2 5 8 10 & \verb! fin ; $! & d13 \\
+0 2 5 8 2 5 8 10 13 & \verb! ; $! & error \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+El error que se debe generar en este caso es: \\
+``{\small\verb+Error: encontrado ';' esperaba 'inst', 'fblq', 'fin' o fin de fichero+}''
+
+\end{soleje}
+
+\begin{soleje}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{E} \der \ter{[} \nter{L} \ter{]}\\
+\nter{E} \der \ter{a} \\
+\nter{L} \der \nter{E} \nter{Q} \\
+\nter{Q} \der \ter{,} \nter{L} \\
+\nter{Q} \der \epsilon
+\end{array}
+$$
+Escribid la tabla de an\'alisis sint\'actico SLR para esta
+gram\'atica y haced la traza del funcionamiento del analizador SLR para 
+la cadena ``{\tt [a,[a,a],]}''.
+
+\solucion
+
+\includegraphics[width=0.95\textwidth]{scap5f3.pdf}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{E}) = & \{\;\$\;,\;\tertt{,},\;\tertt{]}\} \\
+\sig(\nter{L}) = & \{\;\tertt{]}\} \\
+\sig(\nter{Q}) = & \{\;\tertt{]}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+
+La tabla de análisis correspondiente es:
+\begin{center}
+\begin{small}
+\begin{tabular}{|c||c|c|c|c|c||c|c|c|}\hline
+  & \multicolumn{5}{|c||}{\bf Acción} & \multicolumn{3}{|c|}{\bf Ir\_a}
+\\\cline{2-9}
+ {\bf Estado} & $\tertt{[}$ & $\tertt{]}$ & $\ter{a}$ & $\tertt{,}$ & 
+   $\$$ & 
+   $\nter{E}$ & $\nter{L}$ & $\nter{Q}$ \\\hline\hline
+0             & d2 
+              & 
+              & d3 
+              & 
+              & 
+              & 1 
+              & 
+              &  \\\hline
+1             & d2  
+              & 
+              & 
+              & 
+              & aceptar
+              & 
+              & 
+              & \\\hline
+2             & d2
+              & 
+              & d3
+              & 
+              & 
+              & 5
+              & 4
+              &  \\\hline
+3             & 
+              & r2
+              & 
+              & r2
+              & r2
+              &  
+              & 
+              & \\\hline
+4             & 
+              & d6
+              & 
+              & 
+              & 
+              & 
+              &  
+              &  \\\hline
+5             & 
+              & r5 
+              & 
+              & d8
+              & 
+              & 
+              & 
+              & 7 \\\hline
+6             & 
+              & r1
+              & 
+              & r1
+              & r1
+              & 
+              & 
+              &  \\\hline
+7             & 
+              & r3
+              & 
+              & 
+              & 
+              & 
+              & 
+              &  \\\hline
+8             & d2
+              & 
+              & d3
+              & 
+              & 
+              & 5
+              & 9
+              & \\\hline
+9             & 
+              & r4 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La traza de la cadena de entrada
+``{\tt [ a , [ a , a ] , ]}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! [ a , [ a , a ] , ] $! & d2 \\
+0 2 & \verb! a , [ a , a ] , ] $! & d3 \\
+0 2 3 & \verb! , [ a , a ] , ] $! & r2 ($\nter{E} \flecha \ter{a}$) \\
+0 2 5 & \verb! , [ a , a ] , ] $! & d8 \\
+0 2 5 8 & \verb! [ a , a ] , ] $! & d2 \\
+0 2 5 8 2 & \verb! a , a ] , ] $! & d3 \\
+0 2 5 8 2 3 & \verb! , a ] , ] $! & r2 ($\nter{E} \flecha \ter{a}$) \\
+0 2 5 8 2 5 & \verb! , a ] , ] $! & d8 \\
+0 2 5 8 2 5 8 & \verb! a ] , ] $! & d3 \\
+0 2 5 8 2 5 8 3 & \verb! ] , ] $! & r2 ($\nter{E} \flecha \ter{a}$) \\
+0 2 5 8 2 5 8 5 & \verb! ] , ] $! & r5 ($\nter{Q} \flecha \epsilon$) \\
+0 2 5 8 2 5 8 5 7 & \verb! ] , ] $! & 
+               r3 ($\nter{L} \flecha \nter{E} \nter{Q}$) \\
+0 2 5 8 2 5 8 9 & \verb! ] , ] $! & 
+               r4 ($\nter{Q} \flecha \tertt{,} \nter{L}$) \\
+0 2 5 8 2 5 7 & \verb! ] , ] $! & 
+               r3 ($\nter{L} \flecha \nter{E} \nter{Q}$) \\
+0 2 5 8 2 4 & \verb! ] , ] $! & d6 \\
+0 2 5 8 2 4 6 & \verb! , ] $! & 
+               r1 ($\nter{E} \flecha \tertt{[} \nter{L} \tertt{]}$) \\
+0 2 5 8 5 & \verb! , ] $! & d8 \\
+0 2 5 8 5 8 & \verb! ] $! & error \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+El error que se debe generar en este caso es: \\
+``{\small\verb+Error: encontrado ']' esperaba '[' o 'a'+}''
+
+
+\end{soleje}
+
+\pagebreak
+\begin{soleje}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \\
+\nter{S} \der \nter{S} \ter{var} \nter{D} \\
+\nter{S} \der \epsilon \\
+\nter{D} \der \nter{D} \ter{ident} \nter{E} \\
+\nter{D} \der \nter{D} \ter{ident} \ter{sep} \\
+\nter{D} \der \ter{int} \\
+\nter{D} \der \ter{float} \\
+\nter{E} \der \nter{S} \ter{fproc}
+\end{array}
+$$
+Construye una tabla de an\'alisis SLR para ella y haz la traza del
+funcionamiento del analizador para las cadenas 
+``{\tt var int ident inst fproc inst}''
+~~e~~ ``{\tt inst fproc}''. 
+
+\solucion
+
+\includegraphics[width=0.95\textwidth]{scap5f4.pdf}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{S}) = & 
+    \{\;\$\;,\;\ter{inst},\;\ter{var},\;\ter{fproc}\} \\
+\sig(\nter{D}) = & 
+     \{\;\$\;,\;\ter{inst},\;\ter{var},\;\ter{fproc},\;\ter{ident}\} \\
+\sig(\nter{E}) = & 
+     \{\;\$\;,\;\ter{inst},\;\ter{var},\;\ter{fproc},\;\ter{ident}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+
+\pagebreak
+La tabla de análisis correspondiente es:
+\begin{center}
+\begin{small}
+\begin{tabular}{|c||c|c|c|c|c|c|c|c||c|c|c|}\hline
+  & \multicolumn{8}{|c||}{\bf Acción} & \multicolumn{3}{|c|}{\bf Ir\_a}
+\\\cline{2-12}
+ {\bf Estado} & $\ter{inst}$ & $\ter{var}$ & $\ter{ident}$ & $\ter{sep}$ & 
+   $\ter{int}$ & $\ter{float}$ & $\ter{fproc}$ & $\$$ & 
+   $\nter{S}$ & $\nter{D}$ & $\nter{E}$ \\\hline\hline
+0             & r3
+              & r3 
+              & 
+              &  
+              & 
+              & 
+              & r3 
+              & r3
+              & 1
+              & 
+              &  \\\hline
+1             & d2 
+              & d3
+              & 
+              & 
+              & 
+              & 
+              & 
+              & aceptar 
+              & 
+              & 
+              & \\\hline
+2             & r1
+              & r1 
+              & 
+              &  
+              & 
+              & 
+              & r1 
+              & r1
+              & 
+              &
+              &  \\\hline
+3             & 
+              &  
+              &
+              &  
+              & d5
+              & d6
+              &  
+              & 
+              & 
+              & 4
+              &  \\\hline
+4             & r2 
+              & r2 
+              & d7
+              &  
+              & 
+              & 
+              & r2 
+              & r2
+              & 
+              & 
+              &  \\\hline
+5             & r6
+              & r6 
+              & r6
+              &  
+              & 
+              & 
+              & r6 
+              & r6
+              & 
+              & 
+              &  \\\hline
+6             & r7
+              & r7 
+              & r7
+              &  
+              & 
+              & 
+              & r7 
+              & r7
+              & 
+              & 
+              &  \\\hline
+7             & r3
+              & r3 
+              & 
+              & d10 
+              & 
+              & 
+              & r3 
+              & r3
+              & 9
+              & 
+              & 8 \\\hline
+8             & r4
+              & r4 
+              & r4
+              &  
+              & 
+              & 
+              & r4 
+              & r4
+              & 
+              & 
+              &  \\\hline
+9             & d2
+              & d3 
+              & 
+              &  
+              & 
+              & 
+              & d11 
+              & 
+              & 
+              & 
+              &  \\\hline
+10            & r5
+              & r5 
+              & r5
+              &  
+              & 
+              & 
+              & r5 
+              & r5
+              & 
+              & 
+              &  \\\hline
+11            & r8
+              & r8 
+              & r8
+              &  
+              & 
+              & 
+              & r8 
+              & r8
+              & 
+              & 
+              &  \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La traza de la cadena de entrada
+``{\tt var int ident inst fproc inst}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! var int ident inst fproc inst $! & 
+                   r3 ($\nter{S} \flecha \epsilon$)\\
+0 1 & \verb! var int ident inst fproc inst $! & d3 \\ 
+0 1 3 & \verb! int ident inst fproc inst $! & d5 \\ 
+0 1 3 5 & \verb! ident inst fproc inst $! & 
+                   r6 ($\nter{D} \flecha \ter{int}$)\\ 
+0 1 3 4 & \verb! ident inst fproc inst $! & d7 \\
+0 1 3 4 7 & \verb! inst fproc inst $! & 
+                   r3 ($\nter{S} \flecha \epsilon$)\\
+0 1 3 4 7 9 & \verb! inst fproc inst $! & d2 \\
+0 1 3 4 7 9 2 & \verb! fproc inst $! & 
+                   r1 ($\nter{S} \flecha \nter{S} \ter{inst}$) \\
+0 1 3 4 7 9 & \verb! fproc inst $! & d11 \\
+0 1 3 4 7 9 11 & \verb! inst $! & 
+                   r8 ($\nter{E} \flecha \nter{S} \ter{fproc}$) \\
+0 1 3 4 7 8 & \verb! inst $! & 
+                   r4 ($\nter{D} \flecha \nter{D} \ter{ident} \nter{E}$) \\
+0 1 3 4 & \verb! inst $! & 
+                   r2 ($\nter{S} \flecha \nter{S} \ter{var} \nter{D}$) \\
+0 1 & \verb! inst $! & d2 \\
+0 1 2 & \verb! $! & 
+                   r1 ($\nter{S} \flecha \nter{S} \ter{inst}$) \\
+0 1  & \verb! $! & aceptar \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+La traza de la cadena de entrada
+``{\tt inst fproc}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! inst fproc $! & 
+          r3 ($\nter{S} \flecha \epsilon$) \\
+0 1 & \verb! inst fproc $! & d2 \\
+0 1 2 & \verb! fproc $! & 
+                   r1 ($\nter{S} \flecha \nter{S} \ter{inst}$) \\
+0 1 & \verb! fproc $! & error \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+El error que se debe generar en este caso es: \\
+``{\small\verb+Error: encontrado 'fproc' esperaba 'inst', 'var' o fin de fichero+}''
+
+
+\end{soleje}
+
+\begin{soleje}
+Escribe la tabla de an\'alisis sint\'actico SLR para
+la gram\'atica siguiente:
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{id} \ter{(} \nter{L} \ter{)}  \\
+\nter{S} \der \ter{id} \\
+\nter{L} \der \epsilon \\
+\nter{L} \der \nter{S} \nter{Q} \\
+\nter{Q} \der \epsilon \\
+\nter{Q} \der \ter{,} \nter{S} \nter{Q}  \\
+\end{array}
+$$
+ Haz tambi\'en la traza de las cadenas ``{\tt a(b())}'' y ``{\tt c(d,e,()}''.
+
+\solucion
+
+\includegraphics[width=0.95\textwidth]{scap5f5.pdf}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{S}) = & \{\;\$\;,\;\tertt{,},\;\tertt{)}\} \\
+\sig(\nter{L}) = & \{\;\tertt{)}\} \\
+\sig(\nter{Q}) = & \{\;\tertt{)}\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+
+\pagebreak
+La tabla de análisis correspondiente es:
+\begin{center}
+\begin{small}
+\begin{tabular}{|c||c|c|c|c|c||c|c|c|}\hline
+  & \multicolumn{5}{|c||}{\bf Acción} & \multicolumn{3}{|c|}{\bf Ir\_a}
+\\\cline{2-9}
+ {\bf Estado} & $\ter{id}$ & $\tertt{(}$ & $\tertt{)}$ & $\tertt{,}$ & 
+   $\$$ & 
+   $\nter{S}$ & $\nter{L}$ & $\nter{Q}$ \\\hline\hline
+0             & d2 
+              & 
+              & 
+              & 
+              & 
+              & 1 
+              & 
+              &  \\\hline
+1             &   
+              & 
+              & 
+              & 
+              & aceptar
+              & 
+              & 
+              & \\\hline
+2             & 
+              & d3
+              & r2
+              & r2
+              & r2
+              & 
+              & 
+              &  \\\hline
+3             & d2
+              & 
+              & r3
+              & 
+              & 
+              & 5 
+              & 4
+              & \\\hline
+4             & 
+              & 
+              & d6
+              & 
+              & 
+              & 
+              &  
+              &  \\\hline
+5             & 
+              &  
+              & r5
+              & d8
+              & 
+              & 
+              & 
+              & 7 \\\hline
+6             & 
+              & 
+              & r1
+              & r1
+              & r1
+              & 
+              & 
+              &  \\\hline
+7             & 
+              & 
+              & r4
+              & 
+              & 
+              & 
+              & 
+              &  \\\hline
+8             & d2
+              & 
+              & 
+              & 
+              & 
+              & 9
+              & 
+              & \\\hline
+9             & 
+              &  
+              & r5
+              & d8
+              & 
+              & 
+              & 
+              & 10 \\\hline
+10            & 
+              &  
+              & r6
+              & 
+              & 
+              & 
+              & 
+              & \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La traza de la cadena de entrada
+``{\tt a ( b ( ) )}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! a ( b ( ) ) $! & d2 \\
+0 2 & \verb! ( b ( ) ) $! & d3 \\
+0 2 3 & \verb! b ( ) ) $! & d2 \\
+0 2 3 2 & \verb! ( ) ) $! & d3 \\
+0 2 3 2 3 & \verb! ) ) $! & r3 ($\nter{L} \flecha \epsilon$) \\
+0 2 3 2 3 4 & \verb! ) ) $! & d6 \\
+0 2 3 2 3 4 6 & \verb! ) $! & 
+           r1 ($\nter{S} \flecha \ter{id} \tertt{(} \nter{L} \tertt{)}$)\\
+0 2 3 5 & \verb! ) $! & 
+           r5 ($\nter{Q} \flecha \epsilon$)\\
+0 2 3 5 7 & \verb! ) $! & 
+           r4 ($\nter{L} \flecha \nter{L} \nter{Q}$)\\
+0 2 3 4 & \verb! ) $! & d6 \\
+0 2 3 4 6 & \verb! $! & 
+           r1 ($\nter{S} \flecha \ter{id} \tertt{(} \nter{L} \tertt{)}$)\\
+0 1  & \verb! $! & aceptar \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+La traza de la cadena de entrada
+``{\tt c ( d , e , ( )}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! c ( d , e , () $! & d2 \\
+0 2 & \verb! ( d , e , () $! & d3 \\
+0 2 3 & \verb! d , e , () $! & d2 \\
+0 2 3 2 & \verb! , e , () $! & r2 ($\nter{S} \flecha \ter{id}$) \\
+0 2 3 5 & \verb! , e , () $! & d8 \\
+0 2 3 5 8 & \verb! e , () $! & d2 \\
+0 2 3 5 8 2 & \verb! , () $! & r2 ($\nter{S} \flecha \ter{id}$) \\
+0 2 3 5 8 9 & \verb! , () $! & d8 \\
+0 2 3 5 8 9 8 & \verb! () $! & error \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+El error que se debe generar en este caso es: \\
+``{\small\verb+Error: encontrado '(' esperaba un identificador+}''
+
+\end{soleje}
+
+\begin{soleje}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \nter{B} \nter{C} \\
+\nter{A} \der \ter{begin} \nter{C} \ter{end} \\
+\nter{A} \der \epsilon \\
+\nter{B} \der \ter{var} \ter{tipo} \\
+\nter{C} \der \nter{B} \nter{C} \\
+\nter{C} \der \ter{fvar} 
+\end{array}
+$$
+Sin modificar en absoluto la gram\'atica (excepto la modificaci\'on
+que pres\-cribe el algoritmo, la de a\~nadir una regla al principio),
+dise\~na un ana\-li\-zador SLR para esa gram\'atica y 
+haz la traza de la cadena ``{\tt begin var tipo fvar end var tipo fvar}''.
+
+%\pagebreak
+\solucion
+
+\includegraphics[width=0.85\textwidth]{scap5f6.pdf}
+
+Cálculo de los conjuntos de siguientes:
+\begin{small}
+\begin{displaymath}
+\begin{array}{ll}
+\sig(\nter{S}) = & \{\;\$\;\} \\
+\sig(\nter{A}) = & \{\;\ter{var}\} \\
+\sig(\nter{B}) = & \{\;\ter{var},\;\ter{fvar}\} \\
+\sig(\nter{C}) = & \{\;\ter{end},\;\$\;\} \\
+\end{array}
+\end{displaymath}
+\end{small}
+
+
+La tabla de análisis correspondiente es:
+\begin{center}
+\begin{small}
+\begin{tabular}{|c||c|c|c|c|c|c||c|c|c|c|}\hline
+  & \multicolumn{6}{|c||}{\bf Acción} & \multicolumn{4}{|c|}{\bf Ir\_a}
+\\\cline{2-11}
+ {\bf Estado} & $\ter{begin}$ & $\ter{end}$ & $\ter{var}$ & $\ter{tipo}$ & 
+   $\ter{fvar}$ & $\$$ & 
+   $\nter{S}$ & $\nter{A}$ & $\nter{B}$ & $\nter{C}$ \\\hline\hline
+0             & d3 
+              &  
+              & r3
+              &  
+              & 
+              & 
+              & 1 
+              & 2
+              & 
+              &  \\\hline
+1             &  
+              & 
+              & 
+              & 
+              & 
+              & aceptar
+              & 
+              & 
+              & 
+              & \\\hline
+2             & 
+              & 
+              & d5
+              & 
+              & 
+              & 
+              & 
+              & 
+              & 4
+              &  \\\hline
+3             & 
+              & 
+              & d5
+              & 
+              & d8
+              & 
+              & 
+              &  
+              & 7
+              & 6 \\\hline
+4             & 
+              & 
+              & d5
+              & 
+              & d8
+              & 
+              & 
+              & 
+              & 7 
+              & 10 \\\hline
+5             & 
+              &  
+              & 
+              & d9
+              & 
+              & 
+              & 
+              & 
+              & 
+              & \\\hline
+6             & 
+              & d11 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & 
+              &  \\\hline
+7             & 
+              &  
+              & d5
+              & 
+              & d8
+              & 
+              & 
+              & 
+              & 7
+              & 12 \\\hline
+8             & 
+              & r6 
+              & 
+              & 
+              & 
+              & r6
+              & 
+              & 
+              & 
+              & \\\hline
+9             & 
+              &  
+              & r4
+              & 
+              & r4
+              & 
+              & 
+              & 
+              & 
+              & \\\hline
+10            & 
+              &  
+              & 
+              & 
+              & 
+              & r1
+              & 
+              & 
+              & 
+              & \\\hline
+11            & 
+              &  
+              & r2
+              & 
+              & 
+              & 
+              & 
+              & 
+              & 
+              & \\\hline
+12            & 
+              & r5
+              & 
+              & 
+              & 
+              & r5
+              & 
+              & 
+              & 
+              & \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La traza de la cadena de entrada
+``{\tt begin var tipo fvar end var tipo fvar}''
+es como sigue:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|l|r|l|}\hline
+\multicolumn{1}{|c|}{PILA} & \multicolumn{1}{|c|}{ENTRADA} &
+\multicolumn{1}{|c|}{ACCIÓN} \\\hline\hline
+0  & \verb! begin var tipo fvar end var tipo fvar $! & d3 \\
+0 3 & \verb! var tipo fvar end var tipo fvar $! & d5 \\
+0 3 5 & \verb! tipo fvar end var tipo fvar $! & d9 \\
+0 3 5 9 & \verb! fvar end var tipo fvar $! & 
+             r4 ($\nter{B} \flecha \ter{var} \ter{tipo}$) \\
+0 3 7 & \verb! fvar end var tipo fvar $! & d8 \\
+0 3 7 8 & \verb! end var tipo fvar $! & 
+             r6 ($\nter{C} \flecha \ter{fvar}$) \\
+0 3 7 12 & \verb! end var tipo fvar $! & 
+             r5 ($\nter{C} \flecha \nter{B} \nter{C}$) \\
+0 3 6 & \verb! end var tipo fvar $! & d11 \\
+0 3 6 11 & \verb! var tipo fvar $! & 
+             r2 ($\nter{A} \flecha \ter{begin} \nter{C} \ter{end}$) \\
+0 2 & \verb! var tipo fvar $! & d5 \\
+0 2 5 & \verb! tipo fvar $! & d9 \\
+0 2 5 9 & \verb! fvar $! & 
+             r4 ($\nter{B} \flecha \ter{var} \ter{tipo}$) \\
+0 2 4 & \verb! fvar $! & d8 \\
+0 2 4 8 & \verb! $! & 
+             r6 ($\nter{C} \flecha \ter{fvar}$) \\
+0 2 4 10 & \verb! $! & 
+             r1 ($\nter{S} \flecha \nter{A} \nter{B} \nter{C}$) \\
+0 1  & \verb! $! & aceptar \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+\end{soleje}
+

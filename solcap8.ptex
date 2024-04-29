@@ -1,0 +1,519 @@
+
+\section{Soluciones a los ejercicios del capítulo 8}
+
+\stepcounter{contcapitulo}
+\setcounter{contsoleje}{0}
+
+
+\begin{soleje}
+
+Dada la siguiente declaraci\'on de variables en C:
+\begin{small}
+\begin{verbatim}
+
+   struct {
+       int a;
+       float b[10][5];
+       char **c[4];
+       struct {
+          float a;
+          int *c;
+      } d,e;
+   } f,g;
+
+\end{verbatim}
+\end{small}
+\begin{enumerate}
+\item Escríbanse las expresiones de tipos correspondientes
+a las variables declaradas.
+\item Descríbanse brevemente los contenidos de la tabla de tipos y
+de la tabla de s\'{\i}mbolos global.
+\item Suponiendo que los tipos b\'{a}sicos ({\tt int}, {\tt float}
+y {\tt char}) ocupan todos lo mismo (una posici\'on de memoria), y que los
+punteros ocupan tambi\'en una posici\'on de memoria, ?`cu\'{a}l
+ser\'{\i}a
+la direcci\'{o}n de {\tt g.e.a} si la direcci\'{o}n donde comienza
+{\tt f} es
+la 100? ?`Es posible calcular esta direcci\'{o}n durante la
+compilaci\'{o}n?
+¿Y la de {\tt g.b[f.a][g.a]}?
+\end{enumerate}
+\solucion
+\begin{enumerate}
+\item El tipo de \verb!f! y \verb!g! es
+exactamente el mismo, y podría definirse con la siguiente expresión
+de tipos:
+$$
+\begin{array}{l}
+ \textrm{registro}((\texttt{a}:\textrm{entero}) \times \\
+\;\;\;\;\;\;(\texttt{b}:\textrm{array}(0..9,\textrm{array}(0..4,\textrm{real}))) \times \\
+\;\;\;\;\;\;(\texttt{c}:\textrm{array}(0..3,\textrm{puntero}(\textrm{puntero}(\textrm{carácter})))) \times \\
+\;\;\;\;\;\;(\texttt{d}:\textrm{registro}((\texttt{a}:\textrm{real}) \times (\texttt{c}:\textrm{puntero}(\textrm{entero})))) \times \\
+\;\;\;\;\;\;(\texttt{e}:\textrm{registro}((\texttt{a}:\textrm{real}) \times (\texttt{c}:\textrm{puntero}(\textrm{entero}))))) \\
+\end{array}
+$$
+\item La tabla de tipos y las tablas de símbolos de los registros son:
+
+\begin{footnotesize}
+\begin{center}
+\begin{minipage}[t]{0.40\textwidth}
+\begin{center}
+~
+
+\begin{tabular}{|c|l|c|c|}
+\multicolumn{4}{c}{\sc Tabla de tipos} \\\hline
+{\sc Núm.} & {\sc Tipo} & {\sc D/T} & {\sc T.Base} \\\hline\hline
+0 & {\sc Entero} &  & \\\hline
+1 & {\sc Real} &  & \\\hline
+2 & {\sc Carácter} &  & \\\hline
+3 & {\sc Array} & 5 & 1 \\\hline
+4 & {\sc Array} & 10 & 3 \\\hline
+5 & {\sc Puntero} &  & 2 \\\hline
+6 & {\sc Puntero} &  & 5 \\\hline
+7 & {\sc Array} & 4 & 6 \\\hline
+8 & {\sc Puntero} &  & 0 \\\hline
+9 & {\sc Registro} &  & TS1 \\\hline
+10 & {\sc Registro} &  & TS2 \\\hline
+\end{tabular}
+\end{center}
+\end{minipage}
+\begin{minipage}[t]{0.35\textwidth}
+\begin{center}
+~
+
+\begin{tabular}{|c|c|c|}
+\multicolumn{3}{c}{\sc Tabla de símbolos TS1} \\\hline
+{\sc Nombre} & {\sc Tipo} & {\sc Dirección} \\\hline\hline
+a & 1 & 0 \\\hline
+c & 8 & 1 \\\hline
+\end{tabular}
+
+\vspace{0.5cm}
+~
+
+\begin{tabular}{|c|c|c|}
+\multicolumn{3}{c}{\sc Tabla de símbolos TS2} \\\hline
+{\sc Nombre} & {\sc Tipo} & {\sc Dirección} \\\hline\hline
+a & 0 & 0 \\\hline
+b & 4 & 1 \\\hline
+c & 7 & 51 \\\hline
+d & 9 & 55 \\\hline
+e & 9 & 57 \\\hline
+\end{tabular} 
+\end{center}
+\end{minipage}
+\end{center}
+\end{footnotesize}
+
+La tabla de símbolos sería:
+
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\multicolumn{3}{c}{\sc Tabla de símbolos global} \\\hline
+{\sc Nombre} & {\sc Tipo} & {\sc Dirección} \\\hline\hline
+f & 10 & 100 \\\hline
+g & 10 & 159 \\\hline
+\end{tabular}
+\end{center}
+\end{small}
+
+\item La dirección de \verb!g.e.a! sería:
+$$
+  159 (\textrm{g.}) + 57 (\textrm{e.}) + 0 (\textrm{a}) = 216
+$$
+Puesto que todas las direcciones son conocidas para el compilador,
+sería posible calcular esa dirección en tiempo de compilación. En
+realidad, el \emph{front end} generaría código para realizar ese
+cálculo en tiempo de ejecución, pero el optimizador se daría
+cuenta de que es posible realizar el cálculo en tiempo de compilación y
+sustituiría ese código por el valor calculado.
+
+Sin embargo, la dirección de \verb!g.b[f.a][g.a]! en principio no
+podría calcularse en tiempo de compilación, puesto que es muy difícil
+o incluso imposible
+conocer el valor que tendrían \verb!f.a! y \verb!g.a! en tiempo
+de ejecución. De todas maneras, el \emph{front end} haría lo mismo que
+en el caso anterior, generando código para realizar el cálculo en tiempo
+de ejecución. Si el optimizador puede averiguar con total seguridad el
+valor de \verb!f.a! y \verb!g.a!, podría calcular la dirección
+y sustituir todo el código por el valor calculado, como por ejemplo si
+aparece la siguiente secuencia de instrucciones:
+
+\begin{small}
+\begin{verbatim}
+ f.a = 7;
+ g.a = 2;
+ g.b[f.a][g.a] = 27 ; /* el optimizador lo convierte en la
+                        posición de memoria de 'g.b[7][2]' */
+\end{verbatim}
+\end{small}
+\end{enumerate}
+\end{soleje}
+
+\begin{soleje}
+Dada la siguiente declaración de variables en C:
+\begin{small}
+\begin{verbatim}
+ int a,*b[10];
+ int principal(int numargs,char **argumentos);
+ struct {
+     float c[4][5];
+     struct {
+         float x,y;
+     } puntos[15];
+ } d,f;
+\end{verbatim}
+\end{small}
+y suponiendo que los tipos básicos y los punteros ocupan sólo una posición de 
+memoria, 
+\begin{enumerate}
+\item Escríbanse las expresiones de tipos de cada uno de los símbolos que 
+aparecen en esas declaraciones.
+\item Dibújese la tabla de tipos y la tabla de símbolos en el estado en que 
+quedarían después de procesar las declaraciones.
+\item Explíquese cómo se calcularía la posición de memoria en la que está \newline
+{\tt d.puntos[7].y}.
+\item ¿Puede el compilador calcular {\em en todos los casos} esa posición 
+de memoria u otras con distinto índice para {\tt puntos}? ¿por qué?
+\end{enumerate}
+\solucion
+\begin{enumerate}
+\item Las expresiones de tipos serían:
+\begin{small}
+$$
+\begin{array}{|l|l|}\hline
+\texttt{a} & \textrm{entero} \\\hline
+\texttt{b} & \textrm{array}(0..9,\textrm{puntero}(\textrm{entero})) \\\hline
+\texttt{principal} & (\textrm{entero} \times \textrm{puntero}(\textrm{puntero}(\textrm{carácter}))) \rightarrow \textrm{entero} \\\hline
+\texttt{d} & \textrm{registro}((\texttt{c}:\textrm{array}(0..3,\textrm{array}(0..4,\textrm{real}))) \times \\
+           & \;\;\;\;\;\;(\texttt{puntos}:\textrm{array}(0..14,\textrm{registro}((\texttt{x}:\textrm{real}) \times (\texttt{y}:\textrm{real}))) \\\hline
+\texttt{f} & \textrm{(el mismo tipo que \texttt{d})} \\\hline
+\end{array}
+$$
+\end{small}
+\item La tabla de tipos y las tablas de símbolos de los registros son:
+
+\begin{footnotesize}
+\begin{center}
+\begin{minipage}[t]{0.40\textwidth}
+\begin{center}
+~
+
+\begin{tabular}{|c|l|c|c|}
+\multicolumn{4}{c}{\sc Tabla de tipos} \\\hline
+{\sc Núm.} & {\sc Tipo} & {\sc D/T} & {\sc T.Base} \\\hline\hline
+0 & {\sc Entero} &  & \\\hline
+1 & {\sc Real} &  & \\\hline
+2 & {\sc Carácter} &  & \\\hline
+3 & {\sc Puntero}  &  & 0 \\\hline
+4 & {\sc Array} & 10 & 3 \\\hline
+5 & {\sc Puntero}  &  & 2 \\\hline
+6 & {\sc Puntero}  &  & 5 \\\hline
+7 & {\sc Pcart} & 0 & 6 \\\hline
+8 & {\sc Función} & 7 & 0 \\\hline
+9 & {\sc Array} & 5 & 1 \\\hline
+10 & {\sc Array} & 4 & 9 \\\hline
+11 & {\sc Registro} & & TS1 \\\hline
+12 & {\sc Array} & 15 & 11 \\\hline
+13 & {\sc Registro} & & TS2 \\\hline
+\end{tabular}
+\end{center}
+\end{minipage}
+\begin{minipage}[t]{0.35\textwidth}
+\begin{center}
+~
+
+\begin{tabular}{|c|c|c|}
+\multicolumn{3}{c}{\sc Tabla de símbolos TS1} \\\hline
+{\sc Nombre} & {\sc Tipo} & {\sc Dirección} \\\hline\hline
+x & 1 & 0 \\\hline
+y & 1 & 1 \\\hline
+\end{tabular}
+
+\vspace{1cm}
+~
+
+\begin{tabular}{|c|c|c|}
+\multicolumn{3}{c}{\sc Tabla de símbolos TS2} \\\hline
+{\sc Nombre} & {\sc Tipo} & {\sc Dirección} \\\hline\hline
+c & 10 & 0 \\\hline
+puntos & 12 & 20 \\\hline
+\end{tabular} 
+\end{center}
+\end{minipage}
+\end{center}
+\end{footnotesize}
+
+La tabla de símbolos sería:
+
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\multicolumn{3}{c}{\sc Tabla de símbolos global} \\\hline
+{\sc Nombre} & {\sc Tipo} & {\sc Dirección} \\\hline\hline
+a & 0 & 100 \\\hline
+b & 4 & 101 \\\hline
+principal & 8 & Etiq. \\\hline
+d & 13 & 111 \\\hline
+f & 13 & 161 \\\hline
+\end{tabular}
+\end{center}
+\end{small}
+
+\item La dirección de ``\verb!d.puntos[7].y!'' se calcularía de la
+siguiente manera:
+$$
+  111 (\textrm{d.}) + 20 (\textrm{puntos}) + 7 * 2 (\textrm{tam. registro}) + 1 (\textrm{.y}) = 146
+$$
+\item En este caso, el \emph{front end} podría calcular esa dirección, pero
+genera código para que ese cálculo se haga en tiempo de ejecución. Sin embargo,
+si el índice de \verb!puntos! es constante (o puede ser constante), el
+optimizador sustituye todo el código generado por el \emph{front end} por la
+dirección ya calculada.
+\end{enumerate}
+\end{soleje}
+
+\begin{soleje}  \label{sc8:ejETDS1}
+Escríbase un ETDS que realice la siguiente traducci\'{o}n:
+
+\begin{description}
+\item[Lenguaje fuente:] expresiones aritm\'{e}ticas con enteros, 
+reales, identificadores de variables
+{\em predeclaradas}, los operadores ``{\tt  +}'', ``{\tt -}'', 
+``{\tt (}'', ``{\tt )''},  ``{\tt [}'' i ``{\tt ]}'',
+donde los operadores tienen la misma precedencia y asociatividad
+que en C o en Pascal (excepto los corchetes, que funcionan como los
+par\'{e}ntesis pero entregan la parte entera de la expresi\'{o}n que
+engloban; por ejemplo, {\tt [3.5+1]} vale {\tt 4}). La gramática
+que describe este lenguaje es muy similar a las utilizadas en los ejemplos
+de este y otros capítulos.
+\item[Lenguaje objeto:] un lenguaje basado en enteros,
+reales, identificadores y las funciones siguientes:
+\begin{center}
+\begin{tabular}{ll}
+{\tt int si(int, int)} & suma entera \\
+{\tt int ri(int, int)} & resta entera \\
+{\tt float sr(float, float)} & suma real \\
+{\tt float rr(float, float)} & resta real \\
+{\tt int t(float)}           & truncamiento a parte entera \\
+{\tt float r(int)}           & conversi\'{o}n de entero a real
+\end{tabular}
+\end{center}
+Al contrario que en el lenguaje fuente, en el lenguaje objeto no se
+permiten las conversiones implícitas de tipos, y por tanto los par\'ametros de estas
+funciones deben ser del tipo indicado en el prototipo\footnote{Es decir,
+no se puede hacer una llamada como {\tt sr(si(3,4.5),3.0)}.}.
+%
+\item[Restricciones sem\'{a}nticas:]
+Cuando un operador encuentra dos operandos enteros, el resultado es entero;
+si alguno de los operandos es real, el resultado tiene que ser real.
+\item[Ejemplos:] si {\tt a} es real y {\tt b} es entero, la
+siguiente tabla muestra las traducciones de algunas expresiones:
+
+\begin{tabular}{l|l}
+{\tt a+b-3.5}   & {\tt rr(sr(a,r(b)),3.5)}\\
+{\tt a+[b-3.5]} & {\tt  sr(a,r(t(rr(r(b),3.5))))} \\
+\end{tabular}
+\end{description}
+\solucion
+
+La solución de este ejercicio es:
+\begin{footnotesize}
+$$
+\begin{array}{lcll}
+\nter{E} \der \nter{$E_1$} \ter{addop} \nter{T} & \{\; si~~E_1.tipo = ENTERO ~~y~~ T.tipo = ENTERO ~~~entonces \\
+          & &            & ~~~~E.tipo := ENTERO \\
+          & &            & ~~~~E.cod := \textbf{addop}.trad \sep $``\verb!i(!''$ \sep E_1.cod \sep $``\verb!,!''$ \sep T.cod \sep $``\verb!)!''$ \\
+          & &            & ~~si\;\;no~~si~~E_1.tipo = ENTERO ~~y~~ T.tipo = REAL ~~~entonces \\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~E.cod := \textbf{addop}.trad \sep $``\verb!r(r(!''$ \sep E_1.cod \sep $``\verb!),!''$ \sep T.cod \sep $``\verb!)!''$ \\
+          & &            & ~~si\;\;no~~si~~E_1.tipo = REAL ~~y~~ T.tipo = ENTERO ~~~entonces \\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~E.cod := \textbf{addop}.trad \sep $``\verb!r(!''$ \sep E_1.cod \sep $``\verb!,r(!''$ \sep T.cod \sep $``\verb!))!''$ \\
+          & &            & ~~si\;\;no\\
+          & &            & ~~~~E.tipo := REAL \\
+          & &            & ~~~~E.cod := \textbf{addop}.trad \sep $``\verb!r(!''$ \sep E_1.cod \sep $``\verb!,!''$ \sep T.cod \sep $``\verb!)!''$ \\
+          & &            & ~~fsi \;\;\} \\
+\nter{E} \der \nter{T}   & \{\; E.cod := T.cod \\
+          & &            & ~~E.tipo := T.tipo \;\;\} \\
+\nter{T} \der \ter{nint} & \{\; T.cod := {\bf nint}.lexema \\
+          & &            & ~~T.tipo := ENTERO \;\} \\
+\nter{T} \der \ter{nfix} & \{\; T.cod := {\bf nfix}.lexema \\
+          & &            & ~~T.tipo := REAL \;\} \\
+\nter{T} \der \ter{id}   & \{\; T.cod := \textbf{id}.lexema \\
+          & &            & ~~T.tipo := TipoVar(\textbf{id}.lexema) \;\} \\
+\nter{T} \der \tertt{(} \nter{E} \tertt{)}  & \{\; T.cod := E.cod \\
+          & &            & ~~T.tipo := E.tipo \;\;\} \\
+\nter{T} \der \tertt{[} \nter{E} \tertt{]}  & \{\; si~~E.tipo = ENTERO~~entonces~~ \\
+          & &            & ~~~~~ T.cod := E.cod \\
+          & &            & ~~si\;\;no \\
+          & &            & ~~~~~ T.cod := $``\verb!t(!''$ \sep E.cod \sep $``\verb!)!''$ \\
+          & &            & ~~T.tipo := ENTERO \;\;\} \\
+\end{array}
+$$
+\paragraph{Notas:}
+\begin{enumerate}
+\item El atributo \textbf{addop}$.trad$ es la traducción de los operadores
+``\verb!+!'' y ``\verb!-!'' a ``\verb!s!'' y ``\verb!r!'', respectivamente.
+\item La función $TipoVar$ devuelve el tipo con el que se declaró la variable.
+\end{enumerate}
+\end{footnotesize}
+\end{soleje}
+
+\begin{soleje} \label{sc8:ejETDS2}
+Diséñese un ETDS que genere código objeto {\tt m2r} a partir de un lenguaje
+fuente con {\em arrays\/} que se declaran y utilizan como en el lenguaje Pascal. 
+
+ La parte del ETDS que se encarga de crear los tipos en la tabla de tipos
+y de almacenar los símbolos en la tabla de símbolos se debe suponer que ya
+está hecha. Solamente se debe hacer la parte del ETDS que genera código para
+acceder a las posiciones de un {\em array\/} o variable simple.
+
+\paragraph{Ejemplo:} Suponiendo las siguientes declaraciones de variables 
+globales,
+\begin{small}
+\begin{verbatim}
+   var
+       entero : a,b;
+       tabla 4..7 de real : ar;
+       tabla 10..11 de tabla 1..6 de entero : abe;
+   fvar
+\end{verbatim}
+\end{small}
+la parte del ETDS encargada de procesar las declaraciones 
+almacenaría los tipos y los símbolos en las tablas correspondientes,
+que quedarían de esta manera:
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|} \hline
+\multicolumn{6}{|c|}{\sc Tabla de Tipos} \\\hline
+{\sc Posición} & {\sc Tipo} & {\sc Tipo}   & {\sc Límite }    & {\sc Límite}   & {\sc Tamaño} \\
+               &            & {\sc básico} & {\sc inferior}   & {\sc superior} &              \\\hline\hline
+  0            & {\sc Entero} &  -         & -                & -              & - \\\hline
+  1            & {\sc Real}   &  -         & -                & -              & - \\\hline
+  2            & {\sc Array}  &  1         & 4                & 7              & 4 \\\hline
+  3            & {\sc Array}  &  0         & 1                & 6              & 6 \\\hline
+  4            & {\sc Array}  &  3         & 10               & 11             & 2 \\\hline             
+\end{tabular}
+\end{center}
+\end{small}
+
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|c|c|c|} \hline
+\multicolumn{4}{|c|}{\sc Tabla de Símbolos} \\\hline
+{\sc Posición} & {\sc Nombre} & {\sc Tipo} & {\sc Dirección } \\\hline
+  0            & {\tt a}      &  0         & 0                \\\hline
+  1            & {\tt b}      &  0         & 1                \\\hline
+  2            & {\tt ar}     &  2         & 2                \\\hline
+  3            & {\tt abe}    &  4         & 6                \\\hline
+\end{tabular}
+\end{center}
+\end{small}
+
+En este ETDS se supone que los tipos básicos (entero y real) ocupan solamente
+una posición de memoria, y debe tenerse en cuenta que
+en las tablas tanto el límite inferior como el superior están incluidos en
+el rango de valores posibles. Las funciones para acceder a los valores de las
+tablas de tipos y símbolos son:
+
+\begin{footnotesize}
+\begin{verbatim}
+booleano TT_EsArray(entero:posicion)    
+entero TT_TipoBasico(entero:posicion)
+entero TT_LimiteInferior(entero:posicion)
+entero TT_LimiteSuperior(entero:posicion)
+entero TT_Tamanyo(entero:posicion)
+entero TS_BuscaId(cadena:identificador) // devuelve la posicion o -1  
+                                            si no se ha declarado
+entero TS_TipoId(cadena:identificador)
+entero TS_DireccionId(cadena:identificador)
+\end{verbatim}
+\end{footnotesize}
+El fragmento de ETDS que se debe hacer es el asociado a las siguientes
+reglas:
+$$
+\begin{array}{lcl}
+\nter{Instr} \der \nter{Ref} \ter{assop} \nter{Expr} \\
+\nter{Factor}  \der \nter{Ref} \\
+\nter{Ref}   \der \ter{id} \\
+\nter{Ref}  \der \nter{Ref}  \ter{lcor} \nter{Esimple} \ter{rcor} \\
+\end{array}
+$$
+Se supone que {\em Factor}, {\em Esimple} y {\em Expr} tienen (al menos) tres
+atributos sintetizados: {\bf cod}, {\bf tipo} y {\bf tmp}, con el mismo
+significado que en los ejemplos de este capítulo. Las restricciones
+de tipos son las mismas que en Pascal y, aunque un compilador de Pascal 
+genera código para comprobar que el índice de un {\em array\/} está dentro del
+rango permitido, en este ETDS no se debe hacer.
+
+\solucion
+
+ La solución se muestra en la figura~\ref{sc8:fETDS2}, 
+empezando por las reglas más sencillas.
+
+% utiliza \obr, \tanc y \sep, definidas en solcap6.ptex y comandos.ptex
+
+\begin{figure}[tp] 
+\begin{footnotesize}
+$$
+\begin{array}{lcll}
+\nter{Ref}   \der \ter{id} & \obr Ref.dbase := \textrm{TS\_DireccionId}(\textbf{id}.lexema); \\
+             & &           & ~~~ tmp := \textrm{NuevaTemporal}(); \\
+             & &           & ~~~ Ref.tipo := \textrm{TS\_TipoId}(\textbf{id}.lexema); \\
+             & &           & ~~~ Ref.cod := $``\verb!mov #0!''$ \sep tmp ; \\
+             & &           & ~~~ Ref.tmp := tmp; \\
+             & &           & ~~~ Ref.tam := \textrm{TT\_Tamanyo}(Ref.tipo); \tanc \\
+\nter{Ref}  \der \nter{$Ref_1$}  \ter{lcor} & \obr si\;\;\;no\;\textrm{TT\_EsArray}(Ref_1.tipo)\;\;\;entonces \\
+            & &                         & ~~~~~~\textrm{ErrorSemántico(``la referencia no es array o sobran índices'')} \tanc \\
+            & &  \nter{Esimple} \ter{rcor} & \obr si\;\;\;Esimple.tipo \;!=\; ENTERO\;\;\;entonces\\
+            & &                            & ~~~~~~\textrm{ErrorSemántico(``el índice debe ser entero'')} \\
+            & &           & ~~~ Ref.dbase := Ref_1.dbase ; \\
+            & &           & ~~~ tmp := \textrm{NuevaTemporal}(); \\
+            & &           & ~~~ Ref.tmp := tmp; \\
+            & &           & ~~~ Ref.tipo := \textrm{TT\_TipoBasico}(Ref_1.tipo); \\
+            & &           & ~~~ Ref.tam := \textrm{TT\_Tamanyo}(Ref.tipo); \\
+            & &           & ~~~ Ref.cod := Ref_1.cod \sep Esimple.cod \sep \\
+            & &           & ~~~~~~~~~ $``\verb!mov !''$ \sep Ref_1.tmp \sep $``\verb!A!''$ \\
+            & &           & ~~~~~~~~~ $``\verb!muli #!''$ \sep Ref_1.tam \sep \\
+            & &           & ~~~~~~~~~ $``\verb!addi !''$ \sep Esimple.tmp \sep \\
+            & &           & ~~~~~~~~~ $``\verb!subi !''$ \sep \textrm{TT\_LimiteInferior}(Ref_1.tipo) \sep \\
+            & &           & ~~~~~~~~~ $``\verb!mov A !''$ \sep tmp \tanc \\
+\nter{Factor}  \der \nter{Ref} &\obr si\;\;\;\textrm{TT\_EsArray}(Ref.tipo)\;\;\;entonces \\
+                & &       & ~~~~~~~\textrm{ErrorSemántico(``faltan índices'')} \\
+                & &       & ~~~ tmp := \textrm{NuevaTemporal}(); \\
+                & &       & ~~~ Factor.tmp := tmp; \\
+                & &       & ~~~ Factor.tipo := Ref.tipo \\
+                & &       & ~~~ Factor.cod := Ref.cod \sep \\
+                & &       & ~~~~~~~~~ $``\verb!mov !''$ \sep Ref.tmp \sep $``\verb! A!''$ \sep \\
+                & &       & ~~~~~~~~~ $``\verb!muli #!''$ \sep Ref.tam \sep \\
+                & &       & ~~~~~~~~~ $``\verb!addi !''$ \sep Ref.dbase \sep \\
+                & &       & ~~~~~~~~~ $``\verb!mov @A !''$ \sep tmp \tanc \\
+\nter{Instr}  \der \nter{Ref}  \ter{assop} & \obr si\;\;\;\textrm{TT\_EsArray}(Ref_1.tipo)\;\;\;entonces \\
+            & &                            & ~~~~~~~\textrm{ErrorSemántico(``faltan índices'')} \tanc \\
+            & &  \nter{Expr} & \obr si\;\;\;Ref.tipo = ENTERO \;\;y\;\; Expr.tipo = REAL\;\;\;entonces\\
+            & &                            & ~~~~~~\textrm{ErrorSemántico(``no se puede asignar un real a una variable entera'')} \\
+            & &              & ~~~ si\;\;\;Ref.tipo = REAL \;\;y\;\; Expr.tipo = ENTERO\;\;\;entonces\\
+            & &              & ~~~~~~ tmp := \textrm{NuevaTemporal}(); \\
+            & &              & ~~~~~~ Instr.cod := Ref.cod \sep Expr.cod \sep \\
+            & &              & ~~~~~~~~~ $``\verb!mov !''$ \sep Expr.tmp \sep $``\verb! A!''$ \sep $``\verb!itor!''$ \sep \\
+            & &              & ~~~~~~~~~ $``\verb!mov A !''$ \sep tmp \sep \\
+            & &              & ~~~~~~~~~ $``\verb!mov !''$ \sep Ref.tmp \sep $``\verb! A!''$ \sep \\
+            & &              & ~~~~~~~~~ $``\verb!muli #!''$ \sep Ref.tam \sep \\
+            & &              & ~~~~~~~~~ $``\verb!addi !''$ \sep Ref.dbase \sep \\
+            & &              & ~~~~~~~~~ $``\verb!mov !''$ \sep tmp \sep $``\verb!@A!''$  \\
+            & &              & ~~~ si\;\;no \\
+            & &              & ~~~~~~ Instr.cod := Ref.cod \sep Expr.cod \sep \\
+            & &              & ~~~~~~~~~ $``\verb!mov !''$ \sep Ref.tmp \sep $``\verb! A!''$ \sep \\
+            & &              & ~~~~~~~~~ $``\verb!muli #!''$ \sep Ref.tam \sep \\
+            & &              & ~~~~~~~~~ $``\verb!addi !''$ \sep Ref.dbase \sep \\
+            & &              & ~~~~~~~~~ $``\verb!mov !''$ \sep Expr.tmp \sep $``\verb!@A!''$  \\
+            & &              & ~~~ fsi \tanc \\
+\end{array}
+$$
+\end{footnotesize}
+\caption{Solución del ejercicio~\refsoleje{sc8:ejETDS2}.} \label{sc8:fETDS2}
+\end{figure}
+\end{soleje}
+

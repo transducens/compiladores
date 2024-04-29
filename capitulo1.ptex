@@ -1,0 +1,970 @@
+
+%  falta revisar las definiciones de front end y back end (o ponerlas),
+% como las de la introducción de c2t2.tex. Al final de este fichero, 
+% en un "come" está esa introducción.
+
+\section{¿Qué es un compilador? Tipos de compiladores}
+
+Un {\em traductor}
+es cualquier programa que toma como entrada un texto escrito en un
+lenguaje, llamado fuente, y da como salida otro texto en un lenguaje
+denominado objeto.
+
+\begin{quote}
+\begin{center}
+\includegraphics{cap1f1.pdf}
+\end{center}
+\end{quote}
+
+En el caso de que el lenguaje fuente sea un lenguaje de programaci\'on
+de alto nivel y el objeto sea un lenguaje de bajo nivel (ensamblador
+o c\'odigo de m\'aquina), a dicho traductor se le denomina
+{\em compilador}. Un {\em ensamblador} es un compilador 
+cuyo lenguaje fuente es el lenguaje ensamblador.
+Por otro lado, un {\em int\'erprete} no genera un programa equivalente, sino
+que toma una sentencia del programa fuente en un lenguaje de alto
+nivel, la traduce al c\'odigo equivalente y al mismo tiempo la
+ejecuta.
+
+Hist\'oricamente, debido a la escasez de memoria de los primeros
+ordenadores, se puso de moda el uso de int\'erpretes frente a
+los compiladores, pues el programa fuente sin traducir y el
+int\'erprete juntos requerían una cantidad de memoria menor
+que la del compilador. Por ello, los primeros
+ordenadores personales (Spectrum, Commodore VIC-20, PC XT de IBM,
+etc.) iban siempre acompa\~nados de un int\'erprete de BASIC. 
+La mejor informaci\'on sobre los errores por parte del
+compilador as\'{\i} como una mayor velocidad de ejecuci\'on
+del c\'odigo resultante hizo que poco a poco se impusieran los
+compiladores. Hoy en d\'{\i}a, y con el problema de la memoria
+pr\'acticamente resuelto, se puede hablar de un gran predominio
+de los compiladores frente a los int\'erpretes, aunque
+int\'erpretes como los incluidos en los navegadores de Internet
+para Java son la gran excepci\'on.
+
+Algunas de las ventajas de compilar frente a interpretar son:
+\begin{itemize}
+	\item Se compila una vez; se ejecuta muchas veces.
+	\item La ejecución del programa objeto es mucho más rápida
+         que si se interpreta el programa fuente.
+	\item El compilador
+        tiene una visi\'on global del programa, por lo que la
+        informaci\'on de mensajes de error es más detallada.
+\end{itemize}
+
+Por otro lado, algunas de las ventajas de interpretar frente a compilar son:
+\begin{itemize}
+	\item Un int\'erprete
+        necesita menos memoria que un compilador. En las primeras etapas
+        de la informática eran m\'as
+        abundantes dado que los ordenadores ten\'{\i}an poca memoria.
+	\item Permiten una
+        mayor interactividad con el c\'odigo en tiempo de desarrollo.
+        \item En algunos lenguajes (Smalltalk, Prolog, LISP) está
+     permitido y es frecuente añadir código según se ejecuta otro código, y
+     esta característica solamente es posible implementarla en un intérprete.
+\end{itemize}
+
+Un compilador no es un programa que funciona de manera aislada, sino
+que normalmente se apoya en otros programas para conseguir su objetivo: 
+obtener un programa ejecutable a partir de un programa fuente en un lenguaje
+de alto nivel. Algunos de esos programas son el preprocesador, el
+enlazador (\emph{linker}), el depurador y el ensamblador. El preprocesador se
+ocupa (dependiendo del lenguaje) de incluir ficheros, expandir
+macros, eliminar comentarios, y otras tareas similares. El enlazador
+se encarga de construir el fichero ejecutable a\~nadiendo al
+fichero objeto generado por el compilador las cabeceras necesarias y
+las funciones de librer\'{\i}a utilizadas por el programa fuente.
+El depurador permite, si el compilador ha generado adecuadamente el
+programa objeto, seguir paso a paso la ejecuci\'on de un
+programa. Finalmente, muchos compiladores en vez de generar c\'odigo
+objeto, generan un programa en lenguaje ensamblador que debe despu\'es
+convertirse en un ejecutable mediante un programa ensamblador.
+
+\subsection{Tipos de compiladores}
+
+\begin{description}	
+\item{\em Ensamblador}:
+        el lenguaje fuente es lenguaje ensamblador y posee una estructura
+        sencilla.
+\item {\em Compilador cruzado}: se genera c\'odigo en lenguaje objeto para una
+        m\'aquina diferente de la que se est\'a utilizando para
+        compilar. Es perfectamente normal construir un compilador de Pascal
+        que genere c\'odigo para MS-DOS y que el compilador funcione en
+        Linux y se haya escrito en C++. Además, es la única manera de
+       construir un compilador para un nuevo procesador, para el que no
+      exista ningún otro tipo de compilador (excepto quizá un ensamblador).
+\item {\em Compilador con montador}: compilador que compila distintos 
+     m\'odulos de forma independiente y despu\'es es capaz de enlazarlos.
+\item {\em Autocompilador}:
+        compilador que est\'a escrito en el mismo lenguaje que va a
+        compilar. Evidentemente, no se puede ejecutar la primera vez. Sirve
+        para hacer ampliaciones al lenguaje, mejorar el c\'odigo
+        generado, etc.
+\item {\em Metacompilador}:
+        es sin\'onimo de compilador de compiladores y se refiere a un
+        programa que recibe como entrada las especificaciones del lenguaje
+        para el que se desea obtener un compilador y genera como salida el
+        compilador para ese lenguaje. Aunque en la construcción de
+        los compiladores actuales se utilizan múltiples herramientas para
+        ayudar en la generación de cada parte del compilador, no existen
+        herramientas ampliamente aceptadas excepto para las partes más 
+        sencillas y formales del compilador.
+\item{\em Descompilador}:
+        es un programa que acepta como entrada c\'odigo m\'aquina
+        y lo traduce a un lenguaje de alto nivel, realizando el proceso
+        inverso a la compilaci\'on.
+  \begin{quote}
+  \begin{center}
+  \includegraphics{cap1f2.pdf}
+  \end{center}
+  \end{quote}
+Si hay optimizaci\'on de c\'odigo es imposible descompilar.
+Hasta ahora no se han obtenido buenos descompiladores, sólo
+desensambladores. Para el lenguaje Java existen
+descompiladores que obtienen resultados bastante aceptables, aunque el Java
+no es un lenguaje compilado en el sentido estricto de la palabra, el código
+que se genera no se corresponde con ninguna máquina real y es de muy alto
+nivel, lo cual facilita su descompilación.
+\end{description}
+
+\section{Historia de los primeros compiladores}
+
+\subsection{El primer lenguaje y su compilador: FORTRAN}
+
+En 1946 se desarroll\'o el primer ordenador digital. En un principio, estas
+m\'aquinas ejecutaban instrucciones consistentes en c\'odigos
+num\'ericos que se\~nalaban a los circuitos de la m\'aquina
+los estados correspondientes a cada operaci\'on. Esta expresi\'on
+mediante c\'odigos num\'ericos se llam\'o {\em lenguaje
+m\'aquina}, interpretado por un secuenciador cableado o por
+un microprograma.
+
+Pero los c\'odigos num\'ericos de las m\'aquinas son
+engorrosos. Pronto los primeros usuarios de estos ordenadores
+descubrieron la ventaja de escribir sus programas mediante claves m\'as
+f\'aciles de recordar que esos c\'odigos num\'ericos;
+al final, todas esas claves juntas se traduc\'{\i}an manualmente a
+lenguaje m\'aquina. Estas claves constituyen los llamados
+\emph{lenguajes ensambladores}, que se generalizaron en cuanto se dio el
+paso decisivo de hacer que las propias m\'aquinas realizaran el
+proceso mec\'anico de la traducci\'on. A este trabajo se le
+llama \emph{ensamblar} el programa.
+
+Dada su correspondencia estrecha con las operaciones elementales de
+las m\'a\-qui\-nas, las instrucciones de los lenguajes ensambladores
+obligan a programar cualquier funci\'on de una manera minuciosa
+e iterativa. De hecho, normalmente, cuanto menor es el nivel de
+expresi\'on de un lenguaje de programaci\'on, mayor
+rendimiento se obtiene en el uso de los recursos f\'{\i}sicos
+(\emph{hardware}).
+
+A pesar de todo, el lenguaje ensamblador segu\'{\i}a siendo el de
+una m\'aquina, pero m\'as f\'acil de manejar. Los
+trabajos de investigaci\'on se orientaron entonces hacia la
+creaci\'on de un lenguaje que expresara las distintas acciones a
+realizar de una manera lo m\'as sencilla posible para el hombre.
+As\'{\i}, en 1950 John Backus dirigi\'o una investigaci\'on
+en I.B.M. sobre un lenguaje algebraico. En 1954 se empez\'o a
+desarrollar un lenguaje que permit\'{\i}a escribir f\'ormulas
+matem\'aticas de manera traducible por un ordenador; le llamaron
+FORTRAN (FORmulae TRANslator). Fue el primer lenguaje de
+alto nivel y se introdujo en 1957 para el uso de la computadora IBM
+modelo 704. Permit\'{\i}a una programaci\'on m\'as c\'omoda
+y breve que la existente hasta ese momento, lo que supon\'{\i}a un
+considerable ahorro de trabajo. Surgi\'o as\'{\i} por primera
+vez el concepto de un traductor como un programa que traduc\'{\i}a
+un lenguaje a otro lenguaje. En el caso particular de que el lenguaje
+a traducir es un lenguaje de alto nivel y el lenguaje traducido de
+bajo nivel, se emplea el t\'ermino {\em compilador}.
+
+La tarea de realizar un compilador no fue f\'acil. El primer
+compilador de FORTRAN tard\'o 18 a\~nos-persona en
+realizarse y era muy sencillo.
+Este desarrollo de FORTRAN estaba muy influenciado por la m\'aquina
+objeto en la que iba a ser implementado. Como un ejemplo de ello
+tenemos el hecho de que los espacios en blanco fuesen ignorados,
+debido a que el perif\'erico que se utilizaba como entrada de
+programas (una lectora de tarjetas perforadas) no contaba
+correctamente los espacios en blanco.
+
+\subsection{El lenguaje algorítmico ALGOL}
+
+Paralelamente al desarrollo de FORTRAN en Am\'erica, en Europa
+surgi\'o una corriente m\'as universitaria, que pretend\'{\i}a
+que la definici\'on de un lenguaje fuese independiente de la
+m\'aquina y que los algoritmos se pudieran expresar de
+forma m\'as simple.
+Esta corriente estuvo muy influida por los trabajos sobre gram\'aticas
+de contexto libre publicados por Chomsky dentro de su estudio de
+lenguajes naturales.
+
+Con estas ideas surgi\'o un grupo europeo encabezado por el
+profesor F.L.~Bauer (de la Universidad de Munich). Este grupo defini\'o
+un lenguaje de usos m\'ultiples independiente de una realizaci\'on
+concreta sobre una m\'aquina. Pidieron colaboraci\'on a la
+asociaci\'on americana A.C.M. (Association for Computing
+Machinery) y se form\'o un comit\'e en el que particip\'o
+J.~Backus que colaboraba en esta investigaci\'on. De esa
+uni\'on surgi\'o un informe que definía el International
+Algebraic Language (I.A.L.), publicado en Zurich en 1958.
+Posteriormente este lenguaje se llam\'o ALGOL 58 (ALGOritmic
+Language). En 1969, el lenguaje fue revisado y llev\'o a una
+nueva versi\'on que se llam\'o ALGOL 60. La versi\'on
+actual es ALGOL 68, un lenguaje modular estructurado en bloques, que
+es el precursor de muchos lenguajes posteriores, como Pascal, Modula, Ada,
+etc.
+
+En el ALGOL aparecen por primera vez muchos de los conceptos de los
+nuevos lenguajes algor\'{\i}tmicos:
+\begin{itemize}
+	\item Definici\'on de la sintaxis en notaci\'on BNF (Backus-Naur Form).
+	\item Formato libre.
+	\item Declaraci\'on expl\'{\i}cita de tipo para todos los identificadores.
+	\item Estructuras iterativas m\'as generales.
+	\item Recursividad.
+	\item Paso de par\'ametros por valor y por nombre.
+	\item Estructura de bloques, lo que determina la visibilidad de los 
+            identificadores.
+\end{itemize}
+
+\subsection{Las primeras técnicas para desarrollar compiladores}
+
+Junto a este desarrollo en los lenguajes, tambi\'en se iba
+avanzando en la t\'ecnica de compilaci\'on. En 1958 Strong
+y otros propon\'{\i}an una soluci\'on al problema de que un
+compilador fuera utilizable por varias m\'aquinas objeto. Este
+problema tiene una formulación simple: dados $M$ lenguajes 
+fuente y $N$ máquinas (lenguajes) objeto, construir de la
+forma más eficiente posible los $M \times N$ compiladores. La 
+solución consistió en dividir el compilador en dos partes,
+designadas como el ``{\em front end}'' y el ``{\em back
+end}''.
+
+A grandes rasgos, la primera fase ({\em front end}) es la encargada 
+de analizar el programa fuente, mientras que la segunda fase ({\em back end}) 
+se ocupa de generar c\'odigo para la m\'aquina objeto.
+La solución al problema de los $M \times N$
+compiladores consistió en diseñar $M$ {\em front ends\/} y $N$ {\em
+back ends\/}, utilizando como puente de uni\'on entre las dos partes un 
+lenguaje intermedio que se design\'o con el nombre de UNCOL (UNiversal
+Computer Oriented Language). Aunque se
+hicieron varios intentos para definir UNCOL, el proyecto se ha
+quedado simplemente en un ejercicio te\'orico. De todas formas,
+la divisi\'on de un compilador en {\em front end\/} y {\em back end\/}
+fue un adelanto muy importante y perdura en los compiladores actuales.
+
+Como estudiaremos más adelante, se puede hacer una división de un
+compilador a nivel lógico en una serie de fases, que en el código real
+del compilador están muy entrelazadas. Las fases más
+importantes son: análisis léxico, análisis sintáctico, análisis semántico, 
+generación de código y optimización.
+
+\subsubsection{Análisis léxico}
+
+En 1959 Rabin y Scott proponen el empleo de aut\'omatas deterministas y no
+deterministas para el reconocimiento lexicogr\'afico de los
+lenguajes. R\'apidamente se aprecia que la construcci\'on
+de analizadores l\'exicos a partir de expresiones regulares es
+muy \'util en la implementaci\'on de los compiladores. En
+1968 Johnson apunta diversas soluciones. En 1975, con la aparici\'on
+de LEX, surge el concepto de un generador autom\'atico de
+analizadores l\'exicos a partir de expresiones regulares, basado
+en el sistema operativo UNIX.
+
+\subsubsection{Análisis sintáctico}
+
+A partir de los trabajos de Chomsky ya citados, se produce una
+sistematizaci\'on de la sintaxis de los lenguajes de
+programaci\'on, y con ello un desarrollo de diversos m\'etodos
+de an\'alisis sint\'actico.
+Con la aparici\'on de la notaci\'on BNF -- desarrollada en
+primer lugar por Backus en 1960 cuando trabajaba en un borrador del
+ALGOL 60, modificada en 1963 por Naur y formalizada por Knuth en 1964
+-- se tiene una gu\'{\i}a para el desarrollo del an\'alisis
+sint\'actico.
+
+Los diversos m\'etodos de análisis sintáctico ({\em parsing\/}) 
+ascendente y descendente se desarrollan durante la d\'ecada de los 60.
+En 1959 Sheridan describe un m\'etodo de análisis sintáctico de FORTRAN que
+introduc\'{\i}a par\'entesis adicionales alrededor de los
+operandos para ser capaz de analizar las expresiones. M\'as
+adelante, Floyd introduce la t\'ecnica de la precedencia de
+operador y el uso de las funciones de precedencia. A mitad de la
+d\'ecada de los 60, Knuth define las gram\'aticas LR y
+describe la construcci\'on de una tabla can\'onica de
+análisis sintáctico LR.
+
+Por otra parte, el uso por primera vez de un analizador sintáctico descendente
+recursivo tuvo lugar en el a\~no 1961. En el a\~no 1968 se
+estudian y definen las gram\'aticas LL as\'{\i} como los
+analizadores sintácticos predictivos. Tambi\'en se estudia la eliminaci\'on
+de la recursividad por la izquierda de producciones que contienen
+acciones sem\'anticas sin afectar a los valores de los
+atributos.
+
+En los primeros a\~nos de la d\'ecada de los 70, se
+describen los m\'etodos SLR y LALR de análisis LR. Debido a su
+sencillez y a su capacidad de an\'alisis para una gran variedad
+de lenguajes, la t\'ecnica de análisis LR va a ser la elegida
+para los generadores autom\'aticos de analizadores sintácticos. A 
+mediados de los 70, Johnson crea el generador de analizadores 
+sint\'acticos YACC para funcionar bajo un entorno UNIX.
+
+\subsubsection{Análisis semántico}
+
+Junto al an\'alisis sint\'actico, tambi\'en se fue
+desarrollando el an\'alisis sem\'an\-tico. En los primeros
+lenguajes (FORTRAN y ALGOL 60) los tipos posibles de los datos eran
+muy simples y la comprobaci\'on de tipos muy sencilla. No
+se permit\'{\i}a la restricción de tipos (\emph{type coercion}), pues \'esta 
+era una cuesti\'on dif\'{\i}cil y era m\'as f\'acil no
+permitirla.
+Con la aparici\'on de ALGOL 68 se permit\'{\i}a que las
+expresiones de tipo fueran construidas sistem\'aticamente. M\'as
+tarde, de ah\'{\i} surgi\'o la equivalencia de tipos por
+nombre y la equivalencia estructural.
+
+\subsubsection{Generación de código y gestión de la memoria}
+
+ En la generación de código uno de los aspectos más importantes es
+la gestión que va a hacer el compilador de la memoria de la máquina
+objeto. En los primeros compiladores la memoria se gestionaba
+de forma estática. Sin embargo, la aparición de los subprogramas
+(y la recursividad) hizo necesario utilizar otro planteamiento
+para el manejo de la memoria: la pila. 
+
+El manejo de la memoria con una implementaci\'on tipo pila se
+us\'o por primera vez en 1958 en el primer proyecto de LISP. La
+inclusi\'on en el ALGOL 60 de procedimientos recursivos potenci\'o
+el uso de la pila como una forma c\'omoda de manejo de la
+memoria. Dijkstra introdujo posteriormente el uso del {\em display\/}
+para acceso a variables no locales en un lenguaje de bloques.
+
+Tambi\'en se desarrollaron estrategias para mejorar las rutinas
+de entrada y de salida de un procedimiento. Asimismo, y ya
+desde los a\~nos 60, se estudi\'o el paso de par\'ametros
+a un procedimiento por nombre, valor y por referencia.
+
+Con la aparici\'on de lenguajes que permiten la localizaci\'on
+din\'amica de datos, se desarrolla otra forma de manejo de la
+memoria, conocida por el nombre de {\em heap} (mont\'{\i}culo). Se
+han desarrollado varias t\'ecnicas para el manejo del {\em heap\/}
+y los problemas que con \'el se presentan, como son las
+referencias perdidas y la recogida de basura.
+
+\subsubsection{Optimización}
+
+La necesidad de la optimizaci\'on apareci\'o desde el
+desarrollo del primer compilador de FORTRAN. Backus comenta c\'omo
+durante el desarrollo del FORTRAN se ten\'{\i}a el miedo de que el
+programa resultante de la compilaci\'on fuera m\'as lento
+que si se hubiera escrito a mano. Para evitar esto, se introdujeron
+algunas optimizaciones en el c\'alculo de los \'{\i}ndices
+dentro de un bucle.
+
+Pronto se sistematizan y se recoge la divisi\'on de
+optimizaciones independientes de la m\'aquina y dependientes de
+la m\'aquina. Entre las primeras est\'an la propagaci\'on
+de valores, la eliminaci\'on de redundancias, etc. Entre las segundas 
+se podr\'{\i}a encontrar la localizaci\'on de registros, el uso de 
+instrucciones propias de la m\'aquina y el reordenamiento de c\'odigo.
+
+A partir de 1970 comienza el estudio sistem\'atico de las
+t\'ecnicas del an\'alisis de flujo de datos. Su repercusi\'on
+ha sido enorme en las t\'ecnicas de optimizaci\'on global
+de un programa.
+
+\subsection{Técnicas actuales para el desarrollo de compiladores}
+
+En la actualidad, el proceso de la compilaci\'on est\'a
+muy asentado. Un compilador es una herramienta bien conocida,
+dividida en diversas fases. Algunas de estas fases se pueden generar
+autom\'aticamente (analizador l\'exico y sint\'actico)
+y otras requieren una mayor atenci\'on por parte del diseñador de
+compiladores (las partes de traducci\'on y generaci\'on de
+c\'odigo).
+
+De todas formas, y en contra de lo que quiz\'a pueda pensarse,
+todav\'{\i}a se est\'an llevando a cabo varias v\'{\i}as de
+investigaci\'on en este fascinante campo de la compilaci\'on.
+Por una parte, se est\'an mejorando las diversas herramientas
+disponibles y por otra, la aparici\'on
+de nuevas generaciones de lenguajes ha
+provocado la revisi\'on y optimizaci\'on de cada una de las
+fases del compilador.
+
+Uno de los \'ultimos lenguajes de programaci\'on de amplia aceptaci\'on
+que se ha dise\~nado, el lenguaje Java, establece que el
+compilador no genera c\'odigo para una m\'aquina
+determinada sino para una virtual, la {\em Java Virtual Machine}
+(JVM), que posteriormente ser\'a ejecutado por un int\'erprete,
+normalmente incluido en un navegador de Internet. El gran objetivo de
+esta exigencia es conseguir la m\'axima portabilidad de los
+programas escritos y compilados en Java, pues es \'unicamente la
+segunda fase del proceso la que depende de la m\'aquina concreta
+en la que se ejecuta el int\'erprete.
+
+\section{Estructura de un compilador}
+
+ Un compilador es un programa muy complejo en el que es difícil
+distinguir claramente unas partes de otras. Sin embargo, se ha
+conseguido establecer una división lógica del compilador en fases,
+lo cual ha permitido formalizar y estudiar por separado cada fase.
+En la práctica estas fases no funcionan secuencialmente, sino que
+actuan muchas veces simultáneamente o como subrutinas de otras
+fases. 
+
+\subsection{Las fases de un compilador}
+
+La división en fases de un compilador nos ayuda a entender mejor las diversas
+tareas que debe realizar y nos permite un estudio
+independiente y en profundidad de cada una de ellas (véase la 
+figura~\ref{ffases}). 
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.7\textwidth]{cap1f3.pdf}
+\end{center}
+\caption{Etapas que constituyen el proceso de la compilaci\'on.}
+\label{ffases}
+\end{figure}
+Estudiemos ahora cada una de las fases con un poco m\'as de
+detenimiento.
+
+\subsubsection{An\'alisis l\'exico}
+
+El {\em analizador l\'exico}, tambi\'en conocido como {\em scanner}, lee
+los caracteres uno a uno desde la entrada y va formando grupos de
+caracteres con alguna relaci\'on entre s\'{\i} ({\em tokens}),
+que constituir\'an la entrada para la siguiente etapa del
+compilador. Cada {\em token} representa una secuencia de caracteres
+que son tratados como una \'unica entidad. Por ejemplo, en
+Pascal un {\em token} es la palabra reservada {\tt BEGIN}, en C 
+{\tt while}, etc.
+
+Hay dos tipos de {\em tokens}: cadenas espec\'{\i}ficas, tales como
+palabras reservadas ({\bf if}, {\bf while}, {\bf begin}, etc.), el
+punto y coma, los operadores aritm\'eticos
+o l\'ogicos, etc.; y cadenas no espec\'{\i}ficas, como
+identificadores, constantes o etiquetas.
+
+Se considera que un {\em token} tiene dos partes componentes: el
+tipo de {\em token} y su valor o {\em lexema}. Algunas cadenas 
+espec\'{\i}ficas s\'olo tienen tipo (lo que representan), mientras que 
+las cadenas no espec\'{\i}ficas siempre tienen tipo y valor. Por ejemplo, 
+si ``{\tt Contador}'' es un identificador, el tipo de {\em token} ser\'a
+\emph{identificador} y su valor ser\'a la cadena ``{\tt Contador}''.
+
+El analizador l\'exico es la etapa del compilador que permite
+saber si es un lenguaje de formato libre o no.
+Frecuentemente va unido al analizador sint\'actico en la misma
+pasada, y funciona como una subrutina de este \'ultimo.
+Ya que es el que va leyendo los caracteres del programa, ignorar\'a
+aquellos elementos innecesarios para la siguiente fase, como los
+tabuladores, comentarios, espacios en blanco, etc.
+
+\come{
+\begin{tabular}{ccccc}
+                             & {\tt CONT} & \verb!*! & \verb!+! & {\tt CONT} \\
+               &  $\downarrow$  & $\downarrow$ & $\downarrow$ & $\downarrow$ \\
+Análisis léxico $\rightarrow$ &   id       &  por     &  mas     &   id       \\
+\end{tabular}
+} % come
+
+\subsubsection{An\'alisis sint\'actico}
+
+
+El {\em analizador sint\'actico}, tambi\'en llamado {\em parser}, recibe
+como entrada los {\em tokens} que le pasa el analizador l\'exico
+(el analizador sint\'actico no maneja directamente caracteres) y
+comprueba si esos {\em tokens} van llegando en el orden correcto
+(orden permitido por el lenguaje). La salida ``te\'orica''
+de la fase de an\'alisis sint\'actico ser\'{\i}a un \'arbol
+sint\'actico.
+
+As\'{\i} pues, sus funciones son:
+\begin{itemize}
+	\item Guiar el
+        proceso de traducci\'on ({\em traducci\'on dirigida por la
+        sintaxis}) mientras se analiza el programa fuente. Si al final
+        del análisis no se ha encontrado ningún error, se habrá obtenido
+        el código intermedio y podrá ser procesado por las siguientes fases.
+	\item Cuando el programa fuente es incorrecto, producir un
+        mensaje de error adecuado.
+\end{itemize}
+
+ Un aspecto importante en el diseño del analizador sintáctico es que
+ se debe tratar de hacer expl\'{\i}cito el orden jer\'arquico que tienen los
+ operadores en el lenguaje de que se trate. Por ejemplo, la cadena
+ A/B*C es interpretada como (A/B)*C en FORTRAN y como A/(B*C) en APL.
+
+\subsubsection{An\'alisis sem\'antico}
+
+
+El an\'alisis sem\'antico es mucho m\'as
+dif\'{\i}cil de formalizar. Se trata de determinar
+el tipo de los resultados intermedios, comprobar que los argumentos
+que tiene un operador pertenecen al conjunto de los operandos
+posibles, y si son compatibles entre s\'{\i}, etc. En definitiva,
+comprobar\'a que el significado de lo que se va leyendo es
+v\'alido.
+
+La salida ``te\'orica'' de la fase de an\'alisis
+sem\'an\-tico ser\'{\i}a un \'arbol sem\'an\-tico.
+Consiste en un \'arbol sint\'actico en el que cada una de
+sus ramas ha adquirido el significado que debe tener.
+
+En el caso de los operadores polim\'orficos (un \'unico
+s\'{\i}mbolo con varios significados), el an\'alisis sem\'antico
+determina cu\'al es el aplicable. Por ejemplo, consideremos la
+siguiente sentencia de asignaci\'on:
+
+\begin{center}
+\begin{verbatim}
+  A := B + C
+\end{verbatim}
+\end{center}
+
+En Pascal, el signo
+``\verb!+!'' sirve para sumar enteros y reales, concatenar cadenas
+de caracteres y unir conjuntos. El an\'alisis sem\'antico
+debe comprobar que \verb+B+ y \verb+C+ sean de un tipo com\'un o compatible y
+que se les pueda aplicar dicho operador. Si \verb+B+ y \verb+C+ son enteros o
+reales los sumar\'a, si son cadenas las concatenar\'a y si
+son conjuntos calcular\'a su uni\'on.
+
+Un resumen de las tareas de análisis que hace un compilador con un
+programa dado se puede ver en el ejemplo siguiente:
+
+\come{ % puede producir PE
+\begin{ejemplo} \label{ejcomp}
+\vspace{-0.9em}
+\begin{small}
+\begin{verbatim}
+VAR
+  ch : CHAR;    (* Un identificador no se puede utilizar si *)
+  ent: INTEGER; (* previamente no se ha definido.           *)
+
+...
+
+  ch := ent + 1; (* En Pascal no es válido, en C sí. *)
+\end{verbatim}
+
+\begin{tabular}{ll}
+An\'alisis L\'exico: &  Devuelve la secuencia de {\em tokens}: \\
+                     &  {\bf ~~~~~~id asig id suma numero ptocoma} \\
+An\'alisis Sint\'actico: &     Orden de los {\em tokens} v\'alido \\
+An\'alisis Sem\'antico:  &       Tipos incorrectos en la asignación \\
+\end{tabular}
+\end{small}
+\end{ejemplo}
+} %come
+
+\subsubsection{Generaci\'on de c\'odigo intermedio} \label{sub:gci}
+
+Cuando una empresa
+desarrolla un compilador para un lenguaje fuente y un lenguaje objeto
+determinados, normalmente no es el \'unico compilador que la
+empresa piensa desarrollar; es m\'as, muchos fabricantes de
+microprocesadores tienen una divisi\'on dedicada a desarrollar
+compiladores para los nuevos chips que construyen.
+
+Cuando el n\'umero de lenguajes fuente crece hasta un valor
+grande $M$, o cuando el n\'umero de lenguajes objeto
+tambi\'en crece hasta un valor grande $N$, es
+necesario encontrar una t\'ecnica para evitar tener que dise\~nar
+$M \times N$ compiladores. 
+Como hemos comentado anteriormente, la soluci\'on consiste en utilizar 
+un lenguaje intermedio o una representaci\'on intermedia; de esta forma s\'olo
+hay que construir $M$ programas que traduzcan de cada lenguaje
+fuente al lenguaje intermedio (los {\em front ends}), y $N$
+programas que traduzcan del lenguaje intermedio a cada lenguaje
+objeto (los {\em back ends}). Desgraciadamente, no existe un \'unico
+lenguaje intermedio en todos los compiladores, sino que cada empresa
+que dise\~na compiladores suele tener su propio lenguaje
+intermedio. La utilizaci\'on de un lenguaje intermedio permite
+construir en mucho menos tiempo un compilador para otra m\'aquina
+y tambi\'en permite construir compiladores para otros lenguajes
+fuente generando c\'odigo para la misma m\'aquina. 
+
+Por ejemplo, el compilador de C de GNU que se distribuye con Linux es
+una versi\'on de una familia de compiladores de C para
+diferentes m\'aquinas o sistemas operativos: Alpha, AIX, Sun,
+HP, MS-DOS, etc. Adem\'as, GNU ha desarrollado un compilador de
+FORTRAN y otro de Pascal que, al utilizar el mismo lenguaje
+intermedio, pueden ser portados a todos los sistemas y m\'aquinas
+en las que ya exista un compilador de C de GNU con relativamente poco
+esfuerzo.
+
+La generaci\'on de c\'odigo intermedio transforma un \'arbol
+de an\'alisis sint\'ac\-tico (sem\'an\-tico) en una
+representaci\'on en un lenguaje intermedio, que suele ser c\'odigo
+suficientemente sencillo para poder luego generar c\'odigo
+m\'aquina.
+
+Una forma de hacer esto es mediante el llamado {\em c\'odigo de
+tres direcciones}. Una sentencia en c\'odigo de tres
+direcciones es $A\; :=\; B\; op\; C$,
+donde $A$, $B$ y $C$ son operandos y $op$ es un
+operador binario. Tambi\'en se permiten condicionales simples y
+saltos. Por ejemplo, para la siguiente sentencia:
+
+\begin{center}
+\begin{verbatim}
+   WHILE (A>B) AND (A<=2*B-5) DO A:=A+B
+\end{verbatim}
+\end{center}
+
+el c\'odigo
+intermedio generado (c\'odigo en tres direcciones) ser\'a:
+
+\begin{center}
+\begin{verbatim}
+L1:     IF A>B GOTO L2
+        GOTO L3
+L2:     T1 := 2*B        (* nivel más alto que ensamblador *)
+        T2 := T1-5       (* pero más sencillo que Pascal *)
+        IF A<=T2 GOTO L4
+        GOTO L3
+L4:     A := A+B
+        GOTO L1
+L3:     .....
+\end{verbatim}
+\end{center}
+
+\subsubsection{Optimizaci\'on de c\'odigo}
+
+En un compilador es posible realizar mejoras en el código 
+intermedio\footnote{El código generado por el generador de código intermedio no
+suele (ni debe) ser muy eficiente.} y en el código objeto. La mayoría de los
+compiladores suelen tener una fase de optimización de código intermedio (que
+es independiente del lenguaje objeto y del lenguaje fuente), y una fase de
+optimización del código objeto, que suele estar muy relacionada con la fase
+de generación de código objeto y suele incluir optimizaciones dependientes
+de la máquina objeto y, por tanto, no aplicables a otras máquinas.
+
+Estas fases se a\~naden al compilador para conseguir que el programa objeto sea 
+m\'as r\'apido en la ejecuci\'on y necesite menos memoria a
+la hora de ejecutarse. El t\'ermino optimizaci\'on no es
+correcto, ya que nunca podemos asegurar que conseguimos un programa
+\'optimo. Con una buena optimizaci\'on, el tiempo de
+ejecuci\'on puede llegar a reducirse a la mitad, aunque hay
+compiladores que pueden no llevar esta etapa y generar
+directamente c\'odigo m\'aquina. Ejemplos de posibles
+optimizaciones locales:
+\begin{itemize}
+	\item cuando hay dos
+        saltos seguidos, se puede quedar uno solo. El fragmento de programa
+        del ejemplo anterior (ver sección~\ref{sub:gci}) quedar\'{\i}a as\'{\i}:
+\begin{center}
+\begin{verbatim}
+L1:        IF A<=B GOTO L3        (*)
+           T1 := 2 * B
+           T2 := T1 - 5
+           IF A>T2 GOTO L3        (*)
+           A := A + B
+           GOTO L1
+L3:        .....
+\end{verbatim}
+\end{center}
+De esta forma, se eliminan algunas instrucciones, lo cual 
+supone un ahorro en tiempo y espacio.
+
+\item Eliminar expresiones comunes en favor de una sola expresi\'on. Por
+        ejemplo:
+\begin{center}
+\begin{verbatim}
+A := B+C+D
+E := B+C+F
+\end{verbatim}
+\end{center}
+se convierte en:
+\begin{center}
+\begin{verbatim}
+T1 := B+C
+A  := T1+D
+E  := T1+F
+\end{verbatim}
+\end{center}
+
+\item Optimizaci\'on
+        de bucles. Se trata de sacar de los bucles las
+        expresiones que sean invariantes dentro de ellos. Por ejemplo, dado
+        el siguiente c\'odigo:
+
+\begin{center}
+\begin{verbatim}
+REPEAT
+  B := 1
+  A := A-B
+UNTIL A=0
+\end{verbatim}
+\end{center}
+
+la asignaci\'on \verb+B:=1+ se puede realizar fuera del bucle.
+\end{itemize}
+
+\subsubsection{Generaci\'on de c\'odigo objeto}
+
+
+En esta parte el
+c\'odigo intermedio optimizado es traducido a una secuencia de
+instrucciones en ensamblador o en el c\'odigo de m\'aquina
+del procesador que nos interese. Por ejemplo, la sentencia \verb!A:=B+C!
+ se convertir\'a en:
+
+\begin{center}
+\begin{verbatim}
+           LOAD  B
+           ADD  C
+           STORE A
+\end{verbatim}
+\end{center}
+
+suponiendo que
+estas instrucciones existan de esta forma en el ordenador de que se
+trate.
+
+Una conversi\'on tan directa produce generalmente un programa
+objeto que contiene muchas cargas ({\em loads}) y almacenamientos
+({\em stores}) redundantes, y que utiliza los recursos de la m\'aquina
+de forma ineficiente. Existen t\'ecnicas para mejorar esto, pero
+son complejas. Una, por ejemplo, es tratar de utilizar al m\'aximo
+los registros de acceso r\'apido que tenga la m\'aquina.
+As\'{\i}, en el procesador 8086 tenemos los registros internos AX,
+BX, CX, DX, etc. y podemos utilizarlos en vez de direcciones de
+memoria.
+
+\subsubsection{Tabla de s\'{\i}mbolos}
+
+
+Un compilador necesita guardar y usar la informaci\'on de los objetos que se
+va encontrando en el texto fuente, como variables, etiquetas,
+declaraciones de tipos, etc. Esta informaci\'on se almacena en
+una estructura de datos interna conocida como tabla de s\'{\i}mbolos.
+
+El compilador debe desarrollar una serie de funciones relativas a la
+manipulaci\'on de esta tabla como insertar un nuevo elemento en
+ella, consultar la informaci\'on relacionada con un s\'{\i}mbolo,
+borrar un elemento, etc. Como se tiene que acceder mucho a la tabla
+de s\'{\i}mbolos, los accesos deben ser lo m\'as r\'apidos
+posibles para que la compilaci\'on sea eficiente.
+
+\subsubsection{Manejo de errores}
+
+
+Es una de las misiones m\'as importantes de un compilador, aunque, al mismo
+tiempo, es la que m\'as dificulta su realizaci\'on. Donde
+m\'as se utiliza es en las etapas de an\'alisis sint\'actico
+y sem\'antico, aunque los errores se pueden descubrir en
+cualquier fase de un compilador. Es una tarea dif\'{\i}cil, por dos
+motivos:
+\begin{itemize}
+	\item A veces unos errores ocultan otros.
+	\item A veces un
+        error provoca una avalancha de muchos errores que se solucionan con
+        el primero.
+\end{itemize}
+
+Es conveniente un buen manejo de errores, y que el compilador detecte
+todos los errores que tiene el programa y no se pare en el primero
+que encuentre. Hay, pues, dos criterios a seguir a la hora de manejar
+errores:
+\begin{enumerate}
+	\item Pararse al detectar el primer error.
+	\item Una vez detectado el primer error, {\em recuperar\/} el
+    proceso normal de análisis y detectar todos los errores de una pasada.
+\end{enumerate}
+
+En el caso de un compilador interactivo (dentro de un entorno de
+desarrollo integrado, como Turbo-Pascal o Borland C++) no importa que
+se pare en el primer error detectado, debido a la rapidez y facilidad
+para la correcci\'on de errores.
+
+\subsection{Implementación del compilador a partir de las fases}
+
+Al principio de la historia de los compiladores, el tama\~no del
+programa ejecutable era un recurso cr\'{\i}tico, as\'{\i} como la
+memoria que utilizaba el compilador para sus datos, por lo que 
+era frecuente que cada fase leyera un fichero escrito por la fase
+anterior y produjera un nuevo fichero con el resultado de las
+transformaciones realizadas en dicha fase. Esta t\'ecnica
+(inevitable en aquellos tiempos) hac\'{\i}a que el compilador
+realizara muchas pasadas sobre el programa fuente.
+
+En los \'ultimos a\~nos el tama\~no del fichero
+ejecutable de un compilador es relativamente peque\~no comparado
+con el de otros programas del sistema, y adem\'as (gracias a los
+sistemas de memoria virtual) normalmente no se tienen problemas de
+memoria para compilar un programa medio. Por estos motivos, y dado
+que escribir y leer un fichero de tama\~no similar o mayor que
+el del programa fuente en cada fase es una p\'erdida
+considerable de tiempo (incluso en los sistemas modernos), la
+tendencia actual es la de reducir el n\'umero de ficheros que se
+leen o escriben y por tanto reducir el n\'umero de pasadas,
+incluso el de aquellas que se realizan en memoria, sin
+escribir ni leer nada del disco. En las primeras épocas de la
+historia de los compiladores había compiladores que realizaban todas
+las fases en una única pasada, pero producían un código
+bastante ineficiente.
+
+Como hemos estudiado anteriormente, las fases se agrupan en dos partes 
+o etapas: {\em front end} (las
+fases de an\'alisis y generación de código intermedio) 
+y {\em back end} (las fases de generaci\'on
+y optimizaci\'on de c\'odigo). Estas dos etapas se
+comunican mediante una representaci\'on intermedia (generada por
+el {\em front end}), que puede ser una representaci\'on de la
+sintaxis del programa (un \'arbol sint\'actico abstracto) o
+bien puede ser un programa en un lenguaje intermedio. El {\em front end}
+depende del lenguaje fuente y casi siempre es independiente (o debe
+serlo) de la m\'aquina objeto para la que se va a generar
+c\'odigo; el {\em back end} depende del lenguaje objeto y debe
+ser independiente del lenguaje fuente, excepto quiz\'a para
+alg\'un tipo de optimizaci\'on (véase la figura~\ref{ffebe}).
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[height=0.6\textheight]{cap1f4.pdf}
+\end{center}
+\caption{Organización de las fases en {\em front end\/} y {\em back end\/}.}
+\label{ffebe}
+\end{figure}
+
+
+ En los compiladores actuales, el {\em front end\/} suele realizar 
+una pasada o como mucho dos pasadas: en la primera se construye un árbol
+sintáctico abstracto y en la siguiente se recorre el árbol y se genera
+la representación intermedia. El {\em back end\/} suele llevar al menos
+una primera pasada de optimización del código fuente, y una o más pasadas
+para generar código objeto y optimizarlo.
+
+\section{¿Cómo se especifica un compilador?}
+
+
+Cuando se va a dise\~nar un compilador, puesto que se trata de un traductor
+entre dos lenguajes, es necesario especificar el lenguaje fuente y el
+lenguaje objeto, as\'{\i} como el sistema operativo sobre el que va
+a funcionar el compilador y el lenguaje utilizado para construirlo.
+Existen algunas herramientas formales para especificar
+los lenguajes objeto, pero no existe ninguna herramienta cuyo uso sea
+extendido. 
+
+La especificaci\'on del lenguaje fuente se divide en tres
+partes:
+\begin{description}
+\item{\bf Especificaci\'on l\'exica:} 
+      en esta parte se especifican los componentes l\'exicos
+        ({\em tokens}) o palabras del lenguaje; para ello se utilizan
+        expresiones regulares. A partir de estas expresiones regulares se
+        construye el analizador l\'exico del compilador.
+\item{\bf Especificaci\'on sint\'actica:} 
+        en esta parte se detalla la forma o estructura
+        (la sintaxis) que tendr\'an los programas en este lenguaje
+        fuente. Para esta tarea se utiliza una gram\'atica
+        independiente del contexto o un diagrama
+        sint\'actico que posteriormente se convierte en una gram\'atica;
+        a partir de la gram\'atica se construye el analizador
+        sint\'actico del compilador.
+\item{\bf Especificaci\'on sem\'antica:} 
+       en esta parte se describe el significado de cada
+        construcci\'on sint\'actica y las reglas sem\'anticas
+        que deben cumplirse; aunque existen notaciones formales para
+        especificar la sem\'antica de un lenguaje, normalmente se
+        especifica con palabras (lenguaje natural). Algunas veces es posible
+        recoger en la especificaci\'on sint\'actica algunas partes
+        (restricciones, asociatividad y precedencia, etc.) de la
+        especificaci\'on sem\'antica. El analizador sem\'antico
+        y el generador de c\'odigo intermedio se construyen a partir de
+        la especificaci\'on sem\'antica.
+\end{description}
+
+
+\section{Aplicaciones de estas técnicas}
+
+
+La importancia pr\'actica de los traductores de lenguajes en inform\'atica
+se manifiesta principalmente en el uso cotidiano que hace el
+profesional inform\'atico de compiladores e int\'erpretes,
+consustancial a la gesti\'on y programaci\'on de los
+sistemas inform\'aticos. As\'{\i} pues, un conocimiento acerca
+del funcionamiento interno de estas herramientas b\'asicas
+resulta fundamental. Pero los conocimientos adquiridos en su estudio
+encuentran aplicaci\'on fuera del campo de la compilaci\'on.
+
+Ya Nicklaus Wirth apunt\'o la importancia del estudio del
+desarrollo de compiladores para el ingeniero en inform\'atica,
+puesto que son programas muy complejos y que, por tanto, requieren de
+una t\'ecnica de programaci\'on disciplinada y
+estructurada, y porque adem\'as desarrolla la visi\'on
+recursiva del programador, inherente a la compilaci\'on. S\'olo
+por esos motivos ya es interesante el estudio de estas t\'ecnicas.
+Por otro lado, es probable que pocas personas con esta formaci\'on
+tengan que realizar o mantener un compilador para un lenguaje de
+programaci\'on, pero muchos pueden obtener provecho del uso de
+un gran n\'umero de sus t\'ecnicas para el dise\~no de
+{\em software} en general.
+
+En efecto, entre los campos de la inform\'atica en los que
+encuentran aplicaci\'on las t\'ecnicas desarrolladas en este
+libro se pueden citar los siguientes:
+\begin{itemize}
+\item Desarrollo de
+        interfaces textuales. Cualquier programa cuya interacci\'on con
+        el usuario sea algo m\'as que pulsar teclas de opciones o
+        pinchar aqu\'{\i} o all\'a con el rat\'on necesitar\'a
+        de estas t\'ecnicas para interpretar comandos o cualquier tipo
+        de di\'alogo hombre-m\'aquina.
+\item Tratamiento de
+        ficheros de texto con informaci\'on estructurada. Lenguajes
+        como Perl y Tcl, o comandos como el sed o egrep de UNIX, incorporan
+        tratamiento de expresiones regulares para la detecci\'on y/o
+        modificaci\'on de patrones en textos.
+\item Procesadores
+        de texto. Procesadores como vi o Emacs incorporan tambi\'en la
+        posibilidad de efectuar b\'usquedas y sustituciones mediante
+        expresiones regulares. Existen tambi\'en procesadores (entre
+        ellos el Emacs) capaces de analizar y tratar ficheros de textos de
+        organizaci\'on compleja.
+\item Dise\~no
+        e interpretaci\'on de lenguajes para el formateo de texto y
+        descripci\'on de gr\'aficos. Sistemas de formateo de texto
+        (como HTML o \TeX) o para la especificaci\'on de tablas
+        (tbl), ecuaciones (eqn), gr\'aficos (Postscript), etc.
+        requieren sofisticados macroprocesadores.
+\item Gesti\'on
+        de bases de datos. Las t\'ecnicas que estamos considerando
+        pueden explotarse tanto en la exploraci\'on y proceso de
+        ficheros de informaci\'on como en la realizaci\'on de la
+        interfaz de usuario.
+\item Procesamiento
+        del lenguaje natural. Las primeras fases de cualquier manipulaci\'on
+        de textos escritos en lenguaje natural son las de an\'alisis
+        l\'exico y sint\'actico. M\'as a\'un nos
+        acercamos a las t\'ecnicas propias de la compilaci\'on
+        cuando hablamos de traducci\'on autom\'atica.
+\item Traducci\'on
+        de formatos de ficheros. Si conocemos la estructura de los datos de
+        ficheros con registros de programas obsoletos podremos, utilizando
+        t\'ecnicas de traducci\'on propias de la compilaci\'on,
+        actualizarlos a formatos actualizados.
+\item C\'alculo
+        simb\'olico. Manejo simbólico de f\'ormulas.
+\item Reconocimiento
+        de formas. Las t\'ecnicas de an\'alisis sint\'actico
+        son ampliamente utilizadas en la detecci\'on de patrones en
+        textos, el reconocimiento autom\'atico del habla o la visi\'on
+        por computador.
+\end{itemize}
+
+
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{1.1, 1.2, 1.3 y 1.5}
+\refb{\cite{ASU90}}{1.1, 1.2, 1.3, 1.4, 1.5 y 1.6}
+\refb{\cite{Ben90}}{1.1 y 1.2}
+\refb{\cite{FL91}}{1.1, 1.2, 1.3 y 7.1.2}
+\end{rbib}
+

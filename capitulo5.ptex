@@ -1,0 +1,1148 @@
+
+\section{Introducción}
+
+Recordemos ahora
+del capítulo de an\'alisis sint\'actico que el an\'alisis
+ascendente, parte de la cadena de entrada y construye la
+inversa de la derivación por la derecha para ella, que representa 
+un recorrido del \'arbol
+de an\'alisis empezando por las hojas (donde est\'an los
+{\em tokens}), visitando nodos intermedios hasta llegar a la
+ra\'{\i}z (el s\'{\i}mbolo inicial), y recorriendo as\'{\i} el
+\'arbol de abajo a arriba. 
+
+El problema clave del an\'alisis ascendente consiste en decidir
+cu\'ando lo que parece ser la parte derecha de una producci\'on
+puede ser reemplazada por su parte izquierda. Esto no es trivial pues
+puede haber partes derechas comunes a varias producciones o
+producciones que derivan a $\epsilon$.
+
+La ventaja que presenta el an\'alisis ascendente es que es
+aplicable a un mayor n\'umero de gram\'aticas que el
+descendente, pues para aplicar el an\'alisis ascendente lineal
+la gram\'atica debe ser LR(1) y este conjunto es mucho m\'as
+amplio que el de las gram\'aticas LL(1). Además, las gramáticas
+LR(1) son más adecuadas para la traducción de los operadores binarios
+(asociativos por la izquierda o por la derecha) que las
+gramáticas LL(1), que en muchos casos necesitan procesos de traducción
+bastante más complejos que aquéllas, como veremos en los siguientes capítulos.
+
+Existen varios algoritmos de an\'alisis ascendente lineal. El
+m\'as com\'un\-mente utilizado es el algoritmo de an\'alisis
+por desplazamiento-reducci\'on. Este algoritmo est\'a
+basado en una pila y una tabla de an\'alisis, como un analizador descendente
+dirigido por tabla, pero tiene un funcionamiento completamente diferente,
+como veremos más adelante. Existen distintos
+métodos para construir tablas 
+para el algoritmo de análisis por desplazamiento-reducción: SLR, LALR(1),
+LR(1), etc. El m\'as sencillo de todos es el m\'etodo SLR, que es el 
+que vamos a estudiar en este capítulo.
+Las tablas construidas según el método SLR ({\em Simple LR})
+se caracterizan por ser mucho compactas que las LR(1), pero el
+conjunto de gramáticas SLR (analizables con tablas SLR) es más
+reducido que el conjunto de gramáticas LR(1). Existe un conjunto
+intermedio de gramáticas, LALR(1), que es un subconjunto muy amplio
+de las LR(1) para el cual se pueden construir tablas casi tan 
+compactas como las SLR.
+
+As\'{\i} como existe una condici\'on LL(1) que distingue a las
+gram\'aticas susceptibles de ser analizadas mediante un ASDP, la
+condici\'on equivalente para las gram\'aticas LR(1) se basa
+simplemente en la posibilidad de construir sin problemas las tablas
+de an\'alisis sint\'actico para analizadores ascendentes.
+
+\section{An\'alisis sint\'actico por
+despla\-zamiento y reducci\'on} \label{sec:DR}
+
+De forma similar a
+como suced\'{\i}a en los analizadores descendentes lineales
+dirigidos por tabla, veremos que el algoritmo de an\'alisis
+sint\'actico ascendente por desplazamiento y reducci\'on es
+siempre el mismo con independencia de la gram\'atica utilizada y
+lo que cambia de un analizador a otro es la tabla de an\'alisis.
+En este algoritmo (que veremos con más detalle más adelante)
+existen dos acciones básicas:
+\begin{description}
+\item[{\em Desplazar}:] consiste en llevar de alguna manera el s\'{\i}mbolo 
+de la entrada a la pila y pedir el siguiente al
+analizador l\'exico (equivalente a lo que hac\'{\i}a la
+funci\'on de emparejamiento en los ASDP con tabla). 
+\item[{\em Reducir}:] consiste en sustituir en la pila 
+los s\'{\i}mbolos de la parte
+derecha de una producci\'on por su parte izquierda (como si
+fuera la ``inversa'' de derivar por esa regla).
+\end{description}
+
+
+En este capítulo se describe este algoritmo con alguna simplificaci\'on
+para facilitar su implementaci\'on.
+ El algoritmo utiliza una pila de {\em estados\/} y una {\em tabla de 
+an\'alisis\/} para decidir qu\'e acci\'on tomar seg\'un el estado del
+tope de la pila y el s\'{\i}mbolo de la
+entrada; la tabla tiene dos partes, aunque tambi\'en se suele hablar de
+dos tablas: {\em Acci\'on\/} e {\em Ir\_a\/}. Cada estado representa que se ha 
+reconocido un prefijo de la parte
+derecha de alguna regla de la gram\'atica. A veces el estado
+tambi\'en representa el {\em contexto\/} en que se ha reconocido ese prefijo.
+El algoritmo va leyendo terminales de la entrada y
+deshaciendo reglas hasta llegar a obtener la inversa de una derivaci\'on por
+la derecha de la cadena de entrada. 
+
+Las acciones que pueden aparecer en la tabla {\em Acci\'on\/} para un estado
+{\em s\/} y un s\'{\i}mbolo de la entrada {\em a\/} son:
+
+\labelsep1em
+\settowidth{\maxim}{{\bf aceptar }}
+\addtolength{\maxim}{\labelsep}
+
+\begin{list}{}{ %\raggedright
+\leftmargin\maxim
+\labelwidth\maxim\advance\labelwidth-\labelsep
+\renewcommand{\makelabel}[1]{{\bf #1}\hfill}
+}
+\item[d$j$] desplazar el puntero de la entrada (leer el siguiente {\em token\/}
+de la entrada) y apilar el estado $j$.
+\item[r$k$] reducir por la regla $k$ (deshacer la regla $k$). Para ello hay
+que desapilar tantos estados como s\'{\i}mbolos tenga la parte derecha de
+la regla (si es una producci\'on vac\'{\i}a no hay que desapilar
+ning\'un estado) y, siendo $p$ el estado que queda en el tope de la pila 
+y $A$ la parte izquierda de la regla, apilar el estado indicado por 
+{\em \mbox{Ir\_a}}$[p,A]$.
+\item[aceptar] terminar el an\'alisis con \'exito.
+\item[error] producir un error. El conjunto de s\'{\i}mbolos que podr\'{\i}an
+aparecer en lugar del {\em token\/} de la entrada son todos aquellos para los
+que exista una acci\'on de desplazar o reducir en el estado {\em s\/}.
+\end{list}
+
+ La figura~\ref{alg:despred} muestra este algoritmo en notación 
+pseudoalgorítmica.
+
+\begin{figure}[htp]
+\begin{quote}
+\begin{small}
+\begin{tabbing}
+REP \= SI\quad \= PARA\quad \= \kill\\
+push($0$)  /* estado inicial */ \\
+$a :=$ analex() /* $a$ siempre será el siguiente {\em token\/} */ \\
+REPETIR \\
+\> sea $s$ el estado en el tope de la pila\\
+\> SI {\bf Accion}$[s,a] = \textbf{d}j$ ENTONCES\\
+\> \> push($j$)\\
+\> \> $a :=$ analex()\\
+\> SI NO SI {\bf Accion}$[s,a] = \textbf{r}k$ ENTONCES \\
+\> \> PARA $i := 1$ HASTA Longitud\_Parte\_Derecha($k$) HACER pop()\\
+\> \> sea $p$ el estado en el tope de la pila\\
+\> \> sea $A$ la parte izquierda de la regla $k$\\
+\> \> push({\bf Ir\_a}$[p,A]$)\\
+\> SI NO SI {\bf Accion}$[s,a] = \textbf{aceptar}$ ENTONCES\\
+\> \> fin del analisis\\
+\> SI NO \\
+\> \> error()\\
+\> FIN\_SI\\
+HASTA fin del analisis \\
+\end{tabbing}
+\end{small}
+\end{quote}
+\caption{Algoritmo de análisis por desplazamiento y reducción.}
+\label{alg:despred}
+\end{figure}
+
+\begin{ejemplo} \label{ccinco:ejuno}
+
+Dada la tabla de análisis de la figura~\ref{fg:tabDR}, que está construida 
+con el método SLR,
+vamos a hacer la traza del análisis de la entrada ``{\bf id tipo 
+begin codigo end}''.
+
+\begin{figure}[htp]
+\begin{small}
+$$
+\begin{array}{llcl}
+\textrm{Gramática:} & \nter{S} \der \nter{B} \nter{A} \ter{end} \\
+& \nter{A} \der \ter{begin} \nter{C} \\
+& \nter{C} \der \ter{codigo} \\
+& \nter{B} \der \ter{tipo} \\
+& \nter{B} \der \ter{id} \nter{B}
+\end{array}
+$$
+\begin{center}
+\begin{tabular}{|c||cccccc||cccc|} \hline\hline
+{\bf Estado} & \multicolumn{6}{|c||}{\bf Acci\'on} & \multicolumn{4}{|c|}{\bf Ir\_a} \\
+            \cline{2-11}
+            & {\bf end} & {\bf begin} & {\bf codigo} & {\bf tipo} & {\bf id}
+            & {\bf \$} & $S$ & $A$ & $B$ & $C$ \\
+\hline
+0  & -  &  - &  -  & d3 & d4 &  - & 1 &   & 2 &   \\\hline
+1  & -  & -  &  -  & -  & -  & a! &   &   &   &   \\\hline
+2  & -  & d6 &  -  & -  & -  & -  &   & 5 &   &   \\\hline
+3  & -  & r4 &  -  & -  & -  & -  &   &   &   &   \\\hline
+4  & -  & -  &  -  & d3 & d4 & -  &   &   & 7 &   \\\hline
+5  & d8 & -  &  -  & -  & -  & -  &   &   &   &   \\\hline
+6  &  - & -  & d10 & -  & -  & -  &   &   &   & 9 \\\hline
+7  & -  & r5 &  -  & -  & -  & -  &   &   &   &   \\\hline
+8  & -  & -  &  -  & -  & -  & r1 &   &   &   &   \\\hline
+9  & r2 & -  &  -  & -  & -  & -  &   &   &   &   \\\hline
+10 & r3 & -  &  -  & -  & -  & -  &   &   &   &   \\\hline
+\end{tabular}
+\end{center}
+
+Las casillas vac\'{\i}as de la tabla {\bf Acci\'on} son {\em error}, y
+están marcadas con un guión. En la tabla {\bf Ir\_a} no se puede 
+dar esta situaci\'on si est\'a bien 
+construida, y por eso no se han marcado las casillas vacías como error.
+\end{small}
+\caption{Tabla de análisis por desplazamiento y reducción}
+\label{fg:tabDR}
+\end{figure}
+
+De la misma forma que para el an\'alisis
+descendente, compondremos una tabla en cuya primera columna
+situaremos el estado de la pila en cada momento, con la base en la
+izquierda y el tope en la derecha. En la columna central situaremos
+la entrada que se leer\'a de izquierda a derecha y de la que se
+ir\'an retirando los s\'{\i}mbolos que ya hayan sido
+analizados. En la columna de la derecha se indicar\'a la acci\'on
+que se ha llevado a cabo en cada momento. La secuencia de reglas por las
+que se ha reducido constituyen la inversa de la derivación por la
+derecha de la cadena de entrada.
+										
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|r|l|}
+\hline\hline
+\multicolumn{1}{|c|}{\sc Pila} & \multicolumn{1}{|c|}{\sc Entrada} & \multicolumn{1}{|c|}{\sc Acci\'on} \\
+\hline
+0                & {\bf id tipo begin codigo end}~~\$ & \textbf{d}$4$ \\
+0 4              & {\bf    tipo begin codigo end}~~\$ & \textbf{d}$3$ \\
+0 4 3            & {\bf         begin codigo end}~~\$ & \textbf{r}$4$ ($B \flecha \ter{tipo}$) \\
+0 4 7            & {\bf         begin codigo end}~~\$ & \textbf{r}$5$ ($B \flecha \ter{id} \nter{B}$) \\
+0 2              & {\bf         begin codigo end}~~\$ & \textbf{d}$6$ \\
+0 2 6            & {\bf               codigo end}~~\$ & \textbf{d}$10$ \\
+0 2 6 10         & {\bf                      end}~~\$ & \textbf{r}$3$ ($C \flecha \ter{codigo}$) \\
+0 2 6 9          & {\bf                      end}~~\$ & \textbf{r}$2$ ($A \flecha \ter{begin} \nter{C}$)\\
+0 2 5            & {\bf                      end}~~\$ & \textbf{d}$8$ \\
+0 2 5 8          &                               \$ & \textbf{r}$1$ ($S \flecha \nter{B} \nter{A} \ter{end}$) \\
+0 1              &                               \$ & aceptar \\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\end{ejemplo}
+
+
+\section[Método SLR de construcción de tablas de análisis]{M\'etodo SLR de construcci\'on de tablas de
+an\'alisis por desplazamiento y reducci\'on}
+
+Existen diferentes
+m\'etodos para construir tablas de an\'alisis por
+desplazamiento y reducci\'on. Uno de los m\'as sencillos
+(aunque no el m\'etodo m\'as general posible con un s\'{\i}mbolo
+de prean\'alisis) es el m\'etodo SLR\footnote{Ver \cite[pp. 227 y ss.]{ASU90},
+también en \cite[pp. 161 y ss.]{FL91}.}.
+
+Para explicar el m\'etodo SLR para la construcci\'on de
+tablas de an\'alisis es necesario definir previamente una serie
+de conceptos.
+
+\subsubsection{Elemento}
+
+Un elemento ({\em item} en la bibliografía en inglés) se obtiene 
+situando un punto ``\Punto''
+en cualquier posici\'on de la parte derecha de una regla.
+
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{$X_1$} \nter{$X_2$} \ldots \nter{$X_i$}
+\punto \nter{$X_{i+1}$} \ldots \nter{$X_n$}
+\end{array}
+$$
+
+Esta marca indica qu\'e s\'{\i}mbolos de una producci\'on han
+sido ya reconocidos (los que quedan a su izquierda, $X_{k}$,
+$k = 1, \ldots, i$, en la expresi\'on anterior).
+
+A partir de las producciones vac\'{\i}as ( $A \flecha \epsilon$ ) s\'olo 
+se obtiene un elemento:  $A \flecha \punto$ .
+
+\begin{ejemplo}
+Sea la gram\'atica del ejemplo~\refej{ccinco:ejuno}:
+
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{B} \nter{A} \ter{end} \\
+\nter{A} \der \ter{begin} \nter{C} \\
+\nter{C} \der \ter{codigo} \\
+\nter{B} \der \ter{tipo} \\
+\nter{B} \der \ter{id} \nter{B}
+\end{array}
+$$
+Los
+posibles {\em elementos }que se pueden obtener de esa gram\'atica
+son:
+
+$$
+\begin{array}{lcl@{\hspace{1cm}}lcl}
+\nter{S} \der \punto \nter{B} \nter{A} \ter{end} & \nter{B} \der \ter{id} \punto \nter{B} \\
+\nter{S} \der \nter{B} \punto \nter{A} \ter{end} & \nter{B} \der \ter{id} \nter{B} \punto \\
+\nter{S} \der \nter{B} \nter{A} \punto \ter{end} & \nter{A} \der \punto \ter{begin} \nter{C} \\
+\nter{S} \der \nter{B} \nter{A} \ter{end} \punto & \nter{A} \der \ter{begin} \punto \nter{C} \\
+\nter{B} \der \punto \ter{tipo}                  & \nter{A} \der \ter{begin} \nter{C} \punto \\
+\nter{B} \der \ter{tipo} \punto                  & \nter{C} \der \punto \ter{codigo} \\
+\nter{B} \der \punto \ter{id} \nter{B}           & \nter{C} \der \ter{codigo} \punto \\
+\end{array}
+$$
+\end{ejemplo}
+
+\subsubsection{Clausura}
+
+La operaci\'on {\em clausura\/}
+se aplica a un conjunto de
+{\em elementos\/}, $I$, y devuelve otro conjunto de {\em elementos\/}, \mbox{{\em clausura}$(I)$}, 
+que incluye $I$, seg\'un las siguientes reglas:
+\begin{enumerate}
+\item Todo {\em elemento\/} del conjunto $I$ se a\~nade al conjunto
+\mbox{{\em clausura}$(I)$}.
+\item Si $A \longrightarrow \alpha \punto B \beta$ es un {\em elemento\/} de
+\mbox{{\em clausura}$(I)$} siendo $B \in N$ y 
+$B \flecha \alpha_1 | \alpha_2 | \ldots | \alpha_n$, entonces se a\~naden 
+los {\em elementos\/} $B \flecha \punto \alpha_1$,
+$B \flecha \punto \alpha_2$, $\ldots$, $B \longrightarrow \punto \alpha_n$
+a \mbox{{\em clausura}$(I)$} si no estaban. Esta regla se sigue aplicando hasta que no se
+puedan a\~nadir m\'as {\em elementos\/} a \mbox{{\em clausura}$(I)$}.
+\end{enumerate}
+
+\begin{ejemplo}
+Para la gram\'atica del ejemplo anterior, si tenemos el conjunto de {\em 
+elementos\/} formado únicamente por el {\em elemento\/} 
+\mbox{$S \longrightarrow \punto B A$ {\bf end}}, el conjunto 
+\mbox{{\em clausura}}$($\{$S \longrightarrow \punto B A$ {\bf end}\}$)$
+ser\'{\i}a:
+$$
+\begin{array}{lcl}
+\nter{S} \der \punto \nter{B} \nter{A} \ter{end} \\
+\nter{B} \der \punto \ter{tipo} \\
+\nter{B} \der \punto \ter{id} \nter{B} \\
+\end{array}
+$$
+\end{ejemplo}
+
+\subsubsection{Ir\_a}
+
+La operaci\'on {\em ir\_a} tiene dos argumentos: un conjunto de
+elementos {\em I} y un s\'{\i}mbolo gramatical {\em A}
+(terminal o no terminal), y da como resultado otro conjunto de elementos.
+Se define como sigue: para todos los elementos de la forma
+\mbox{$B \longrightarrow \alpha \punto A \beta$}
+que haya en {\em I}, a\~nadir los elementos de
+\mbox{{\em clausura}($B \longrightarrow \alpha A \punto \beta$)}
+al conjunto {\em ir\_a}($I,A$).
+
+\begin{ejemplo}
+
+Si el conjunto {\em I} fuese
+$$
+\begin{array}{lcl}
+\nter{S} \der \punto \nter{B} \nter{A} \ter{end} \\
+\nter{B} \der \punto \ter{tipo} \\
+\nter{B} \der \ter{id} \punto \nter{B} \\
+\end{array}
+$$
+el conjunto {\em ir\_a}({\em I},{\em B}) ser\'{\i}a:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{B} \punto \nter{A} \ter{end} \\
+\nter{A} \der \punto \ter{begin} \nter{C} \\
+\nter{B} \der \ter{id} \nter{B} \punto \\
+\end{array}
+$$
+\end{ejemplo}
+
+\subsection{Construcci\'on de la colecci\'on can\'onica de
+conjuntos de elementos}
+
+El primer paso para construir una tabla de an\'alisis con el m\'etodo
+SLR es obtener la {\em colecci\'on can\'onica de conjuntos de
+elementos, C}. Para ello deben de darse los siguientes pasos:
+\begin{enumerate}
+\item Ampliar la gram\'atica a\~nadi\'endole la regla $X \flecha S$, donde $S$ 
+es el s\'{\i}mbolo inicial.
+\item A\~nadir el conjunto $I_{0} = $ \mbox{{\em clausura}($\{ X \flecha \punto S \}$)}
+a la colecci\'on {\em C}.
+\item Para cada conjunto de elementos $I_{i}$ de {\em C}, y para
+   cada s\'{\i}mbolo gramatical {\em A} (terminal y no terminal)
+   para el que exista en $I_i$ un elemento del tipo $B \flecha \alpha \punto A \beta$,
+   $\beta \in (N \cup T)^{+}$ (es decir, que la marca no est\'e al final del elemento),
+   a\~nadir {\em ir\_a}($I_{i},A$)
+   a {\em C} si no se hab\'{\i}a a\~nadido antes. Esta
+   operaci\'on se repite hasta que no se a\~nadan m\'as
+   conjuntos nuevos a la colecci\'on de conjuntos de elementos
+   $C = \{ I_0, I_{1}, \ldots \}$.
+\end{enumerate}
+
+Es conveniente seguir un orden predeterminado para recorrer los
+s\'{\i}mbolos gramaticales; por ejemplo, se puede empezar por los
+no terminales en orden de aparici\'on en la gram\'atica y
+seguir despu\'es por los terminales, tambi\'en en orden de
+aparici\'on en la gram\'atica.
+
+\begin{ejemplo} \label{ejcolcan}
+
+En la gram\'atica de los ejemplos anteriores, la colecci\'on
+can\'onica de conjuntos de elementos,{\em  C}, se
+calcular\'{\i}a as\'{\i}:
+\begin{small}
+\begin{enumerate}
+\item Se calcula \mbox{$I_0 = $\mbox{{\em clausura}}$($\{$X$ $\longrightarrow \punto S$\}$)$}:
+
+\begin{tabular}{l}
+$I_0 =$ \{\mbox{$X$ $\longrightarrow \punto S$},
+                 \mbox{$S \longrightarrow \punto \nter{B} \nter{A} \ter{end}$},
+                 \mbox{$B \longrightarrow \punto \ter{tipo}$},
+                 \mbox{$B \longrightarrow \punto \ter{id} \nter{B}$}\}
+\end{tabular}
+%
+\item Se obtienen
+        ahora los conjuntos de elementos correspondientes a {\em ir\_a}($I_{0},X$),
+        donde $X$ es cualquiera de los s\'{\i}mbolos que en alg\'un
+        elemento de $I_0$ est\'e a continuaci\'on
+        de un ``\Punto'':
+
+\begin{tabular}{l}
+$I_1 =$ {\em ir\_a}($I_0,S$) $=$ \mbox{{\em clausura}(\{$X \longrightarrow \nter{S} \punto$\})} $=$ \mbox{\{$X \longrightarrow \nter{S} \punto$\}} \\
+$I_2 =$ {\em ir\_a}($I_0,B$) $=$ \mbox{{\em clausura}(\{$S \longrightarrow \nter{B} \punto \nter{A} \ter{end}$\})} $=$ 
+                 \{\mbox{$S \longrightarrow \nter{B} \punto \nter{A} \ter{end}$}, \\\hspace{4em}
+                 \mbox{$A \longrightarrow \punto \ter{begin} \nter{C}$}\} \\
+$I_3 =$ {\em ir\_a}($I_0,\textbf{tipo}$) $=$ \mbox{{\em clausura}(\{$B \longrightarrow \ter{tipo} \punto$\})} $=$ 
+                 \mbox{\{$B \longrightarrow \ter{tipo} \punto$\}} \\
+$I_4 =$ {\em ir\_a}($I_0,\textbf{id}$) $=$ \mbox{{\em clausura}(\{$B \longrightarrow \ter{id} \punto \nter{B}$\})} $=$ 
+               \{\mbox{$B \longrightarrow \ter{id} \punto \nter{B}$}, \\\hspace{4em}
+                  \mbox{$B \longrightarrow \punto \ter{tipo}$}, 
+                 \mbox{$B \longrightarrow \punto \ter{id} \nter{B}$}\}
+\end{tabular}
+
+\item Desde los conjuntos anteriores que sólo tienen el ``\Punto''
+        al final no se puede seguir la construcci\'on ($I_1$, $I_3$). Calculamos, por
+        tanto, los nuevos conjuntos de {\em ir\_a} con los elementos
+	que no tienen el ``\Punto'' al final.
+
+\begin{tabular}{l}
+$I_5 =$ {\em ir\_a}($I_2,A$) $=$ \mbox{{\em clausura}(\{$S \longrightarrow \nter{B} \nter{A} \punto \ter{end}$\})} $=$ 
+               \{\mbox{$S \longrightarrow \nter{B} \nter{A} \punto \ter{end}$}\} \\
+$I_6 =$ {\em ir\_a}($I_2,\textbf{begin}$) $=$ \mbox{{\em clausura}(\{$A \longrightarrow \ter{begin} \punto \nter{C}$\})} $=$ \\\hspace{4em}
+               \{\mbox{$A \longrightarrow \ter{begin} \punto \nter{C}$}, 
+                 \mbox{$C \longrightarrow \punto \ter{codigo}$}\}
+\end{tabular}
+%
+\item Es evidente
+        que si se calcula {\em ir\_a}($I_4$,\textbf{tipo}) se vuelve a
+        obtener $I_3$, que ya existe.
+        Tambi\'en se puede comprobar que {\em ir\_a}($I_4,\textbf{id}$)
+        $= I_4$. El \'unico conjunto nuevo que se
+        obtiene es
+
+\begin{tabular}{l}
+$I_7 =$ {\em ir\_a}($I_4,B$) $=$ \mbox{{\em clausura}(\{$B \longrightarrow \ter{id} \nter{B} \punto$\})} $=$ 
+               \mbox{\{$B \longrightarrow \ter{id} \nter{B} \punto$\}}
+\end{tabular}
+
+\item De $I_5$	se obtiene:
+
+\begin{tabular}{l}
+$I_8 =$ {\em ir\_a}($I_5$,\textbf{end}) $=$ \mbox{{\em clausura}(\{$S \longrightarrow \nter{B} \nter{A} \ter{end} \punto$\})} $=$ \\\hspace{4em}
+               \{\mbox{$S \longrightarrow \nter{B} \nter{A} \ter{end} \punto$}\}
+\end{tabular}
+\item De $I_6$:
+
+\begin{tabular}{l}
+$I_9 =$ {\em ir\_a}($I_6,C$) $=$ \mbox{{\em clausura}(\{$A \longrightarrow \ter{begin} \nter{C} \punto$\})} $=$ 
+           \{\mbox{$A \longrightarrow \ter{begin} \nter{C} \punto$}\} \\
+$I_{10} =$ {\em ir\_a}($I_6$,\textbf{codigo}) $=$ \mbox{{\em clausura}(\{$C \longrightarrow \ter{codigo} \punto$ \})} $=$ \\\hspace{4em} 
+             \{\mbox{$C \longrightarrow \ter{codigo} \punto$}\}
+\end{tabular}
+\item Todos los
+        nuevos conjuntos de elementos llevan el ``\Punto''
+        al final, luego ya no se pueden construir nuevos conjuntos y la
+        colecci\'on $C = \{ I_0, I_1, \ldots, I_{10} \}$ 
+	ya est\'a completa.
+\end{enumerate}
+\end{small}
+\end{ejemplo}
+
+\subsection{Construcci\'on de aut\'omatas reconocedores de prefijos viables}
+
+Una forma más intuitiva de construir la colección can\'onica de conjuntos 
+de elementos (y, como veremos más adelante, la tabla de análisis)
+es construir el aut\'omata reconocedor de prefijos viables,
+utilizando el siguiente algoritmo:
+
+\begin{quote}
+\begin{tabbing}
+RE\=PA\= \kill 
+$S_0 = $ {\em clausura}(\{$X \longrightarrow \punto S$\}) $\equiv S_i$ \\
+REPETIR \\
+\>PARA cada $ A \in N \cup T \;/\; \exists B \flecha \alpha \punto A \beta \in S_i$ 
+   HACER \\
+\>\>Crear un nuevo estado $S_n =$ {\em ir\_a}($S_i,A$) (si no existe)\\
+\>\>Crear una transición $S_i \stackrel{A}{\longrightarrow} S_n$ \\
+\>FIN\_PARA \\
+\>En la siguiente iteración considerar como $S_i$ cada $S_n$ nuevo. \\
+HASTA no poder crear más $S_n$ \\
+\end{tabbing}
+\end{quote}
+
+Los estados $S_i$ del aut\'omata son los
+conjuntos de elementos $I_0$, $I_1$, $\ldots$
+ de la colecci\'on can\'onica de elementos, {\em C}.
+
+\begin{ejemplo}
+
+El aut\'omata para la gram\'atica
+$$
+\begin{array}{rcl}
+\nter{E} \der \nter{E} \ter{+} \ter{a} \\
+\nter{E} \der \ter{a}
+\end{array}
+$$
+ser\'{\i}a el de la figura~\ref{fauto}. 
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics{cap5f1.pdf}
+\end{center}
+\caption{Autómata reconocedor de prefijos viables.}\label{fauto}
+\end{figure}
+\end{ejemplo}
+
+\begin{ejemplo} \label{ejautogram}
+
+En la figura~\ref{fautodos} se muestra
+el aut\'omata reconocedor de prefijos viables para la gram\'atica
+que estamos estudiando en los ejemplos de este capítulo.
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics{cap5f2.pdf}
+\end{center}
+\caption{Autómata para la gramática de ejemplo.}\label{fautodos}
+\end{figure}
+\end{ejemplo}
+
+\subsection{Construcci\'on de tablas SLR}
+
+Como se indic\'o al principio de este 
+capítulo, las tablas de an\'alisis sint\'actico SLR est\'an
+divididas en dos partes con la siguiente estructura y valores para su
+indexaci\'on:
+
+\begin{center}
+\begin{tabular}{|l|c|c|} \hline
+ & $T \cup \{ \$ \}$ & $N$ \\\hline
+ & \multicolumn{1}{l|}{\bf Acción~~~~~~~~~~~~~~~~~~~~} & \multicolumn{1}{l|}{\bf Ir\_a~~~~~~~~~~~~~~~~~} \\\cline{2-3}
+ &   \textbf{d}$j$   & \\
+Estados & \textbf{r}$k$ & Estados \\
+ & \textbf{aceptar} & \\
+ & \textbf{error} & \\\hline
+\end{tabular}
+\end{center}
+
+
+El m\'etodo de construcci\'on de tablas SLR se puede
+resumir en los siguientes pasos:
+\begin{enumerate}
+%
+\item Obtener la colecci\'on can\'onica de conjuntos de {\em elementos\/}
+\mbox{$C =$ \{$I_0$,$I_1$,$\ldots$,$I_n$\}}.
+%
+\item Cada conjunto $I_i$ de $C$ se corresponde con el estado $i$ del
+analizador.
+%
+\item Construcción de la tabla {\bf Ir\_a}:
+\begin{quote}
+Se buscan no terminales que aparezcan antes
+del punto en el conjunto $I_i$, es decir, {\em elementos\/} de la forma
+\mbox{$A \longrightarrow \alpha \punto \nter{B} \beta$} donde $B\in N$. Seg\'un 
+el m\'etodo de construcci\'on de la colecci\'on $C$, existir\'a
+un $I_j$ tal que {\em ir\_a}($I_i,B$) $= I_j$. En este caso, 
+en la entrada {\mbox {\bf Ir\_a}}$[i,B]$ habr\'a que poner el estado $j$. 
+\end{quote}
+%
+\item Construcci\'on de la tabla {\bf Acci\'on}:
+  \begin{enumerate}
+   \item Para todos los {\em elementos\/} de la forma
+       \mbox{$A \longrightarrow \alpha \punto a \beta$} (con $a \in T$)
+        en el conjunto $I_i$, existir\'a
+        un $I_j$ tal que {\em ir\_a}($I_i,a$) $= I_j$. En este caso, la entrada
+        {\bf Acci\'on}$[i,a]$ ser\'a $\textbf{d}j$, es decir, desplazar e 
+       ir al estado $j$.
+   \item Para los {\em elementos\/} de $I_i$ con el punto al final de la
+    regla, es decir, {\em elementos\/} de la forma \mbox{$A \longrightarrow \beta \punto$}~
+    o de la forma \mbox{$A \longrightarrow \punto$}~, hay que calcular los
+    \sig($A$), y para todo $s$ que aparezca en \sig($A$) hay que poner
+    en la entrada {\bf Acci\'on}$[i,s]$ la acci\'on $\textbf{r}k$, es decir,
+    reducir por la regla número $k$. La regla \mbox{$X \longrightarrow S$} 
+    se a\~nade s\'olamente para construir la colecci\'on $C$, nunca se
+    reduce por ella y, por tanto, no se numera.
+   \item Si el {\em elemento\/} \mbox{$X \longrightarrow S \punto$} est\'a en 
+   el conjunto $I_i$, poner \textbf{aceptar} en la entrada {\bf Acci\'on}$[i,\$]$.
+   \item Todas las entradas de la tabla {\bf Acción} que queden vac\'{\i}as son 
+   entradas err\'oneas y por tanto el analizador debe producir un error cuando 
+    acceda a ellas.
+  \end{enumerate}
+\end{enumerate}
+
+\begin{ejemplo}
+
+A partir de la colecci\'on can\'onica de conjuntos de elementos
+calculada en el ejemplo~\refej{ejcolcan}, vamos a construir la
+tabla de análisis para la gram\'atica que estamos
+utilizando como ejemplo desde el principio de este capítulo.
+La tabla de an\'alisis SLR que va a resultar es la que aparece en la
+figura~\ref{fg:tabDR}.
+Consideraremos que cada producci\'on est\'a numerada seg\'un
+el orden en el que est\'an escritas al presentar esta gram\'atica
+al principio del capítulo. A partir de ella, se obtienen las siguientes
+casillas de la tabla:
+\begin{description}
+\item[Estado 0:] Puesto que {\em ir\_a}$(I_0,S) = I_1$ y tambi\'en {\em ir\_a}$(I_0,B) = I_2$,
+ se llenan {\mbox {\bf Ir\_a}}$[0,S] = 1$ e {\mbox {\bf Ir\_a}}$[0,B] = 2$. Adem\'as, desde
+el estado $0$ se va al estado $3$ con {\bf tipo} ({\em ir\_a}$(I_0,${\bf tipo}$) = I_3$),
+y al estado $4$ con {\bf id}; as\'{\i}, {\bf Acci\'on}$[0,${\bf tipo}$] = \textbf{d}3$ y 
+{\bf Acci\'on}$[0,${\bf id}$] = \textbf{d}4$. Como no hay ning\'un {\em elemento\/} en el 
+conjunto $I_0$ con el punto al final de la regla, no hay reducciones en el
+estado 0.
+%
+\item[Estado 1:] La \'unica acci\'on que hay que poner es {\bf Acci\'on}$[1,\$] =$\mbox{\small\bf aceptar}.
+%
+\item[Estado 2:] En este estado hay que poner un $5$ en {\mbox {\bf Ir\_a}}$[2,A]$ porque
+\mbox{{\em ir\_a}$(I_2,A) =$} $I_5$, y tambi\'en hay que poner en 
+{\bf Acci\'on}$[2,${\bf begin}$]$ la acci\'on $\textbf{d}6$ ya que \newline {\em ir\_a}$(I_2,${\bf begin}$) = I_6$.
+%
+\item[Estado 3:] El \'unico {\em elemento\/} del conjunto $I_3$ tiene el punto al
+final de la regla, luego en este estado s\'olo habr\'a que poner acciones
+de reducci\'on por la regla \mbox{$B \longrightarrow$ {\bf tipo}} en todos
+los \sig($B$), que en este caso s\'olo es {\bf begin}. Por tanto, la
+\'unica acci\'on en este estado ser\'a \mbox{{\bf Acci\'on}$[3,${\bf begin}$] = \textbf{r}4$}.
+%
+\item[Estado 4:] Desde este estado hay tres transiciones: con {\bf tipo} se va
+a $I_3$ (por tanto, \mbox{{\bf Acci\'on}$[4,${\bf tipo}$] =$} $\textbf{d}3$), con {\bf id} 
+vuelve al propio $I_4$ (\mbox{{\bf Acci\'on}$[4,${\bf id}$] =$} $\textbf{d}4$), y con una $B$
+va al estado $I_7$ (\mbox{{\mbox {\bf Ir\_a}}$[4,B] = 7$}).
+%
+\item[Estado 5:] En este estado s\'olo hay una transici\'on con {\bf end}, 
+luego hay que hacer {\bf Acci\'on}$[5,${\bf end}$] =$ $\textbf{d}8$.
+%
+\item[Estado 6:] En este estado hay una transici\'on a $I_9$ con $C$ 
+({\mbox {\bf Ir\_a}}$[6,C] = 9$), y a $I_{10}$ con {\bf codigo} ({\bf Acci\'on}$[6,${\bf codigo}$] =$
+$\textbf{d}10$).
+%
+\item[Estado 7:] En este estado hay que reducir por la regla \mbox{$B 
+\longrightarrow$ {\bf id} $B$} en todos los \sig($B$), luego hay que
+hacer {\bf Acci\'on}$[7,${\bf begin}$] =$ $\textbf{r}5$.
+%
+\item[Estado 8:] En este estado hay reducir por la primera regla en todos
+los \sig($S$), luego hay que hacer {\bf Acci\'on}$[8,\$] =$ $\textbf{r}1$.
+%
+\item[Estado 9:] De igual forma que en los dos estados anteriores, en este
+estado solamente hay que reducir por la regla \mbox{$A \longrightarrow$
+{\bf begin} $C$}. El \'unico siguiente de $A$ es {\bf end}, luego habr\'a
+que hacer {\bf Acci\'on}$[9,${\bf end}$] =$ $\textbf{r}2$.
+%
+\item[Estado 10:] Finalmente, en este estado hay que reducir por la regla
+de $C$ en los \sig($C$) (que son los \sig($A$), es decir,
+solamente {\bf end}), luego habr\'a que hacer {\bf Acci\'on}$[10,${\bf end}$] =$
+$\textbf{r}3$.
+\end{description}
+\end{ejemplo}
+
+
+\subsection{Construcci\'on de tablas SLR a partir del aut\'omata
+reconocedor de prefijos viables}
+
+En el algoritmo
+descrito para la construcci\'on de la tabla SLR a partir de
+la colecci\'on can\'onica de elementos basta con
+sustituir los conjuntos de elementos $I_i$ por los
+estados del aut\'omata $S_i$ (que tendr\'an
+id\'entica numeraci\'on si el orden de construcci\'on
+de los estados ha sido el mismo que el de aquellos conjuntos).
+
+La funci\'on de transici\'on se corresponde con las entradas de
+la tabla de la siguiente manera: 
+\begin{enumerate}
+\item Las
+transiciones etiquetadas con un no terminal $A$ con los valores
+de la tabla {\bf Ir\_a}$[S_i,A]$; 
+\item Las
+transiciones etiquetadas con un terminal $a$ con los
+desplazamientos desde el estado $S_i$ a $S_j$
+({\bf d}$j$) para ese terminal en la celda {\bf Acci\'on}$[S_i,a]$.
+\item La metodolog\'{\i}a para poner las reducciones en la
+tabla es la misma que en el caso de las colecciones can\'onicas,
+pero usando los estados del aut\'omata. En cada estado, es necesario 
+calcular los siguientes de las partes izquierdas de aquellas 
+producciones con el punto al final del elemento, y poner la reducción
+correspondiente en la casilla de la tabla asociada a ese estado y a cada
+símbolo siguiente.
+\end{enumerate}
+
+Se puede comprobar esta técnica aplic\'andola al
+aut\'omata del ejemplo~\refej{ejautogram} para comprobar que sale la
+tabla de an\'alisis SLR de la figura~\ref{fg:tabDR}.
+
+
+\section{Conflictos en las tablas SLR}
+
+
+En las tablas SLR (y en las de la familia LR en general)
+pueden aparecer dos clases de conflictos que provocan entradas
+m\'ultiples en la tabla. La aparici\'on de un conflicto
+indica que la gram\'atica no es SLR, aunque podr\'{\i}a ser
+LALR(1), LR(1), etc., o podr\'{\i}a ser una gram\'atica de otro
+tipo o bien una gramática ambigua. Es importante destacar que no 
+todos los conflictos aparecen por culpa de que la gram\'atica sea 
+ambigua; tambi\'en existen gram\'aticas no ambiguas que producen 
+conflictos porque no son SLR.
+
+\subsubsection{Desplazamiento-reducci\'on}
+
+Este conflicto se
+da cuando en una misma entrada de la tabla {\bf Acci\'on} es
+posible desplazar y reducir con el mismo s\'{\i}mbolo de la
+entrada. Aunque la gram\'atica no sea SLR, se podr\'{\i}a
+construir el analizador resolviendo el conflicto, es decir, eligiendo
+una de las dos posibilidades (desplazar o reducir); la elecci\'on
+depende del lenguaje concreto que se quiera analizar y debe hacerse
+con mucho cuidado para conseguir un analizador que reconozca
+{\em exactamente\/} el lenguaje descrito por la gram\'atica y con
+la sem\'antica deseada.
+
+\begin{ejemplo}
+
+Sea la siguiente gram\'atica\footnote{\cite[p. 235]{ASU90}}:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{L} \tertt{=}  \nter{R} \\
+\nter{S} \der \nter{R} \\
+\nter{L} \der \tertt{*} \nter{R} \\
+\nter{L} \der \ter{id} \\
+\nter{R} \der \nter{L} \\
+\end{array}
+$$
+Compru\'ebese que esta gram\'atica tiene un conflicto
+desplazamiento-reducci\'on en el estado 2 (o en el que contenga
+los elementos $S \flecha  L \punto \texttt{=} R$  y $R \flecha  L \punto$), 
+ya que con el s\'{\i}mbolo ``\verb!=!'' es posible desplazar o
+reducir por la regla $R \flecha  L$.
+\end{ejemplo}
+
+\begin{ejemplo}
+
+La siguiente gram\'atica es una simplificaci\'on de una
+gram\'atica ambigua que define la construcci\'on
+IF-THEN-ELSE de la mayor\'{\i}a de lenguajes de programaci\'on
+de alto nivel. Aunque la gram\'atica sea ambigua, muchos
+compiladores utilizan analizadores ascendentes que resuelven este
+conflicto escogiendo la opci\'on de desplazar en lugar de la de
+reducir; de esta forma, se asocia el ELSE al IF m\'as cercano.
+
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{i} \nter{S} \\
+\nter{S} \der \ter{i} \nter{S} \ter{e} \nter{S} \\
+\nter{S} \der \ter{o} \\
+\end{array}
+$$
+
+Al construir la colecci\'on can\'onica de conjuntos
+encontraremos el conjunto $I_j =$ \{ \mbox{$S \flecha \ter{i} \nter{S} \punto$},
+\mbox{$S \flecha \ter{i} \nter{S} \punto \ter{e} \nter{S}$} \}. Si calculamos
+los \sig($S$) veremos que son \{``\textbf{e}'', ``\textbf{o}''\}. Por
+tanto, en el estado $j$, en la entrada {\bf Acci\'on}$[j,\textbf{e}]$
+podremos poner la acci\'on {\bf r}1 o bien la acci\'on {\bf d}$k$,
+siendo $k$ el estado correspondiente a $I_{k} =$ 
+{\em ir\_a}($I_j,\textbf{e}$).
+
+En este caso concreto, si elegimos la acci\'on de desplazar, {\bf d}$k$,
+el analizador reconocer\'a perfectamente el lenguaje generado
+por la gram\'atica; si hubieramos elegido reducir, el analizador
+no podr\'{\i}a reconocer las cadenas con una ``\textbf{e}'', como
+por ejemplo \mbox{``{\bf i o e o}''}.
+\end{ejemplo}
+
+\subsubsection{Reducci\'on-reducci\'on}
+
+Este conflicto
+aparece cuando en una misma entrada de la tabla {\bf Acci\'on}
+es posible reducir por dos o m\'as reglas distintas ante el
+mismo s\'{\i}mbolo en la entrada. La soluci\'on m\'as
+razonable para resolver este conflicto suele ser cambiar la
+gram\'atica, aunque es posible elegir una de las reducciones y
+descartar las dem\'as, teniendo en cuenta siempre que el
+analizador resultante debe reconocer {\em exactamente\/} el lenguaje
+definido por la gram\'atica.
+
+\begin{ejemplo}
+
+La siguiente gram\'atica tiene un conflicto reducci\'on-reducci\'on:
+
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{id} \nter{A} \opt \ter{id} \nter{B} \ter{fin} \\
+\nter{B} \der \ter{prin} \nter{A} \ter{fin} \opt \epsilon \\
+\nter{A} \der \ter{otro} \opt \epsilon \\
+\end{array}
+$$
+
+Al hacer el aut\'omata, encontramos que el estado 2 presenta ese
+conflicto, puesto que en ese estado se debe reducir por la regla $A \flecha \epsilon$ 
+con los \sig($A$), y por la
+regla $B \flecha \epsilon$ con los \sig($B$). El conflicto aparece 
+porque ``\textbf{fin}'' pertenece a ambos conjuntos de siguientes.
+\end{ejemplo}
+
+
+\section{Mensajes de error en un analizador SLR}
+
+
+Un analizador SLR
+se puede implementar a partir de una tabla de an\'alisis
+construida {\em a mano}, es decir, con l\'apiz y papel. En
+cuanto a los errores, existen
+dos t\'ecnicas alternativas para producir mensajes de error:
+\begin{itemize}
+\item Es posible
+        producir mensajes de error espec\'{\i}ficos rellenando aquellas
+        casillas de la tabla {\bf Acci\'on} que queden vac\'{\i}as
+        con un n\'umero que indique un mensaje de error particular para
+        cada caso. Aunque la tabla {\bf Ir\_a} tenga entradas vac\'{\i}as,
+        nunca se van a llegar a utilizar. Algunas entradas de la tabla
+        {\bf Acci\'on} tampoco se utilizar\'an nunca, pero la
+        mayor\'{\i}a pueden ser utilizadas. En este caso, para reducir el
+        n\'umero de mensajes de error espec\'{\i}ficos que hay que
+        implementar se puede, en aquellos estados en los que existan
+        reducciones y sean todas por la misma regla, extender esas
+        reducciones tambi\'en a las casillas vac\'{\i}as; de esta
+        forma, los errores se detectar\'an al desplazar en lugar de al
+        reducir.
+\item Cuando el
+        lenguaje a analizar tiene un tama\~no medio, el n\'umero
+        de estados crece considerablemente y una t\'ecnica de mensajes
+        de error espec\'{\i}ficos es muy costosa y laboriosa. Por este
+        motivo, se pueden producir mensajes de error generales de la
+        siguiente manera: cuando se produce el error, en el tope de la pila
+        hay un estado $s$ determinado; los s\'{\i}mbolos esperados en
+        lugar del {\em token\/} de la entrada son aquellos para los
+        que la tabla {\bf Acci\'on} en la fila del estado $s$
+	tenga alguna acci\'on, ya sea una reducci\'on o un
+        desplazamiento.
+\end{itemize}
+
+Los mensajes de error producidos por un analizador SLR suelen ser
+diferentes (en el n\'umero de s\'{\i}mbolos esperados) que los
+producidos por analizadores descendentes recursivos o con tabla para
+la misma gramática.
+
+De igual forma que con los mensajes de error, es posible implementar
+una estrategia de recuperaci\'on de errores espec\'{\i}fica,
+que trate cada error o tipo de error de forma diferente. Sin embargo,
+lo normal es que el n\'umero de estados de una tabla SLR no
+permita emplear esta estrategia y se tenga que implementar una
+t\'ecnica de recuperaci\'on de errores general (no
+dependiente del lenguaje).
+
+Una buena t\'ecnica de recuperaci\'on de errores debe
+eliminar el menor n\'umero de {\em tokens\/} de la entrada antes
+de reanudar el an\'alisis, y a la vez debe dejar al analizador
+en un estado en el que sea posible analizar el resto de la entrada y
+detectar m\'as errores si los hubiera. Conseguir que se cumplan
+ambas condiciones a la vez es dif\'{\i}cil y se debe intentar
+conseguir un compromiso entre ambas opciones, es decir, eliminar
+pocos {\em tokens\/} de la entrada y a la vez dejar el analizador en
+un estado en el que pueda continuar el an\'alisis.
+
+
+\section{Clasificaci\'on de gram\'aticas}
+
+
+Hemos visto que no
+todos los analizadores sirven para todas las gram\'aticas, ya
+que a la hora de construir las tablas de an\'alisis hay que
+imponer determinadas restricciones a las gram\'aticas. Vamos a
+ver una comparaci\'on entre las gram\'aticas que pueden ser
+analizadas seg\'un cada uno de los m\'etodos, estableciendo
+as\'{\i} una comparaci\'on entre distintos tipos de an\'alisis.
+
+Entre todos los m\'etodos existentes en la pr\'actica, el
+m\'as amplio es el LR. Se sabe que, en lo que respecta a
+lenguajes de programaci\'on, todos los que pueden ser analizados
+con analizadores LR($k$) , pueden serlo con LALR(1) o SLR,
+puesto que puede encontrarse una gram\'atica equivalente que
+verifique esta propiedad. Estos lenguajes se llaman deterministas y
+son un subconjunto propio de los de contexto libre.
+
+Por otra parte,
+puede demostrarse que los lenguajes LL($k$) son un subconjunto
+propio de los LR($k$). A continuaci\'on se muestra un
+diagrama que muestra estas relaciones, en el que cada flecha
+representa la inclusi\'on del conjunto que est\'a al final
+de la flecha en el conjunto origen.
+
+\begin{center}
+\includegraphics[width=.95\textwidth]{cap5f3.pdf}
+\end{center}
+
+ La relaci\'on entre las gram\'aticas LL(1), SLR y las gram\'aticas
+ambiguas (todas ellas independientes del contexto) es compleja y se
+podr\'{\i}a definir con las siguientes afirmaciones:
+\begin{itemize}
+%
+\item No existe ning\'un algoritmo para saber (en tiempo finito) si una
+gram\'a\-tica G es ambigua o no. La \'unica forma de asegurar que una 
+gram\'atica es ambigua es encontrando una cadena con dos o m\'as \'arboles
+de derivaci\'on para esa gram\'atica.
+%
+\item Una gram\'atica G es LL(1) si y s\'olo si los conjuntos de predicci\'on
+de las reglas de cada variable son disjuntos entre s\'{\i}.
+%
+\item Una gram\'atica G es SLR si es posible construir una tabla de
+an\'alisis SLR (sin entradas m\'ultiples, obviamente) para ella. 
+%
+\item Si una gram\'atica tiene recursividad por la izquierda, entonces no
+es LL(1). Sin embargo, si una gram\'atica 
+no es LL(1) no necesariamente 
+tiene que tener recursividad por la izquierda.
+%
+\item Si una gram\'atica tiene factores comunes por la izquierda, entonces
+no es LL(1).
+%
+\item Que una gram\'atica G tenga recusividad por la izquierda o factores
+comunes por la izquierda no influye en que la gram\'atica sea o no SLR.
+%
+\item Las transformaciones para eliminar la recursividad por la izquierda
+(o los factores comunes por la izquierda) lo que hacen es construir una
+gram\'atica equivalente (que genera exactamente el mismo lenguaje). Si 
+transformamos una gram\'atica G eliminando la recursividad por la izquierda
+y los factores comunes, obtendremos una gram\'atica equivalente G' que
+genera el mismo lenguaje y es posible que sea LL(1), pero no se puede
+asegurar siempre que G' sea LL(1).
+%
+\item Si una gram\'atica G es ambigua, entonces no es LL(1), ni SLR, ni LR(1). 
+Sin embargo, si G no es ambigua es posible que sea LL(1) y también es posible
+que no lo sea. De igual forma, una gramática G no ambigua puede ser o no SLR.
+%
+\item Si una gram\'atica G es LL(1), entonces no es ambigua (y puede que
+sea SLR). En cambio, si G' no es LL(1), es posible que sea ambigua y es posible
+que no lo sea. Por ejemplo, la siguiente gram\'atica no es LL(1) y no es
+ambigua:
+$$
+\begin{array}{rcl}
+\nter{E} \der \nter{E} \ter{+} \ter{a} \\
+\nter{E} \der \ter{a}
+\end{array}
+$$
+%
+\item Si una gram\'atica G es SLR, entonces no es ambigua (y puede que
+sea LL(1)). En cambio, si G' no es SLR, puede que sea ambigua o
+puede que no. Por ejemplo, la siguiente gram\'atica no es SLR (ni tampoco
+LL(1)) y no es ambigua: 
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{Q} \ter{q} \\
+\nter{S} \der \nter{R} \ter{r} \\
+\nter{Q} \der \ter{(} \nter{A} \ter{)} \\
+\nter{R} \der \ter{(} \nter{E} \ter{)} \\
+\nter{A} \der \ter{a} \\
+\nter{E} \der \ter{a}
+\end{array}
+$$
+\item Se dice que un lenguaje L es LL(1) (o es SLR) si existe una
+gram\'atica LL(1) (o SLR) que genera ese lenguaje. Puede haber otras
+gram\'aticas de otras categor\'{\i}as que generen ese lenguaje, e incluso
+puede haber gram\'aticas ambiguas que generen un lenguaje LL(1) (o SLR).
+\end{itemize}
+
+\paragraph{Nota:} En la página 68 de~\cite{App98} se puede observar, en
+la figura~3.29, un diagrama que muestra gráficamente la relación entre
+todos estos tipos de gramáticas.
+
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{5.1, 5.2 y 5.3}
+\refb{\cite{ASU90}}{4.5 y 4.7}
+\refb{\cite{Ben90}}{6.3.1, 6.3.2 y 6.3.3}
+\refb{\cite{FL91}}{6.1, 6.2, 6.4 y 6.11}
+\end{rbib}
+
+\clearpage
+%\section{Ejercicios}
+\Ejercicios
+
+
+\begin{ejercicio}
+A partir de la siguiente gram\'atica (de 
+expresiones aritm\'eticas), construir la tabla de an\'alisis
+SLR a partir del aut\'omata reconocedor de prefijos viables
+y, a continuaci\'on, hacer la traza del an\'alisis
+ascendente de la cadena ``{\bf id \verb!*! id \verb!+! id}'':
+
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \\
+\nter{E} \der \nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \tertt{(} \nter{E} \tertt{)} \\
+\nter{F} \der \ter{id} \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \\
+\nter{S} \der \nter{T} \nter{R} \nter{V} \\
+\nter{T} \der \ter{tipo} \\
+\nter{T} \der \epsilon \\
+\nter{R} \der \ter{blq} \nter{V} \ter{fblq} \\
+\nter{R} \der \epsilon \\
+\nter{V} \der \ter{id} \nter{S} \ter{fin} \\
+\nter{V} \der \ter{id} \ter{;} \\
+\nter{V} \der \epsilon
+\end{array}
+$$
+Escribid la tabla de an\'alisis sint\'actico SLR para esta
+gram\'atica y 
+haced la traza del funcionamiento del analizador SLR para las cadenas 
+``{\tt tipo id blq id ; fblq fin inst}'' e ``{\tt id tipo id fin ;}''
+\end{ejercicio}
+
+\begin{ejercicio}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{E} \der \ter{[} \nter{L} \ter{]}\\
+\nter{E} \der \ter{a} \\
+\nter{L} \der \nter{E} \nter{Q} \\
+\nter{Q} \der \ter{,} \nter{L} \\
+\nter{Q} \der \epsilon
+\end{array}
+$$
+Escribid la tabla de an\'alisis sint\'actico SLR para esta
+gram\'atica y haced la traza del funcionamiento del analizador SLR para 
+la cadena ``{\tt [a,[a,a],]}''.
+\end{ejercicio}
+
+\begin{ejercicio}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \\
+\nter{S} \der \nter{S} \ter{var} \nter{D} \\
+\nter{S} \der \epsilon \\
+\nter{D} \der \nter{D} \ter{ident} \nter{E} \\
+\nter{D} \der \nter{D} \ter{ident} \ter{sep} \\
+\nter{D} \der \ter{int} \\
+\nter{D} \der \ter{float} \\
+\nter{E} \der \nter{S} \ter{fproc}
+\end{array}
+$$
+Construye una tabla de an\'alisis SLR para ella y haz la traza del
+funcionamiento del analizador para las cadenas 
+``{\tt var int ident inst fproc inst}''
+~~e~~ ``{\tt inst fproc}''. 
+\end{ejercicio}
+
+\begin{ejercicio}
+Escribe la tabla de an\'alisis sint\'actico SLR para
+la gram\'atica siguiente:
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{id} \ter{(} \nter{L} \ter{)}  \\
+\nter{S} \der \ter{id} \\
+\nter{L} \der \epsilon \\
+\nter{L} \der \nter{S} \nter{Q} \\
+\nter{Q} \der \epsilon \\
+\nter{Q} \der \ter{,} \nter{S} \nter{Q}  \\
+\end{array}
+$$
+ Haz tambi\'en la traza de las cadenas ``{\tt a(b())}'' y ``{\tt c(d,e,()}''.
+\end{ejercicio}
+
+\come{ % demasiados ejercicios
+\begin{ejercicio}
+Escribe la tabla de an\'alisis sint\'actico SLR para
+la gram\'atica siguiente:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{U} \\
+\nter{S} \der \nter{M} \\
+\nter{M} \der \ter{i} \nter{M} \ter{e} \nter{M} \\
+\nter{M} \der \ter{a} \\
+\nter{U} \der \ter{i} \nter{S} \\
+\nter{U} \der \ter{i} \nter{M} \ter{e} \nter{U}  
+\end{array}
+$$
+Haz tambi\'en la traza de la cadena ``{\tt iiaeaeia}''.
+\end{ejercicio}
+
+\begin{ejercicio}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{Pro} \der \nter{Pre} \nter{Cue} \\
+\nter{Pre} \der \ter{[} \nter{Cue} \ter{]} \\
+\nter{Pre} \der \epsilon \\
+\nter{Cue} \der \ter{\{} \nter{Pro} \ter{\}} \\
+\nter{Cue} \der \ter{(} \nter{Pre} \ter{)} \\
+\end{array}
+$$
+Sin modificar en absoluto la gram\'atica (excepto la modificaci\'on
+que pres\-cribe el algoritmo, la de a\~nadir una regla al principio),
+dise\~na una tabla de an\'alisis SLR para esa gram\'atica y 
+haz la traza de la cadena ``\verb+[{()}]()+''
+\end{ejercicio}
+} % come
+
+\begin{ejercicio}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \nter{B} \nter{C} \\
+\nter{A} \der \ter{begin} \nter{C} \ter{end} \\
+\nter{A} \der \epsilon \\
+\nter{B} \der \ter{var} \ter{tipo} \\
+\nter{C} \der \nter{B} \nter{C} \\
+\nter{C} \der \ter{fvar} 
+\end{array}
+$$
+Sin modificar en absoluto la gram\'atica (excepto la modificaci\'on
+que pres\-cribe el algoritmo, la de a\~nadir una regla al principio),
+dise\~na un ana\-li\-zador SLR para esa gram\'atica y 
+haz la traza de la cadena ``{\tt begin var tipo fvar end var tipo fvar}''.
+\end{ejercicio}
+
+
+\come{ % rediseñado, sobra de aquí (ya está en el algoritmo)
+Por tanto, cada celda de {\bf Acci\'on} se referencia con dos
+\'{\i}ndices que corresponden a 
+\begin{small}
+\begin{description}
+\item \verb![! Estado en tope de la pila , siguiente {\em token\/} en la entrada \verb!]!
+\end{description}
+\end{small}
+Mientras que los dos \'{\i}ndices de las de {\bf Ir\_a} lo hacen mediante 
+
+\begin{small}
+\begin{description}
+\item \verb![! Estado en tope de la pila , No terminal en la parte izquierda de una regla \verb!]!
+\end{description}
+\end{small}
+} % come
+
+\newpage
+\thispagestyle{empty}
+~~
+

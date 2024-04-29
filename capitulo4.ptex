@@ -1,0 +1,1965 @@
+\section{Introducción}
+
+\subsection{Análisis con retroceso}
+
+
+El an\'alisis sintáctico descendente (ASD) intenta encontrar 
+entre las producciones de la gram\'a\-tica
+la derivaci\'on por la izquierda del s\'{\i}mbolo inicial
+para una cadena de entrada. Una forma intuitiva de realizar un
+análisis descendente sería utilizando {\em backtracking\/} o
+análisis con retroceso, que puede implicar examinar varias
+veces la entrada. Sin embargo, en la práctica no se suele
+utilizar esta técnica ya que su complejidad es exponencial en el
+peor caso y, como hemos comentado en el capítulo anterior, es necesario que
+el analizador sintáctico tenga (como todo o casi todo el compilador)
+una complejidad lineal con respecto al tamaño del programa fuente.
+
+\begin{ejemplo}
+$$
+\begin{array}{lcl}
+\nter{S} \der  \ter{c} \nter{A} \ter{d} \\
+\nter{A} \der \ter{a} \ter{b} \opt \ter{a} \\
+\end{array}
+$$
+Analicemos la cadena de entrada:  ``\verb!cad!''
+\begin{enumerate}
+\item En la
+        situaci\'on en la que el s\'{\i}mbolo analizado es el
+        primero, ``\texttt{\underline{c}ad}'',
+        la \'unica producci\'on que se puede escoger es la
+        primera; luego $S \deriva cAd$, y el 
+        primer s\'{\i}mbolo de la entrada ``\texttt{\underline{c}}''
+        queda emparejado con la primera hoja izquierda del \'arbol que
+        tambi\'en es ``\verb!c!'',
+        con lo que se puede seguir adelante con el an\'alisis. 
+\item Se avanza la
+        marca de entrada al segundo s\'{\i}mbolo, ``\texttt{c\underline{a}d}'',
+        y se considera la siguiente hoja del \'arbol (siempre de
+        izquierda a derecha), etiquetada con $A$.
+        Entonces se expande el \'arbol con la primera producci\'on
+        de $A$, $cAd \deriva cabd$, y como el segundo 
+        s\'{\i}mbolo de la entrada ``\texttt{\underline{a}}''
+        queda emparejado con la segunda hoja por la izquierda, podemos
+        avanzar la marca de an\'alisis. 
+\item Se avanza la
+        marca de entrada al s\'{\i}mbolo siguiente, ``\texttt{ca\underline{d}}'',
+        y se compara con la siguiente hoja etiquetada con ``\verb!b!''.
+        Como no concuerda con ``\texttt{\underline{d}}'',
+        se indica el error y se vuelve a $A$
+	para ver si hay otra alternativa no intentada, y se reestablece la
+        marca de entrada a la posici\'on que ocupaba entonces.
+\item Con la marca en ``\texttt{c\underline{a}d}''
+        se expande la producci\'on no intentada $A \rightarrow a$,
+	que hace que $cAd \deriva cad$.
+        Ahora el s\'{\i}mbolo de entrada ``\texttt{\underline{a}}''
+        coincide con la nueva hoja ``\verb!a!''
+        y se puede proseguir el an\'alisis.
+\item Se avanza de
+        nuevo la marca a ``\texttt{ca\underline{d}}''
+        y coincide con la hoja de la derecha que quedaba por visitar en el
+        \'arbol, por lo que se da por finalizado el an\'alisis con
+        \'exito.
+\end{enumerate}
+\end{ejemplo}
+
+\subsection{An\'alizadores sint\'acticos predictivos}
+
+Para que el algoritmo tenga una complejidad lineal, siempre debe saber 
+qu\'e regla se debe aplicar, por lo que es 
+necesario que el analizador realice una {\em predicci\'on\/} de la regla 
+a aplicar.
+Para ello, se debe conocer, dado el {\em token\/} de la entrada, $a$,
+que est\'e siendo analizado y el no terminal a expandir $A$,
+cu\'al de las alternativas de producci\'on 
+$A \rightarrow \alpha_1 \opt \alpha_2 \opt \ldots \opt \alpha_n$
+es la \'unica posible que da lugar a que el resto de la cadena que
+se est\'a analizando empiece por $a$. Dicho de otra manera,
+la alternativa apropiada debe poderse predecir s\'olo con ver el
+primer s\'{\i}mbolo que produce (como as\'{\i} sucede en la
+mayor\'{\i}a de lenguajes de programaci\'on). Veremos qu\'e
+forma deben tener las gram\'aticas a las que se puede aplicar
+esta metodolog\'{\i}a.
+
+\begin{ejemplo}
+$$
+\begin{array}{lcl}
+\nter{Sent} \der \ter{if} \nter{Expres}\;  \ter{then}  \nter{Sent} \\
+\nter{Sent} \der \ter{while}  \nter{Expres}\;  \ter{do}  \nter{Sent} \\
+\nter{Sent} \der \ter{begin}  \nter{Sent}\;  \ter{end} \\
+\end{array}
+$$
+
+En esta gram\'atica siempre existe s\'olo una posibilidad
+de derivaci\'on, seg\'un que el primer símbolo que
+haya en la entrada en el momento de tomar esa decisi\'on sea {\bf if},
+{\bf while} o {\bf begin}.
+\end{ejemplo}
+
+Seg\'un la nomenclatura que ya hemos introducido, las gram\'aticas
+que son susceptibles de ser analizadas sint\'acticamente de
+forma descendente mediante un an\'alisis predictivo y consultando
+únicamente un símbolo de entrada
+pertenecen al conjunto de gram\'aticas denominado LL(1). En un
+an\'alisis de izquierda a derecha de la cadena de entrada y
+haciendo derivaciones por la izquierda, debe bastar con ver un solo
+símbolo (terminal) en la cadena para saber en cada caso qu\'e
+producci\'on escoger. A partir de las gram\'aticas de tipo
+LL(1) se pueden construir autom\'aticamente {\em analizadores
+sint\'acticos descendentes predictivos\/} (ASDP), que no son
+más que ASD sin retroceso.
+
+\subsection{Conjuntos de predicci\'on}
+
+Los conjuntos de
+predicci\'on son conjuntos de símbolos terminales que ayudan a
+predecir qu\'e regla se debe aplicar para el no terminal que hay
+que derivar. Se construyen, como veremos a continuaci\'on, a
+partir de los s\'{\i}mbolos de las partes derechas de las
+producciones de la gram\'atica.
+
+Para saber qu\'e regla se debe aplicar en cada caso, el
+analizador consulta el siguiente símbolo en la entrada y si
+pertenece al conjunto de predicci\'on de una regla (correspondiente al
+no terminal que hay que derivar), aplica esa regla. Si no
+puede aplicar ninguna regla, se produce un mensaje de error.
+
+\begin{ejemplo} \label{ejanalisis}
+Sup\'ongase la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{A} \der  \tertt{a} \nter{B} \tertt{c} \opt \tertt{x} \nter{C} \opt \nter{B} \\
+\nter{B} \der  \tertt{b} \nter{A} \\
+\nter{C} \der  \tertt{c} \\
+\end{array}
+$$
+y la entrada ``\verb!babxcc!''.
+Supongamos que el an\'alisis ha progresado a lo largo de los
+s\'{\i}mbolos subrayados: ``\texttt{\underline{bab}xcc}''.
+En esta situaci\'on, la cadena de derivaciones habr\'a sido
+esta:
+$$
+A \deriva B \deriva \texttt{b}A \deriva \texttt{ba}B\texttt{c} \deriva 
+ \texttt{bab}A\texttt{c}
+$$
+
+La cuesti\'on en este momento es: ¿qu\'e producci\'on
+tomar para seguir el an\'alisis? Para seguir analizando, hay que
+desarrollar la variable $A$ para lo que hay
+tres posibles opciones. Es f\'acil,
+observando las producciones de $A$
+en la gram\'atica, darse cuenta que para escoger la primera
+opci\'on el resto de la cadena deber\'{\i}a empezar por ``\verb!a!'';
+para escoger la segunda, por ``\verb!x!'' y para la tercera, por ``\verb!b!''.
+Como el resto de la cadena es ``\verb!xcc!'',
+no hay duda de que hay que tomar la segunda opci\'on. Hemos hecho
+uso de los conjuntos de predicci\'on.
+\end{ejemplo}
+
+\begin{ejemplo}
+La siguiente gram\'atica (de la que se muestra s\'olo las
+producciones del no terminal $A$,
+pues el resto no influye en este caso) no cumple los requisitos para ser
+LL(1):
+
+$$
+\begin{array}{lcl}
+\ldots \\
+\nter{A} \der  \tertt{a} \nter{B} \tertt{c} \opt \tertt{a} \nter{C} \opt \nter{B} \\
+\ldots \\
+\end{array}
+$$
+
+Si tenemos que derivar el no terminal $A$,
+no podemos saber, viendo un \'unico s\'{\i}mbolo en la
+entrada, cu\'al es la opci\'on a escoger, pues si aparece
+``\verb!a!'' en la entrada tenemos dos posibles opciones: la primera
+y la segunda. Luego el an\'alisis no puede ser predictivo y la
+gram\'atica no es LL(1).
+\end{ejemplo}
+
+\section{Cálculo de los conjuntos de predicción}
+
+Los conjuntos de predicci\'on de una regla se calculan en funci\'on de los
+primeros s\'{\i}mbolos que puede generar la parte derecha de esa
+regla y, a veces (cuando esa parte derecha puede generar la cadena
+vac\'{\i}a), en funci\'on de los s\'{\i}mbolos que pueden
+aparecer a continuaci\'on de la parte izquierda de la regla en
+una forma sentencial derivable del símbolo inicial. Para especificar 
+formalmente c\'omo se
+calculan los conjuntos de predicci\'on es necesario estudiar
+antes c\'omo se calculan los primeros s\'{\i}mbolos que genera
+una cadena de terminales y no terminales (conjunto de \emph{primeros}) y
+c\'omo obtener los s\'{\i}mbolos que pueden seguir a un no
+terminal en una forma sentencial (conjunto de \emph{siguientes}).
+
+\subsection{C\'alculo del conjunto de primeros}
+
+Dada una gramática $G = (N, T, S, P)$, 
+la funci\'on \prim~ se aplica a cadenas de s\'{\i}mbolos
+de la gram\'atica ($\alpha \in (T \cup N)^{*}$) y
+devuelve un conjunto que puede contener cualesquiera terminales de la
+gram\'atica y la cadena vacia, $\epsilon$.
+A partir de ahora, cuando aparezca \prim$(\alpha)$,
+siendo $\alpha$ una cadena de $(T \cup N)^{*}$,
+nos referiremos al conjunto resultado de aplicar la
+funci\'on \prim~ a la cadena $\alpha$.
+
+\subsubsection{Definici\'on}
+
+Si $\alpha$
+es una forma sentencial compuesta por una concatenaci\'on de
+s\'{\i}mbolos, \prim$(\alpha)$ es el
+conjunto de terminales (o $\epsilon$) que
+pueden aparecer iniciando las cadenas que pueden derivar (en cero o
+m\'as pasos) de $\alpha$.
+
+\subsubsection{Definici\'on formal}
+
+\begin{displaymath}
+a \in \prim(\alpha)  \;\;\textrm{si}\;\;  a \in (T \cup \{\epsilon\}) 
+\;\;\textrm{y}\;\; \alpha \;\stackrel{*}{\Deriva}\; a\beta 
+\end{displaymath} para alguna cadena $\beta$.
+
+\subsubsection{Reglas para el c\'alculo de $\prim(\alpha)$}
+
+\begin{enumerate}
+\item Si $\alpha \equiv \epsilon$, \prim$(\epsilon) = \{\; \epsilon \;\}$
+\item Si $\alpha \in (T \cup N)^{+} , \alpha = a_1 a_2 \ldots a_n$, puede
+ darse dos casos:
+\begin{enumerate}
+\item Si $a_1 \equiv a \in T$, \prim$(\alpha) = \{\; a \;\}$.
+\item Si $a_1 \equiv A \in N$, es necesario calcular \prim$(A)$, para lo
+cual es necesario obtener los primeros de todas las partes derechas de las
+producciones de $A$ en la gramática:
+\begin{displaymath}
+\forall A \rightarrow \alpha_i \in P,\;\; 1 \leq i \leq m,\;\; \prim(A) = \cup_{i=1}^{m} \prim(\alpha_i)
+\end{displaymath}
+Si, después de calcular \prim$(A)$, $\epsilon \in \prim(A)$ y $A$ no es
+el último símbolo de $\alpha$ ($A \neq a_n$), entonces
+$$
+\prim(\alpha) = (\prim(A) - \{\;\epsilon\;\}) \cup \prim(a_2 \ldots a_n)
+$$
+Tanto si $A$ es el último símbolo de $\alpha$ como 
+si resulta que $\epsilon \notin \prim(A)$,
+$$
+ \prim(\alpha) = \prim(A)
+$$
+\end{enumerate}
+\end{enumerate}
+Como se puede observar, esta última regla es una regla recursiva en la que
+los casos base de la recursión son los terminales de la gramática y $\epsilon$~.
+
+\begin{ejemplo} \label{gramexll}
+Sea la siguiente gram\'atica para expresiones aritm\'eticas
+con sumas y multiplicaciones:
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{T} \nter{E'} \\
+\nter{E'} \der \tertt{+} \nter{T} \nter{E'} \opt \epsilon \\
+\nter{T} \der \nter{F} \nter{T'} \\
+\nter{T'} \der \tertt{*} \nter{F} \nter{T'} \opt \epsilon \\
+\nter{F} \der \tertt{(} \nter{E} \tertt{)} \opt \ter{ident} \\
+\end{array}
+$$
+C\'alculo de los primeros de todos los no terminales de esta
+gram\'a\-tica:
+
+\begin{small}
+\begin{tabular}{ll}
+\prim($E'$) & $=$ \{ + , $\epsilon$ \} \\
+\prim($T'$) & $=$ \{ * , $\epsilon$ \} \\
+\prim($F$) &  $=$ \{ ( , ident \} \\
+\prim($E$) & $=^{E\rightarrow T E', T\in N}$ \prim($T$) $=^{T\rightarrow F T', F\in N}$ \prim($F$) $=$ \{ ( , ident \} \\
+\end{tabular}
+\end{small}
+\end{ejemplo}
+
+\begin{ejemplo}
+Sea la gramática siguiente:
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{A} \ter{a} \opt \nter{B} \nter{C} \nter{D} \\
+\nter{B} \der \ter{b} \opt \epsilon \\
+\nter{C} \der \ter{c} \opt \epsilon \\
+\nter{D} \der \ter{d} \opt \nter{C} \ter{e} \\
+\end{array}
+$$
+Calculamos los conjuntos de primeros de todas las variables de esta
+gram\'a\-tica:
+
+\begin{small}
+\begin{tabular}{lcl}
+\prim($C$) &$=$& \{ c, $\epsilon$ \} \\
+\prim($B$) &$=$& \{ b, $\epsilon$ \} \\
+\prim($D$) &$=$& \prim(d) $\cup$ \prim($C$e) $=$ \{ d \} $\cup$ 
+                           (\prim($C$)$-$\{$\epsilon$\}) $\cup$ \prim(e) $=$\\
+              &   & \{ d, c, e \} \\
+\prim($A$) &$=$& \prim($A$a) $\cup$ \prim($BCD$) $=$  \prim($BCD$) $=$
+                             \{ b \} $\cup$ \prim($CD$) $=$  \\
+              &   & \{ b, c \} $\cup$ \prim($D$) $=$ \{ b, c, d, e \} \\
+\end{tabular}
+\end{small}
+
+Si a\~nadimos la regla $D \longrightarrow \epsilon$, hay que cambiar los
+cálculos, pues habría que añadir $\epsilon$ a \prim($D$) y eso cambiaría
+el cálculo de \prim($A$):
+
+\begin{small}
+\begin{tabular}{lcl}
+\prim($BCD$) &$=$& \{ b \} $\cup$ \prim($CD$) $=$ \{ b, c \} $\cup$ \prim($D$) $=$ \{ b, c, d, e, $\epsilon$ \} \\
+\end{tabular}
+\end{small}
+
+Entonces \prim($A$) $=$ \{ b, c, d, e, $\epsilon$ \}, pero puesto que
+ahora la regla $A \longrightarrow BCD$ puede derivar a $\epsilon$, eso
+implica que $A$ puede desaparecer de la primera posición de la 
+regla $A \longrightarrow A$a y, por tanto, también hay que añadir ``a'' al
+conjunto de \prim($A$):
+
+\begin{small}
+\begin{tabular}{lcl}
+\prim($A$) &$=$& \{ b, c, d, e, $\epsilon$, a \} \\
+\end{tabular}
+\end{small}
+\end{ejemplo}
+
+
+\subsection{C\'alculo del conjunto de siguientes}
+
+La funci\'on \sig~ se aplica a no terminales de la
+gram\'atica ($A \in N$) y 
+devuelve un conjunto que puede contener cualesquiera terminales
+de la gram\'atica y un s\'{\i}mbolo
+especial, ``$\$$'', que representa el final de la cadena de
+entrada (el final del fichero en un compilador). 
+
+\subsubsection{Definici\'on}
+
+Si $A$ es un s\'{\i}mbolo
+no terminal de la gram\'atica, \sig($A$) es el conjunto de
+terminales (y $\$$) que pueden aparecer a continuaci\'on de $A$ en alguna
+forma sentencial derivada del s\'{\i}mbolo inicial.
+
+\subsubsection{Definici\'on formal}
+\begin{displaymath}
+a \in \sig(A)  \;\;\textrm{si}\;\;  a \in (T \cup \{\$\}) \;\;\textrm{y}\;\;
+\exists\alpha,\beta\;/\; S \stackrel{*}{\Deriva} \alpha Aa\beta \;\;\textrm{para algún par de cadenas}\;\; \alpha, \beta.
+\end{displaymath}
+\subsubsection{Reglas para su c\'alculo}
+
+\begin{enumerate}
+\item Inicialmente, 
+
+\begin{tabular}{l}
+\sig($A$) $=$ $\emptyset$
+\end{tabular}
+\item Si $A$ es el s\'{\i}mbolo inicial, entonces 
+
+     \begin{tabular}{l}
+     \sig($A$) $=$ \sig($A$) $\cup$ \{\$\} 
+     \end{tabular}
+\item {\bf (S1)} Para cada regla de la forma  $B \longrightarrow \alpha A \beta$ 
+
+     \begin{tabular}{l}
+     \sig($A$) $=$ \sig($A$) $\cup$ (\prim($\beta$) $-$ \{ $\epsilon$ \})
+     \end{tabular}
+
+\item {\bf (S2)} Para cada regla de la forma $B \longrightarrow \alpha A $  o
+bien de la forma $B \longrightarrow \alpha A \beta$ en la que $\epsilon \in$ \prim($\beta$)
+
+     \begin{tabular}{l}
+     \sig($A$) $=$ \sig($A$) $\cup$ \sig($B$)
+     \end{tabular}
+
+\item Repetir los pasos 3 y 4 hasta que no se puedan a\~nadir m\'as 
+   s\'{\i}mbolos a \sig($A$). 
+\end{enumerate}
+
+\begin{small}
+\paragraph{Nota:} Las reglas {\bf (S1)} y {\bf (S2)} no son excluyentes. Primero 
+habr\'a que intentar aplicar {\bf (S1)} y luego {\bf (S2)}.
+S\'olo en el caso de producciones del tipo $B \longrightarrow \alpha A$ 
+no tendr\'a sentido intentar aplicar {\bf (S1)}.
+\end{small}
+
+\begin{ejemplo}
+En la gram\'atica de las expresiones aritm\'eticas del
+ejemplo~\refej{gramexll} calcularemos los conjuntos siguientes de todos los
+s\'{\i}mbolos no terminales:
+
+\begin{small}
+\begin{tabular}{l}
+\sig($E$) $=$ \{ \$ \} {\tiny (porque $E$ es el símbolo inicial)} $\cup$ 
+   {\tiny (\textbf{(S1)} $F\rightarrow (E)$)} \{ ) \} $=$ \{ \$, ) \}\\
+\sig($E'$) $=$ {\tiny (\textbf{(S2)} $E\rightarrow TE'$ y 
+$E'\rightarrow +TE'$)} \sig($E'$) {\tiny ($=\emptyset$)} $\cup$
+ \sig($E$) $=$ \{ \$, ) \} \\
+\sig($T$) $=$ {\tiny (\textbf{(S1)} $E\rightarrow TE'$ y $E'\rightarrow +TE'$)} 
+    (\prim($E'$) $-$ \{ $\epsilon$ \}) $\cup$ 
+ {\tiny (\textbf{(S2)} $E'\rightarrow \epsilon$)} (\sig($E$) $\cup$ \sig($E'$)) \\
+\hspace{1cm} $=$ \{ + \} $\cup$ \{ \$, ) \} $=$ \{ +, \$ , ) \} \\
+\sig($T'$) $=$ {\tiny (\textbf{(S2)} $T\rightarrow FT'$ y 
+$T'\rightarrow *FT'$)} \sig($T'$) {\tiny ($=\emptyset$)} $\cup$
+ \sig($T$) $=$ \{ +, \$, ) \} \\
+\sig($F$) $=$ {\tiny (\textbf{(S1)} $T\rightarrow FT'$ y $T\rightarrow *FT'$)} (\prim($T'$) $-$ \{ $\epsilon$ \}) $\cup$ 
+ {\tiny (\textbf{(S2)} $T'\rightarrow \epsilon$)} (\sig($T$) $\cup$ \sig($T'$)) \\
+\hspace{1cm} $=$ \{ * \} $\cup$ \{ +, \$, ) \} $=$ \{ *, +, \$, ) \}\\
+\end{tabular}
+\end{small}
+\end{ejemplo}
+
+\subsection{C\'alculo del conjunto predicción}
+
+La funci\'on \pred~ se aplica a producciones de la
+gram\'atica ($A \longrightarrow \alpha$) y 
+devuelve un conjunto, llamado {\em conjunto de predicci\'on},
+que puede contener cualesquiera terminales de la gram\'atica y
+el s\'{\i}mbolo ``$\$$'', pero nunca puede contener $\epsilon$.
+Cuando el ASDP tiene que derivar un no terminal,
+consulta el s\'{\i}mbolo de la entrada que espera a ser analizado y
+lo busca en los conjuntos de predicci\'on de cada regla de ese
+no terminal (véase el ejemplo~\refej{ejanalisis}). De esta
+forma y siempre que los conjuntos de predicci\'on de todas las
+reglas de cada no terminal por separado sean disjuntos entre s\'{\i}
+(aunque puede suceder que dos conjuntos de predicci\'on de
+no terminales distintos tengan s\'{\i}mbolos comunes), el analizador
+sint\'actico puede construir una derivaci\'on por la
+izquierda de la cadena de entrada.
+
+\subsubsection{Regla para su c\'alculo}
+
+\begin{center}
+\begin{tabular}{ll}
+\pred($A \longrightarrow \alpha$) $=$ & \\
+\hspace{1em} si  $\epsilon \in$ \prim($\alpha$) entonces & $=$ (\prim($\alpha$) $-$ \{ $\epsilon$ \}) $\cup$ \sig($A$) \\
+\hspace{1em} si no                                          & $=$ \prim($\alpha$) \\
+\end{tabular}
+\end{center}
+
+\begin{ejemplo}
+Supóngase la siguiente gramática:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \nter{B} \opt \ter{s} \\
+\nter{A} \der \ter{a} \nter{S} \ter{c} \opt \ter{e} \nter{B} \ter{f} \opt \epsilon \\
+\nter{B} \der \ter{b} \nter{A} \ter{d} \opt \epsilon \\
+\end{array}
+$$
+
+Calculamos los conjuntos de predicción utilizando la regla adecuada en cada
+caso:
+
+\begin{small}
+\begin{tabular}{l}
+\pred($S \longrightarrow A B$) $=$ (\prim($AB$)$-$\{$\epsilon$\}) $\cup$ \sig($S$) \\
+\hspace{4cm} $=$ \{ a, e, b, \verb|$|, c \} \\
+\pred($S \longrightarrow {\bf s}$) $=$ \prim(s) $=$ \{ s \} \\
+\pred($A \longrightarrow {\bf a} S {\bf c}$) $=$ \prim(a$S$c) $=$ \{ a \} \\
+\pred($A \longrightarrow {\bf e} B {\bf f}$) $=$ \prim(e$B$f) $=$ \{ e \} \\
+\pred($A \longrightarrow \epsilon$) $=$ (\prim($\epsilon$)-\{$\epsilon$\}) $\cup$ \sig($A$) $=$ \{ d, b, \verb|$|, c \} \\
+\pred($B \longrightarrow {\bf b} A {\bf d}$) $=$ \prim(b$A$d) $=$ \{ b \} \\
+\pred($B \longrightarrow \epsilon$) $=$ (\prim($\epsilon$)-\{$\epsilon$\}) $\cup$ \sig($B$) $=$ \{ f, \verb|$|, c \} \\
+\end{tabular}
+\end{small}
+
+¿Pod\'{\i}a construirse un ASDP a la vista de estos conjuntos?
+\end{ejemplo}
+
+\section{La condición LL(1)}
+
+
+Para que una
+gram\'atica pertenezca al conjunto de gram\'aticas LL(1) ha
+de cumplir la condici\'on LL(1). Esta condici\'on no ``salta
+a la vista'' a partir del aspecto de las producciones de la
+gram\'atica, sino que tiene que ver con el contenido de los
+conjuntos de predicci\'on de las reglas que derivan de un mismo
+no terminal.
+
+Para que la regla a aplicar sea siempre \'unica, se debe exigir
+que los conjuntos de predicci\'on de las reglas de cada no
+terminal sean disjuntos entre s\'{\i}; es decir, no puede haber
+ning\'un s\'{\i}mbolo terminal que pertenezca a dos o
+m\'as conjuntos de predicci\'on de las reglas de un mismo no
+terminal. Si se cumple esta condici\'on, la gram\'atica es
+LL(1) y se puede realizar su an\'alisis sint\'actico en
+tiempo lineal.
+
+La condici\'on LL(1) es necesaria y suficiente para poder
+construir un ASDP para una gram\'atica. Una gramática que cumple la
+condición LL(1) se dice que es una gramática LL(1). Estas gramáticas 
+tienen las siguientes propiedades o caracter\'{\i}sticas para su
+análisis:
+\begin{itemize}	
+\item La secuencia de {\em tokens\/} se analiza de izquierda a derecha.
+\item Siempre se deriva el no terminal que aparezca m\'as a la izquierda.
+\item S\'olo será necesario ver un
+        {\em token\/} de la secuencia de entrada para averiguar qu\'e
+        producci\'on seguir.
+\end{itemize}
+
+%Vamos a ver formalmente dicha condici\'on.
+\subsubsection{Condici\'on LL(1)}
+
+Dadas todas las producciones de la gram\'atica para un mismo
+terminal:
+
+$$
+\begin{array}{lcll}
+\nter{A} \der \alpha_1 \opt \alpha_2 \opt \ldots \opt \alpha_n & \forall A \in N \\
+\end{array}
+$$
+se debe cumplir la siguiente condici\'on:
+
+$$
+\forall i,j \;(i \neq j) \;\;\; \pred(A \rightarrow \alpha_i ) \cap 
+ \pred(A \rightarrow \alpha_j ) = \emptyset
+$$
+
+\begin{ejemplo}
+Sea la siguiente gram\'atica con sus conjuntos de
+predicci\'on ya calculados para cada regla:
+$$
+\begin{array}{lcll}
+\nter{A} \der \ter{a} \ter{b} \nter{B} & \{ \ter{a} \} \\
+\nter{A} \der \nter{B} \ter{b} & \{ \ter{b}, \ter{c} \} \\
+\nter{B} \der \ter{b} & \{ \ter{b} \} \\
+\nter{B} \der \ter{c} & \{ \ter{c} \} \\
+\end{array}
+$$
+Se puede afirmar que es LL(1) porque los conjuntos de predicci\'on de las
+dos reglas del no terminal $A$ son disjuntos entre s\'{\i}, y los conjuntos
+de predicci\'on de las reglas de $B$ tambi\'en lo son. Como se puede comprobar,
+los s\'{\i}mbolos {\bf b} y {\bf c} pertenecen a varios conjuntos de 
+predicci\'on de reglas de diferentes no terminales y, sin embargo, la gram\'atica
+sigue siendo LL(1). Si a\~nadimos la regla 
+$$
+\begin{array}{lcl}
+\nter{B} \der \ter{a} 
+\end{array}
+$$
+los conjuntos de predicci\'on quedar\'{\i}an de la siguiente manera:
+$$
+\begin{array}{lcll}
+\nter{A} \der \ter{a} \ter{b} \nter{B} & \{ \ter{a} \} \\
+\nter{A} \der \nter{B} \ter{b} & \{ \ter{a}, \ter{b}, \ter{c} \} \\
+\nter{B} \der \ter{b} & \{ \ter{b} \} \\
+\nter{B} \der \ter{c} & \{ \ter{c} \} \\
+\nter{B} \der \ter{a} & \{ \ter{a} \} \\
+\end{array}
+$$
+Con esta nueva regla, los conjuntos de predicci\'on de las reglas del no 
+terminal $A$ ya no son disjuntos (el s\'{\i}mbolo {\bf a} pertenece a 
+ambos) y por tanto la gram\'atica no es LL(1), independientemente de si
+los conjuntos de predicci\'on de las reglas de $B$ son o no disjuntos.
+\end{ejemplo}
+
+\begin{ejemplo}
+Sea la siguiente gramática:
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \opt \nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \opt \nter{F} \\
+\nter{F} \der \ter{num} \opt \tertt{(} \nter{E} \tertt{)} \\
+\end{array}
+$$
+
+Se trata de estudiar si cumple la condición LL(1). Para ello se
+calculan los conjuntos de predicción:
+
+\begin{small}
+\begin{tabular}{l}
+\pred($E \longrightarrow E + T$) $=$ \prim($E+T$) $=$ \{ \textbf{num}, \verb!(! \} \\
+\pred($E \longrightarrow T$) $=$ \prim($T$) $=$ \{ \textbf{num}, \verb!(! \} \\
+\pred($T \longrightarrow T * F$) $=$ \prim($T*F$) $=$ \{ \textbf{num}, \verb!(! \} \\
+\pred($T \longrightarrow F$) $=$ \prim($F$) $=$ \{ \textbf{num}, \verb!(! \} \\
+\pred($F \longrightarrow$ num) $=$ \prim(\textbf{num}) $=$ \{ \textbf{num} \} \\
+\pred($F \longrightarrow (E)$) $=$ \prim($(E)$) $=$ \{ \verb!(! \} \\
+\end{tabular}
+\end{small}
+
+Para el símbolo $F$, la intersección de los conjuntos de predicción de
+todas las reglas en las que se desarrolla es:
+
+\begin{small}
+\begin{tabular}{l}
+\pred($F \longrightarrow \ter{num}$) $\cap$ \pred($F \longrightarrow (E)$) $=$
+\{ \textbf{num} \} $\cap$ \{ \verb!(! \} $=$ $\emptyset$ \\
+\end{tabular}
+\end{small}
+
+pero no sucede lo mismo con los conjuntos de predicción de las producciones 
+de $T$, que
+son iguales (por lo tanto, no disjuntos), por lo que la gramática no cumple
+la condición LL(1). Con el no terminal $E$ ocurre lo mismo que con $T$.
+\end{ejemplo}
+
+
+\begin{ejemplo}
+¿Cumple la condición LL(1) la siguiente gramática?
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{T} \nter{E'} \\
+\nter{E'} \der \tertt{+} \nter{T} \nter{E'} \opt \epsilon \\
+\nter{T} \der \nter{F} \nter{T'} \\
+\nter{T'} \der \tertt{*} \nter{F} \nter{T'} \opt \epsilon \\
+\nter{F} \der \ter{num} \opt \tertt{(} \nter{E} \tertt{)} \\
+\end{array}
+$$
+
+No hace falta calcular los conjuntos de predicci\'on de aquellas
+variables que no tienen m\'as que una opci\'on para su
+desarrollo. Si s\'olo hay una opci\'on, no se plantear\'a
+nunca dudas sobre qu\'e opci\'on elegir. S\'olo
+aquellas variables con dos o m\'as alternativas son las que hay
+que estudiar para ver si sus conjuntos de predicci\'on son
+disjuntos. Por lo tanto, en este ejemplo no hace falta calcular 
+\pred($E \rightarrow TE'$) ni \pred($T \rightarrow FT'$). 
+Vamos a ver qu\'e ocurre con los restantes.
+
+\begin{small}
+\begin{tabular}{l}
+\pred($E' \longrightarrow \tertt{+} T E'$) $=$ \{ \verb!+! \} \\
+\pred($E' \longrightarrow \epsilon$) $=$ \sig($E'$) = \{ \$, \verb!)! \} \\
+\\
+\pred($T' \longrightarrow \tertt{*} F T'$) $=$ \{ \verb!*! \} \\
+\pred($T' \longrightarrow \epsilon$) $=$ \sig($T'$) = \{ \verb!+!, \$, \verb!)! \} \\
+\\
+\pred($F \longrightarrow \ter{num}$) $=$ \{ \textbf{num} \} \\
+\pred($F \longrightarrow (E)$) $=$ \{ \verb!(! \} \\
+\end{tabular}
+\end{small}
+
+Ahora, para cada uno de estos no terminales con alternativas,
+comprobamos si los conjuntos de predicci\'on son disjuntos entre
+s\'{\i}:
+
+\begin{small}
+\begin{tabular}{l}
+\pred($E' \longrightarrow \tertt{+} T E'$) $\cap$ \pred($E' \longrightarrow \epsilon$) $=$
+\{ \verb!+! \} $\cap$ \{ \verb!)!, \$ \} $=$ $\emptyset$ \\
+\pred($T' \longrightarrow \tertt{*} F T'$) $\cap$ \pred($T' \longrightarrow \epsilon$) $=$
+\{ \verb!*! \} $\cap$ \{ \verb!+!, \verb!)!, \$ \} $=$ $\emptyset$ \\
+\pred($F \longrightarrow \ter{num}$) $\cap$ \pred($F \longrightarrow (E)$) $=$
+\{ \textbf{num} \} $\cap$ \{ \verb!(! \} $=$ $\emptyset$ \\
+\end{tabular}
+\end{small}
+
+Luego esta
+gram\'atica cumple la condici\'on LL(1).
+\end{ejemplo}
+
+\section{Modificación de gramáticas no LL(1)}
+
+Existen algunas
+caracter\'{\i}sticas que, en el caso de ser observadas en una
+gram\'atica, garantizan que no es LL(1) (sin necesidad de
+calcular los conjuntos de predicci\'on); sin embargo, si ninguna
+de estas caracter\'{\i}sticas aparece, la gram\'atica puede
+que sea LL(1) o puede que no lo sea (en este caso s\'{\i} que hay
+que calcular los conjuntos de predicci\'on para comprobarlo).
+Tambi\'en, si la gram\'atica no es LL(1) no necesariamente
+debe tener alguna de estas caracter\'{\i}sticas; puede que tenga
+alguna, puede que las tenga todas o puede que no tenga ninguna de
+ellas. Estas características son la ambigüedad, los factores comunes
+por la izquierda y la recursividad izquierda.
+
+Cualquier gram\'atica recursiva por la izquierda o con s\'{\i}mbolos
+comunes por la izquierda en algunas producciones no ser\'a
+LL(1). Si en una gram\'atica se elimina (como veremos más adelante)
+su recursividad por la izquierda, se factoriza por la izquierda (si tuviera 
+factores comunes por ese lado) y no presenta ambigüedad\footnote{Si tiene 
+ambig\"uedad, en alg\'un momento el analizador no sabr\'a qu\'e producci\'on
+seleccionar, puesto que hay al menos dos posibles an\'alisis.}, la gram\'atica 
+modificada resultante podr\'{\i}a ser LL(1) (analizable por un ASDP),
+pero también podría resultar que no lo fuera, como la siguiente gramática:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \opt \nter{B} \\
+\nter{A} \der \ter{a} \ter{a} \\
+\nter{B} \der \nter{C} \ter{b} \\
+\nter{C} \der \ter{a} \nter{A} \\
+\end{array}
+$$
+Por tanto, que una gramática no sea recursiva por la izquierda, no tenga
+factores comunes por la izquierda y no sea ambigua es una condición necesaria
+para que sea LL(1), pero no suficiente.
+
+Por otra parte, veremos que si nos encontramos una gram\'atica
+que no sea LL(1) existen m\'etodos para modificarla y convertirla en una
+gramática que pudiera ser LL(1).
+
+\subsection{Eliminaci\'on de la ambig\"uedad}
+
+
+Cualquier gram\'atica
+ambigua no cumple la condición LL(1) ya que, por la propia definici\'on 
+de esta propiedad, en alg\'un caso no sabremos qu\'e producci\'on
+tomar a la vista de un \'unico s\'{\i}mbolo, pues habr\'a
+m\'as de un posible \'arbol de an\'alisis sint\'actico.
+Esto no quiere decir que si la gram\'atica no es ambigua
+entonces ser\'a LL(1), pues puede presentar otros problemas,
+como veremos a continuaci\'on.
+
+El problema de la ambig\"uedad es el m\'as dif\'{\i}cil de
+resolver pues no existe una metodolog\'{\i}a para eliminarla y
+tampoco hay otra f\'ormula para saber que una gram\'atica
+es ambigua más que la de encontrar alguna sentencia que tenga dos o más
+\'arboles de an\'alisis sint\'actico distintos.
+
+La mejor opci\'on cuando se presenta una gram\'atica
+ambigua es replantearse el dise\~no de la misma para encontrar
+una gram\'atica no ambigua equivalente (que genere el mismo
+lenguaje).
+
+\subsection{Factorizaci\'on por la izquierda}
+
+Si dos producciones
+alternativas de un s\'{\i}mbolo $A$ empiezan igual, no se sabr\'a
+por cu\'al de ellas seguir. Se trata de reescribir las
+producciones de $A$ para retrasar la decisi\'on hasta haber visto
+lo suficiente de la entrada como para elegir la opci\'on
+correcta.
+
+\begin{ejemplo}
+Sean las producciones:
+$$
+\begin{array}{lcl}
+\nter{Sent} \der \ter{if} \nter{Expr} \ter{then} \nter{Sent} \ter{else} \nter{Sent} \\
+\nter{Sent} \der \ter{if} \nter{Expr} \ter{then} \nter{Sent} \\
+\nter{Sent} \der \nter{Otras}\\
+\end{array}
+$$
+Al ver ``{\bf if}''
+no se sabe cu\'al de las dos producciones hay que tomar para
+expandir $Sent$.
+De hecho, un analizador sint\'actico descendente no sabr\'{\i}a
+qu\'e hacer hasta superar el cuarto s\'{\i}mbolo de esta
+producci\'on. Si entonces llega ``{\bf else}''
+ya sabe que se trataba de la primera y si entra cualquier otro {\em token\/}
+entonces se trataba de la segunda. Pero esto ocurre demasiado {\em tarde\/}
+para el an\'alisis sint\'actico predictivo.
+\end{ejemplo}
+
+Nos enfrentamos, pues, al problema de producciones que tienen
+s\'{\i}mbolos comunes por la izquierda; es decir, si son del tipo
+$A \rightarrow \alpha \beta_1 \opt \alpha \beta_2$ .
+En estos casos, ante una entrada del prefijo $\alpha$,
+no sabemos si derivar por $\alpha \beta_1$ o por $\alpha \beta_2$. 
+La soluci\'on pasa por modificar las producciones afectadas cambiando
+$$
+\begin{array}{lcl}
+A \der \alpha \beta_1 \opt \alpha \beta_2
+\end{array}
+$$
+por dos producciones:
+$$
+\begin{array}{lcl}
+A  \der \alpha  A' \\
+A' \der \beta_1 \opt \beta_2
+\end{array}
+$$
+
+Con esto se retrasa el momento de la decisi\'on hasta despu\'es
+de analizar los s\'{\i}mbolos comunes y se soluciona uno de los
+problemas que ten\'{\i}a esa gram\'atica para no cumplir la
+condici\'on LL(1).
+
+Veamos la regla general para factorizar por la izquierda una
+gram\'atica. Para todos los no terminales, $A$, de la
+gram\'atica, se debe encontrar el prefijo $\alpha$
+m\'as largo com\'un a dos o m\'as producciones de $A$, pero siempre
+aquel que sea común a más producciones. Es posible que dos producciones
+presenten un prefijo común $\gamma$ pero exista otra producción que tenga un
+prefijo común con ambas $\delta$ que sea más corto ($ \gamma = \delta\beta\;$ y 
+$\;|\delta| < |\gamma|$).
+En este caso, primero es necesario eliminar el factor común $\delta$ y después
+habrá que eliminar el resto de $\gamma$, es decir, $\beta$.
+
+Si existe dicho prefijo común $\alpha \neq \epsilon$, entonces hay que 
+sustituir las producciones
+$$
+\begin{array}{lcl}
+A \der \alpha \beta_1 \opt \alpha \beta_2 \opt \ldots \opt \alpha \beta_n \opt \gamma_i
+\end{array}
+$$
+donde $\gamma_i$ representa a todas las alternativas que no empiezan por 
+$\alpha$, por:
+$$
+\begin{array}{lcl}
+A  \der \alpha  A' \opt \gamma_i \\
+A' \der \beta_1 \opt \beta_2 \opt \ldots \opt \beta_n \\
+\end{array}
+$$
+Este paso debe repetirse para todos los prefijos comunes por la izquierda (de 
+un mismo no terminal, por supuesto) que
+queden en la gramática.
+
+
+\begin{ejemplo}
+$$
+\begin{array}{lcl}
+\nter{Sent} \der \ter{if} \nter{Expr} \ter{then} \nter{Sent} \ter{else} \nter{Sent} \ter{endif} \\
+\nter{Sent} \der \ter{if} \nter{Expr} \ter{then} \nter{Sent} \ter{endif}\\
+\nter{Sent} \der \nter{Otras}\\
+\end{array}
+$$
+Fij\'andonos en la regla para factorizar, podemos identificar:	
+$$
+\begin{array}{lcl}
+\alpha   &\equiv& \ter{if} \nter{Expr} \ter{then} \nter{Sent}  \\
+\beta_1  &\equiv& \ter{else} \nter{Sent} \ter{endif}\\
+\beta_2  &\equiv& \ter{endif} \\
+\gamma_i &\equiv& \nter{Otras} \\
+\end{array}
+$$
+Con lo que la gram\'atica factorizada queda        
+$$
+\begin{array}{lcl}
+\nter{Sent} \der \ter{if} \nter{Expr} \ter{then} \nter{Sent} \nter{Sent'} \\
+\nter{Sent} \der \nter{Otras} \\
+\nter{Sent'} \der \ter{else} \nter{Sent} \ter{endif} \\
+\nter{Sent'} \der \ter{endif} \\
+\end{array}
+$$ 
+Adicionalmente, sup\'ongase que el no terminal $Otras$ deriva en
+un terminal cualquiera ``\verb!x!''. Compru\'ebese que
+esta gram\'atica es ahora LL(1).
+\end{ejemplo}
+
+
+\subsection{Eliminaci\'on de la recursividad por la izquierda}
+
+
+Una gram\'atica es recursiva por la izquierda si 
+tiene alguna producci\'on que sea recursiva por la izquierda (\emph{recursividad
+directa por la izquierda}) o bien si a partir de una forma sentencial como
+$A\gamma$ se obtiene (después de dos o más derivaciones) una forma sentencial
+$A\beta\gamma$ en la que el no terminal $A$ vuelve a ser el primero por
+la izquierda (\emph{recursividad indirecta por la izquierda}). En general, 
+una gramática es recursiva por la izquierda si
+$$
+ \exists A \in N \;\;/\;\; A \stackrel{*}{\deriva} A \alpha \;\;\;\textrm{para alguna cadena}\;\; \alpha
+$$
+Los analizadores sint\'acticos descendentes no pueden manejar
+estas gram\'a\-ticas pues entrar\'{\i}an en ciclos de
+recursividad infinita al ejecutarse. Cualquier gram\'atica
+recursiva por la izquierda no cumple la condici\'on LL(1). 
+
+Para gram\'aticas de la forma:
+$$
+\begin{array}{l@{\;\;\;}c@{\;\;\;}l}
+A \rightarrow A \alpha \opt \beta \der  \textrm{ genera el lenguaje:}\;\; \beta, \beta\alpha, \beta\alpha\alpha, \ldots \\
+\end{array}
+$$
+existe una regla para modificar este tipo de producciones para que
+dejen de ser recursivas por la izquierda:
+$$
+\begin{array}{lcll}
+A  \der \beta A' & \textrm{(nuevo no terminal auxiliar)} \\
+A' \der \alpha A' & \textrm{(recursiva por la derecha)} \\
+A' \der \epsilon & \\
+\end{array}
+$$
+Esta gram\'atica modificada ya no es recursiva por la izquierda,
+por lo que ya no presenta el problema que le imped\'{\i}a ser LL(1).
+
+\begin{ejemplo} \label{ejarit}
+Eliminar la recursividad izquierda de la gram\'atica de las
+expresiones aritm\'eticas.
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \tertt{+} \nter{T} \opt \nter{E} \tertt{-} \nter{T} \opt\nter{T} \\
+\nter{T} \der \nter{T} \tertt{*} \nter{F} \opt \nter{T} \tertt{/} \nter{F} \opt \nter{F} \\
+\nter{F} \der \ter{num} \opt \tertt{(} \nter{E} \tertt{)} \\
+\end{array}
+$$
+En el caso del no terminal $E$,
+$$
+\begin{array}{lcl||clcl}
+\alpha_1   &\equiv& \tertt{+} \nter{T} & &\nter{E} \der \nter{T} \nter{E'} \\
+\alpha_2   &\equiv& \tertt{-} \nter{T} & \deriva & \nter{E'} \der \tertt{+} \nter{T} \nter{E'} \opt \tertt{-} \nter{T} \nter{E'} \opt \epsilon\\
+\beta      &\equiv& \nter{T}           & & \\
+\end{array}
+$$
+Lo mismo sucede con el no terminal $T$. Por tanto nos queda la siguiente 
+gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{T} \nter{E'} \\
+\nter{E'} \der \tertt{+} \nter{T} \nter{E'} \opt \tertt{-} \nter{T} \nter{E'} \opt \epsilon \\
+\nter{T} \der \nter{F} \nter{T'} \\
+\nter{T'} \der \tertt{*} \nter{F} \nter{T'} \opt \tertt{/} \nter{F} \nter{T'} \opt \epsilon \\
+\nter{F} \der \ter{num} \opt \tertt{(} \nter{E} \tertt{)} \\
+\end{array}
+$$
+\end{ejemplo}
+
+En el caso general, independientemente de cu\'antas producciones
+alternativas haya de $A$, se puede eliminar la recursividad por la
+izquierda utilizando las siguientes reglas:
+$$
+\begin{array}{lcl}
+A \der A\alpha_1 \opt A\alpha_2 \opt \ldots \opt A\alpha_m \opt \beta_1 \opt \beta_2 \opt \ldots \opt \beta_n
+\end{array}
+$$
+Se sustituye por:
+$$
+\begin{array}{lcl}
+A \der \beta_1 A' \opt \beta_2 A' \opt \ldots \opt \beta_n A' \\
+A' \der \alpha_1 A' \opt \alpha_2 A' \opt \ldots \opt \alpha_m A' \opt \epsilon \\
+\end{array}
+$$
+Estas reglas no sirven para eliminar la recursividad indirecta
+por la izquierda, como la que se presenta en el siguiente ejemplo.
+
+\begin{ejemplo}  \label{recindirecta}
+Sea la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \ter{a} \opt \ter{b} \\
+\nter{A} \der \nter{A} \ter{c} \opt \nter{S} \ter{d} \opt \epsilon \\
+\end{array}
+$$
+$ S \deriva Aa \deriva Sda $, luego $ S \stackrel{2}{\deriva} Sda $ (recursividad indirecta).
+\end{ejemplo}
+
+Para resolver este problema se proporciona el siguiente algoritmo capaz de
+eliminar la recursividad indirecta sistem\'aticamente. Funciona si la 
+gram\'atica no tiene ciclos ($A \stackrel{+}{\deriva} A$)
+o producciones vac\'{\i}as ($A \rightarrow \epsilon$).
+
+\paragraph{Pasos:}
+\begin{enumerate}
+\item Ordenar los no terminales seg\'un $A_1, A_2, \ldots, A_n$
+\item
+\begin{tabbing}
+D\=D\=Sus\= \kill 
+DESDE  $i \leftarrow 1$  HASTA  $n$ HACER \\
+\> DESDE  $j \leftarrow 1$  HASTA  $i-1$ HACER \\
+\>\> Sustituir cada  $A_i \rightarrow A_j \gamma$ ~~ por ~~
+$A_i \rightarrow \delta_1 \gamma \opt \delta_2 \gamma \opt \ldots \opt \delta_k \gamma$ \\
+\>\>\> donde $A_j \rightarrow \delta_1 \opt \delta_2 \opt \ldots \opt \delta_k$  son las producciones \\
+\>\>\> actuales de $A_j$ \\
+\>\> Eliminar la recursividad izquierda directa de $A_i$ \\
+\> FIN\_DESDE \\
+FIN\_DESDE \\
+\end{tabbing}
+\end{enumerate}
+
+\begin{ejemplo}
+Vamos a deshacer la recursividad por la izquierda que presentaba el 
+ejemplo~\refej{recindirecta}:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \ter{a} \opt \ter{b} \\
+\nter{A} \der \nter{A} \ter{c} \opt \nter{S} \ter{d} \opt \epsilon \\
+\end{array}
+$$
+\begin{enumerate}
+\item $A_1 = S, A_2 = A$
+\item Para $i=1$: desde  $j\leftarrow 1$  hasta  $0$  hacer:  {\em nada} \newline
+      Para $i=2$: desde  $j\leftarrow 1$  hasta  $1$  hacer:
+\begin{quote}
+tomamos el segundo y lo sustituimos por el primero en todos los
+lugares donde \'este aparezca a la derecha:
+
+\begin{small}
+$$
+\begin{array}{lcl||lcl}
+\nter{S} \der \nter{A} \ter{a} \opt \ter{b} \;\; &  \;\;\nter{S} \der \nter{A} \ter{a} \opt \ter{b} \\
+\nter{A} \der \nter{A} \ter{c} \opt \nter{S} \ter{d} \opt \epsilon \;\; & \;\;\nter{A} \der \nter{A} \ter{c} \opt \nter{A} \ter{a} \ter{d} \opt \ter{b} \ter{d} \opt \epsilon \\
+\end{array}
+$$
+\end{small}
+Si hubiera otra regla: $X \rightarrow S a \opt Ab \opt \ldots $ 
+sustituir $S$ y $A$ por su definici\'on en las producciones de $X$.
+\end{quote}
+\end{enumerate}
+
+A esto le quitamos la recursividad directa. S\'olo hay que modificar $A$ y
+queda
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \ter{a} \opt \ter{b} \\
+\nter{A} \der \ter{b} \ter{d} \nter{A'} \opt \nter{A'} \\
+\nter{A'} \der \ter{c} \nter{A'} \opt \ter{a} \ter{d} \nter{A'} \opt \epsilon \\
+\end{array}
+$$
+\end{ejemplo}
+
+\begin{ejemplo}
+Sea la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \opt \nter{T} \nter{R} \nter{V} \\
+\nter{T} \der \ter{tipo} \opt \epsilon \\
+\nter{R} \der \ter{blq} \nter{V} \ter{fblq} \opt \epsilon \\
+\nter{V} \der \ter{id} \nter{S} \ter{fin} \opt \ter{id} \ter{;} \opt \epsilon \\
+\end{array}
+$$
+Es evidente que esta gram\'atica no es LL(1) pues la primera
+producci\'on es recursiva por la izquierda y las dos primeras de
+V tienen factores comunes por la izquierda. A continuaci\'on se
+presenta la gram\'atica a la cual se han eliminado estos
+problemas mediante las t\'ecnicas descritas:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{T} \nter{R} \nter{V} \nter{S'} \\
+\nter{S'} \der \ter{inst} \nter{S'} \opt \epsilon \\
+\nter{T} \der \ter{tipo} \opt \epsilon \\
+\nter{R} \der \ter{blq} \nter{V} \ter{fblq} \opt \epsilon \\
+\nter{V} \der \ter{id} \nter{V'} \opt \epsilon \\
+\nter{V'} \der \nter{S} \ter{fin} \opt \ter{;} \\
+\end{array}
+$$
+Ahora ya la gram\'atica no presenta los problemas anteriores,
+pero no se puede asegurar que sea LL(1) mientras no se aplique la
+condici\'on que verifica dicha propiedad. N\'otese que
+todos los no terminales excepto el s\'{\i}mbolo inicial, $S$,
+tienen m\'as de una alternativa.
+
+\begin{footnotesize}
+\begin{tabular}{l}
+\pred($S' \rightarrow \ter{inst} S'$)  $=$ \{ inst \} \\
+\pred($S' \rightarrow \epsilon$) $=$ \{ \$, fin \} \\ \\
+\pred($T \rightarrow \ter{tipo}$)      $=$ \{ tipo \} \\
+\pred($T \rightarrow \epsilon$)  $=$ \{ blq, id, inst, \$, fin \} \\ \\
+\pred($R \rightarrow \ter{blq} V \ter{fblq}$) $=$ \{ blq \} \\
+\pred($R \rightarrow \epsilon$)  $=$ \{ id, inst, \$, fin \} \\ \\
+\pred($V \rightarrow \ter{id} V'$)     $=$ \{ id \} \\
+\pred($V \rightarrow \epsilon$)  $=$ \{ inst, \$, fin \} \\ \\
+\pred($V' \rightarrow S \ter{fin}$)    $=$ \{ tipo, blq, id, inst, \$, fin \} \\
+\pred($V' \rightarrow \ter{;}$)        $=$ \{ ; \} \\
+\end{tabular}
+\end{footnotesize}	
+
+Como los conjuntos de cada no terminal son disjuntos, la gramática es LL(1).
+\end{ejemplo}
+
+
+\section{Analizador descendente recursivo}
+
+Es un tipo de analizador sintáctico descendente que s\'olo se
+puede utilizar con gram\'aticas LL(1) y por tanto es un analizador
+sint\'actico descendente predictivo (ASDP). Consiste en un
+conjunto de funciones recursivas (una por cada no terminal de la
+gram\'atica) que son dise\~nadas a partir de los elementos
+que definen cada una de las producciones de la gram\'atica. La
+secuencia de llamadas al procesar la cadena de entrada define
+impl\'{\i}citamente un recorrido del \'arbol de an\'alisis sint\'actico
+de la cadena de entrada.
+
+Veremos a continuaci\'on c\'omo implementar un analizador
+sint\'actico descendente recursivo (ASDR) a partir de las
+producciones de la gram\'atica que genera las cadenas del
+lenguaje que se pretende analizar. Vamos a describir la
+implementaci\'on de un ASDR en un lenguaje de alto nivel (en C)
+y vamos a definir los elementos necesarios para ello.
+
+\subsubsection{Símbolo de prean\'alisis}
+
+Si esta metodolog\'{\i}a es aplicable a las gram\'aticas LL(1)
+es porque es suficiente con ver un \'unico {\em token\/} para saber qu\'e
+hacer. Ese {\em token\/} se llama s\'{\i}mbolo de {\em prean\'alisis\/}
+({\em lookahead\/} en inglés) y se pedirá al analizador l\'exico
+cada vez que se necesite. Ser\'a este {\em token\/} el que se
+busque en los conjuntos de predicci\'on de las diferentes reglas
+para escoger aqu\'ella en la que aparezca.
+
+\subsubsection{Funci\'on de emparejamiento}
+
+La funci\'on de emparejamiento ({\em match\/} en inglés) es la encargada de
+comprobar si el s\'{\i}mbolo de prean\'alisis coincide con el
+terminal de la gram\'atica que, de acuerdo con los elementos de
+la producci\'on escogida, deber\'{\i}a aparecer en esa
+posici\'on. Esta funci\'on tambi\'en se encarga de
+otra misi\'on fundamental como es la petici\'on del
+siguiente {\em token\/} al analizador l\'exico si se ha producido
+la coincidencia o invocar la funci\'on de error en caso
+contrario.
+
+Su estructura en lenguaje algor\'{\i}tmico ser\'{\i}a la
+siguiente:
+
+\begin{small}
+\begin{tabbing}
+FU\=SI\= \kill
+FUNCIÓN {\em Emparejar}
+( Parámetro: {\em token}; Usa variable global
+{\em preanálisis }) \\
+\> SI {\em preanálisis} coincide con {\em token} ENTONCES \\
+\>\> Pedir el siguiente {\em preanálisis} al analizador léxico \\
+\> SI NO \\
+\>\> Error Sintáctico(Encontrado {\em preanálisis}, esperaba {\em token}) \\
+\end{tabbing}
+\end{small}
+
+Su implementaci\'on
+en C, si ``\verb!t!'' es el {\em token\/} que el ASDR espera encontrar en la
+entrada y, por tanto, el que la funci\'on {\em Emparejar} recibe
+como par\'ametro, ser\'{\i}a:
+
+\begin{small}
+\begin{verbatim}
+  void Emparejar (int t )
+  {
+   if ( t == preanalisis )
+     preanalisis = analex(); /* 'analex' es el nombre que hemos 
+                               dado al analizador léxico */
+   else
+     ErrorSintactico(preanalisis,t);
+  }
+\end{verbatim}
+\end{small}
+
+Para construir un ASDR, adem\'as de utilizar estos elementos
+auxiliares, hay que hacer lo siguiente:
+\begin{enumerate}
+\item Escribir una
+        funci\'on por cada s\'{\i}mbolo no terminal de la gram\'atica.
+        Cada una de estas funciones llevar\'a a cabo el an\'alisis
+        de las producciones de dicho no terminal, como se indicar\'a
+        m\'as adelante.
+\item Cuando este no
+        terminal tenga distintas alternativas en la gram\'atica, para
+        decidir durante su ejecuci\'on cu\'al de las producciones
+        utilizar, se optar\'a por aquella alternativa a cuyo conjunto
+        de predicci\'on pertenezca el {\em token de prean\'alisis}.
+\begin{tabbing}
+\verb+EN+\=\kill
+\verb+EN CASO DE QUE+ {\em preanálisis} \verb+PERTENEZCA A+ \\
+\> \pred($\alpha_1$): $\ldots$ proceder según alternativa $\alpha_1$ \\
+\> \pred($\alpha_2$): $\ldots$ proceder según alternativa $\alpha_2$ \\
+\> $\ldots$ \\
+\verb+FIN+ \\
+\end{tabbing}
+Si el token de prean\'alisis no pertenece a ninguno de los
+conjuntos de predicción, entonces se producirá un error sint\'actico.
+\item Si una de las
+        alternativas para el no terminal que se est\'a analizando es la
+        cadena vac\'{\i}a ($A \rightarrow \epsilon$),
+        en ese caso no se har\'a nada.
+\item Para analizar
+        cada alternativa, se aplican distintas metodolog\'{\i}as a los
+        s\'{\i}mbolos de la parte derecha de la producci\'on, en el
+        mismo orden en el que aparecen, seg\'un si son terminales o no:
+      \begin{itemize}
+        \item Para cada $A \in N$ hacemos una
+            llamada a su funci\'on correspondiente.
+	\item Para cada $a \in T$ hacemos una
+        llamada a la funci\'on {\em Emparejar} con $a$ como
+        par\'ametro.
+      \end{itemize}
+\item La invocaci\'on
+        o puesta en marcha del ASDR se realiza mediante una llamada a la
+       función del s\'{\i}mbolo inicial de la gram\'atica. Para hacer esa
+        llamada se supone que el {\em token\/} de prean\'alisis habr\'a
+        sido inicializado por una llamada previa al analizador l\'exico.
+\end{enumerate}
+
+
+\begin{ejemplo}
+Sea la siguiente
+gram\'atica LL(1) con sus conjuntos de predicci\'on:
+$$
+\begin{array}{lcll}
+\nter{S} \der \nter{A}             & \{ \ter{a}, \$, \ter{c} \} \\
+\nter{S} \der \ter{s}              & \{ \ter{s} \}  \\
+\nter{A} \der \ter{a} \nter{S} \ter{c} & \{ \ter{a} \} \\
+\nter{A} \der \epsilon             & \{ \ter{c}, \$ \} \\
+\end{array}
+$$
+Vamos a ver la
+implementaci\'on de un ASDR para ella. Supondremos siempre en
+este tipo de problemas que tenemos definidos los {\em tokens\/} (\textbf{a}, 
+\textbf{c} y \textbf{s}) y adem\'as una variable \texttt{lexema} 
+como un {\em array\/} de caracteres. Supondremos tambi\'en en estos 
+ejemplos que ya tenemos implementada previamente la funci\'on {\em Emparejar\/}
+que acabamos de definir.
+
+\begin{center}
+\begin{small}
+\begin{verbatim}
+void S(void)
+{
+ if ( preanalisis == a || preanalisis == FINDEFICHERO ||
+      preanalisis == c)   A();
+ else if ( preanalisis == s )   emparejar(s);
+ else ErrorSintactico(lexema,a,s,FINDEFICHERO);
+ /* encontrado 'lexema', esperaba 'a', 's' o fin de fichero */
+}
+
+void A(void)
+{
+ if ( preanalisis == a )  { emparejar(a); S(); emparejar(c); }
+ else if ( preanalisis == c || preanalisis == FINDEFICHERO )
+   ;  /* producción vacía */
+ else ErrorSintactico(lexema,a,c,FINDEFICHERO);
+}
+\end{verbatim}
+\end{small}
+\end{center}
+
+A la funci\'on de error sint\'actico se le suele pasar como
+argumentos el lexema que ha producido el error (el del {\em token\/}
+de prean\'alisis) y los {\em tokens\/} que esperaba en su lugar (los 
+terminales que aparezcan en la uni\'on de todos los conjuntos de predicci\'on
+de las reglas del no terminal al que corresponde la funci\'on).
+\end{ejemplo}
+
+\begin{ejemplo}
+Implementaci\'on
+de un ASDR para la gram\'atica LL(1) del ejemplo~\refej{ejarit},
+usando la
+siguiente definici\'on de {\em tokens\/}: \verb!MAS!,
+\verb!MENOS!, \verb!POR!, \verb!DIV!, \verb!LPAR!, \verb!RPAR!, 
+\verb!NUM!, \verb!FINDEFICHERO!. En los no
+terminales con {\em prima} sustituiremos \'esta por un 2.
+
+\begin{small}
+\begin{verbatim}
+void E()
+{
+ T(); E2();   /* sólo hay una producción, no es necesario 
+                 consultar el conjunto de preanálisis */
+}          
+
+void E2()
+{
+ switch ( preanalisis ) {
+   case MAS   : Emparejar(MAS); T(); E2(); break;
+   case MENOS : Emparejar(MENOS); T(); E2(); break;
+   case RPAR  : case FINDEFICHERO : /* E' deriva epsilon */ break;
+   default    : ErrorSintactico(lexema,MAS,MENOS,RPAR,FINDEFICHERO);
+ }
+}
+
+void T()
+{
+  F(); T2();
+}
+
+void T2()
+{
+ switch ( preanalisis ) {
+   case POR : Emparejar(POR); F(); T2(); break;
+   case DIV : Emparejar(DIV); F(); T2(); break;
+   case MAS : case MENOS : 
+   case RPAR : case FINDEFICHERO : /* T' deriva epsilon */ break; 
+   default: ErrorSintactico(lexema,POR,DIV,MAS,MENOS,RPAR,FINDEFICHERO);
+ }
+}
+
+void F()
+{
+ switch ( preanalisis ) {
+   case NUM  : Emparejar(NUM); break;
+   case LPAR : Emparejar(LPAR); E(); Emparejar(RPAR); break;
+   default   : ErrorSintactico(lexema,NUM,LPAR);
+ }
+}
+\end{verbatim}
+\end{small}
+
+N\'otese que
+se han permitido algunas licencias en el lenguaje C utilizado, que en
+una implementaci\'on real habr\'{\i}a que realizar con m\'as
+cuidado.
+\end{ejemplo}
+
+\subsubsection{Comentarios adicionales para la implementaci\'on}
+
+Tras la devoluci\'on
+del control a la funci\'on main que inici\'o el an\'alisis
+con una llamada al s\'{\i}mbolo inicial de la gram\'atica, se
+debe comprobar que la cadena de entrada se ha analizado en su
+totalidad para dar como correcto el an\'alisis:
+
+\begin{small}
+\begin{verbatim}
+ token = analex();
+ S();
+ if (token != FINDEFICHERO) error(token,lexema,{FINDEFICHERO});
+    /* encontrado 'lexema', esperaba fin de fichero */
+\end{verbatim}
+\end{small}
+
+
+\section{ASDP dirigidos por tabla}
+
+Se puede construir
+un analizador sint\'actico descendente predictivo mediante una
+t\'ecnica completamente distinta a la descrita en el apartado
+anterior, utilizando una pila de s\'{\i}mbolos (terminales y no
+terminales) en vez de haciendo llamadas recursivas. Para determinar
+qu\'e producci\'on debe aplicarse a la vista de un terminal
+({\em token} de prean\'alisis), se buscar\'a en una tabla
+llamada {\em tabla de an\'alisis} (véase la figura~\ref{figasdt}).
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics{cap4f1.pdf}
+\end{center}
+\caption{Analizador descendente predictivo dirigido por tabla} \label{figasdt}
+\end{figure}
+
+El proceso de an\'alisis consiste en aplicar el algoritmo
+que describiremos m\'as adelante, pero previamente se tendr\'a
+que construir la tabla, que es lo que diferencia un analizador de
+otro y que depende de la gram\'atica a ser analizada. El
+procedimiento para construir tablas de an\'alisis LL(1) es el
+siguiente:
+\begin{enumerate}
+\item Las filas de la tabla, que llamaremos Tabla, se etiquetan con 
+los no terminales de la gram\'atica, y
+las columnas se etiquetan con los terminales y el s\'{\i}mbolo de fin de
+fichero, \$. En cada celda de la tabla se va a colocar la regla que se debe 
+aplicar para analizar la variable de esa fila cuando el terminal de esa 
+columna (o \$) aparezca en la entrada; ese terminal o \$ debe pertenecer al
+        conjunto de predicci\'on de dicha regla.
+\item Se calculan los conjuntos de predicci\'on para cada regla.
+\item Para cada producción $A \rightarrow \alpha$
+	de la gram\'atica, hacer:
+
+\begin{small}
+\begin{tabular}{l}
+Para cada terminal $ a \in$ \pred($A \rightarrow \alpha$),
+a\~n\'adase $A \rightarrow \alpha$ a Tabla$[A,a]$.
+\end{tabular}
+\end{small}
+\item Cada entrada
+        no definida de Tabla ser\'a {\em error sint\'actico}.
+\end{enumerate}
+
+Aunque hemos dicho que la tabla de an\'alisis contiene las
+reglas, al implementar el algoritmo no es necesario almacenar la
+regla completa en la tabla sino s\'olo los s\'{\i}mbolos de su
+parte derecha (que es conveniente guardar al rev\'es por motivos
+que se explicarán más adelante) o incluso
+es m\'as eficiente almacenar un n\'umero de regla que haga
+referencia a otra tabla con los s\'{\i}mbolos de las partes
+derechas de las reglas.
+
+\subsubsection{Mensajes de error}
+En este tipo de analizador existen dos tipos de errores sintácticos: los
+provocados al intentar emparejar dos terminales (uno en la entrada y otro
+en el tope de la pila), y los producidos al acceder a una casilla marcada
+como {\em error sintáctico\/} en la tabla de análisis.
+
+Existen varias estrategias para proporcionar mensajes de error con
+este tipo de analizador:
+\begin{enumerate}
+\item Cuando en el tope de la pila hay un terminal, el mensaje de error
+debe decir que se esperaba ese terminal. En cambio, si hay un no terminal,
+el error se habrá producido al consultar la tabla; en este caso, es posible
+proporcionar un mensaje de error específico para cada casilla de la tabla. 
+Si la tabla es muy grande, es poco práctico producir un
+mensaje de error específico para cada caso.
+\item Producir un error genérico, basándose únicamente en el tope de la pila 
+y en la tabla de análisis. Como en la alternativa anterior, pueden darse dos 
+situaciones:
+\begin{itemize}
+\item En el tope de
+        la pila hay una variable; en este caso, el conjunto de s\'{\i}mbolos
+        que se esperaban en lugar del que se ha le\'{\i}do se calcula
+        recorriendo la fila correspondiente a la variable en la tabla de
+        an\'alisis, anotando todos los s\'{\i}mbolos para los que la
+        entrada correspondiente en la tabla contiene un n\'umero de
+        regla. Se puede comprobar f\'acilmente que ese conjunto es la
+        uni\'on de los conjuntos de predicci\'on de las reglas de
+        esa variable.
+\item En el tope de
+        la pila hay un terminal; en este caso, el mensaje de error debe
+        decir que se esperaba ese terminal en lugar del lexema le\'{\i}do.
+\end{itemize}
+\item La alternativa anterior (mensajes de error genéricos) puede producir 
+mensajes imprecisos en algunos casos, diciendo que se esperaba algún símbolo 
+que realmente no se puede esperar. Sin embargo, si se toma la pila como una 
+cadena de símbolos $\alpha$
+en la que el símbolo en el tope de la pila es el primer símbolo de la cadena
+y el $\$$ que hay en el fondo es el último, los símbolos que realmente se
+esperan cuando se produce un error son exactamente \prim$(\alpha)$. Aunque
+esta alternativa produce mensajes de error exactos, exige calcular los
+primeros de una cadena en tiempo de compilación (que no es muy complicado si
+se almacenan los primeros de los no terminales).
+\end{enumerate}
+
+\begin{ejemplo} \label{ejtabarit}
+Sea de nuevo la gram\'atica de las expresiones aritm\'eticas
+(ya modificada para que sea LL(1)):
+
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{T} \nter{E'} \\
+\nter{E'} \der \tertt{+} \nter{T} \nter{E'} \opt \tertt{-} \nter{T} \nter{E'} \opt \epsilon \\
+\nter{T} \der \nter{F} \nter{T'} \\
+\nter{T'} \der \tertt{*} \nter{F} \nter{T'} \opt \tertt{/} \nter{F} \nter{T'} \opt \epsilon \\
+\nter{F} \der \ter{num} \opt \tertt{(} \nter{E} \tertt{)} \\
+\end{array}
+$$
+Veamos cada una de
+las producciones (recu\'erdese que las producciones con varias
+alternativas son realmente una producci\'on de la variable por
+cada una de las alternativas):
+
+\begin{small}
+\begin{enumerate}
+\item \pred($E \rightarrow T E'$) = \{ \verb!(! , \textbf{num} \} $\Deriva$\newline
+en las celdas $[E,\tertt{(}]$ y $[E,\textbf{num}]$ a\~nadir $E \rightarrow T E'$
+\item \pred($E' \rightarrow \tertt{+} T E'$) = \{ \verb!+! \} $\Deriva$\newline
+en la celda $[E',\tertt{+}]$ a\~nadir $E' \rightarrow \tertt{+} T E'$
+\item \pred($E' \rightarrow \tertt{-} T E'$) = \{ \verb!-! \} $\Deriva$\newline
+en la celda $[E',\tertt{-}]$ a\~nadir $E' \rightarrow \tertt{-} T E'$
+\item \pred($E' \rightarrow \epsilon$) = \{ \verb!)! , \$ \} $\Deriva$\newline
+en las celdas $[E',$\verb!)!$]$ y $[E',\$]$ a\~nadir $E' \rightarrow \epsilon$
+\item \pred($T \rightarrow F T'$) = \{ \verb!(! , \textbf{num} \} $\Deriva$\newline
+en las celdas $[T,\tertt{(}]$ y $[T,\textbf{num}]$ a\~nadir $T \rightarrow F T'$
+\item \pred($T' \rightarrow \tertt{*} F T'$) = \{ \verb!*! \} $\Deriva$\newline
+en la celda $[T',\tertt{*}]$ a\~nadir $T' \rightarrow \tertt{*} F T'$
+\item \pred($T' \rightarrow \tertt{/} F T'$) = \{ \verb!/! \} $\Deriva$\newline
+en la celda $[T',\tertt{/}]$ a\~nadir $T' \rightarrow \tertt{/} F T'$
+\item \pred($T' \rightarrow \epsilon$) = \{ \verb!+!, \verb!-!, \verb!)!, \$ \} $\Deriva$\newline
+en las celdas $[T',\tertt{+}]$, $[T',\tertt{-}]$, $[T',\tertt{)}]$ y $[T',\$]$ a\~nadir $T' \rightarrow \epsilon$
+\item \pred($F \rightarrow \tertt{(} E \tertt{)}$) = \{ \verb!(! \} $\Deriva$\newline
+en la celda $[F,\tertt{(}]$ a\~nadir $F \rightarrow \tertt{(} E \tertt{)}$
+\item \pred($F \rightarrow \textbf{num}$) = \{ num \} $\Deriva$\newline 
+en la celda $[F,\textbf{num}]$ a\~nadir $F \rightarrow \ter{num}$
+\end{enumerate}
+\begin{itemize}
+	\item Todas las celdas vac\'{\i}as se
+        marcan como {\em error sint\'actico}.
+\end{itemize}
+\end{small}
+
+Con estos c\'alculos,
+la tabla de an\'alisis para esta gram\'atica resulta as\'{\i}:
+\begin{center}
+\begin{small}
+%\begin{tabular}{|c|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|}
+\begin{tabular}{|c|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|}
+%\begin{tabular}{|c||c|c|c|c|c|c|c|c|}
+\hline
+     & $\ter{num}$ & $\tertt{+}$ & $\tertt{-}$ & $\tertt{*}$ & $\tertt{/}$ & $\tertt{(}$ & $\tertt{)}$ & \$ \\\hline\hline
+$E$  & {\tiny $E\rightarrow T E'$} & $e$ & $e$ & $e$ & $e$ & {\tiny $E\rightarrow T E'$} & $e$ & $e$ \\\hline
+$E'$ &   $e$  & {\tiny $E' \rightarrow \tertt{+} T E'$} & {\tiny $E' \rightarrow \tertt{-} T E'$} & $e$
+            & $e$ & $e$ & {\tiny $E' \rightarrow \epsilon$} & {\tiny $E' \rightarrow \epsilon$} \\\hline
+$T$  & {\tiny $T\rightarrow F T'$} & $e$ & $e$ & $e$ & $e$ & {\tiny $T\rightarrow F T'$} & $e$ & $e$ \\\hline
+$T'$ & $e$ & {\tiny $T' \rightarrow \epsilon$} & {\tiny $T' \rightarrow \epsilon$} & {\tiny $T' \rightarrow \tertt{*} F T'$} & {\tiny $T' \rightarrow \tertt{/} F T'$} & $e$
+            & {\tiny $T' \rightarrow \epsilon$} & {\tiny $T' \rightarrow \epsilon$} \\\hline
+$F$  & {\tiny $F\rightarrow \ter{num}$} & $e$ & $e$ & $e$ & $e$ & {\tiny $F\rightarrow \tertt{(} E \tertt{)}$} & $e$ & $e$ \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+\end{ejemplo}
+
+
+Una importante observaci\'on a tener en cuenta es que este tipo
+de analizador, al ser predictivo, s\'olo podr\'a
+construirse si la gram\'atica a analizar es LL(1). Esto se
+refleja en la tabla en el hecho de que no aparezcan dos (o más) producciones
+en la misma casilla. Si en alguna de ellas aparecieran dos
+producciones significar\'{\i}a que, llegando a esa situaci\'on,
+el analizador no sabr\'{\i}a qu\'e decisi\'on tomar, lo
+cual est\'a en contra del concepto de gram\'atica LL(1).
+
+As\'{\i} pues, la no aparici\'on de casillas con dos o m\'as
+producciones puede considerarse como una demostraci\'on de que
+la gram\'atica analizada es LL(1).
+
+Ve\'amoslo con un ejemplo.
+
+\begin{ejemplo}
+Sea una gram\'atica para las sentencias IF en Pascal:
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{if} \nter{E} \ter{then} \nter{S} \nter{$S'$} \opt \ter{otras} \\
+\nter{$S'$} \der \ter{else} \nter{S} \opt \epsilon \\
+\nter{E} \der \ter{lógico} \\
+\end{array}
+$$ 
+Se puede comprobar que la tabla resultante es la siguiente:
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|c||c|c|@{}c@{}|c|c|c|}
+\hline
+       & $\ter{otras}$ & $\ter{lógico}$ & $\ter{else}$ & $\ter{if}$ & $\ter{then}$ & \$ \\\hline\hline
+$S$ & {\tiny $S\rightarrow \ter{otras}$} & $e$ & $e$ & {\tiny $S\rightarrow \ter{if} \ldots$} & $e$ & $e$ \\\hline
+$S'$& $e$ & $e$ & \fbox{\begin{minipage}{1.7cm}
+\begin{tabular}{l}
+{\tiny $S' \rightarrow \ter{else} S'$} \\
+{\tiny $S' \rightarrow \epsilon$} \\
+\end{tabular}
+\end{minipage}} & $e$ & $e$ & {\tiny $S' \rightarrow \epsilon$} \\\hline
+$E$ & $e$ & {\tiny $E\rightarrow \ter{lógico}$} & $e$ & $e$ & $e$ & $e$ \\\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+Luego la gram\'atica no es LL(1) debido a la existencia de dos
+producciones en la casilla se\~nalada. Este problema (debido a la
+ambig\"uedad de esta gramática para las sentencias IF en Pascal y C) se
+podr\'{\i}a resolver durante el an\'alisis aplicando
+sistem\'aticamente una de las dos. La producci\'on $S' \rightarrow
+\ter{else} S$ equivale a asociar el ELSE al IF m\'as cercano.
+\end{ejemplo}
+
+Una vez que se tiene la tabla de an\'alisis de una gram\'atica
+ya se puede construir un analizador sint\'actico descendente
+dirigido por esa tabla. En la figura~\ref{falgdt} se presenta el
+algoritmo de análisis que utiliza este tipo de tablas.
+
+\begin{figure}[ht] 
+\begin{center}
+\begin{small}
+\begin{tabbing}
+{\bf repe} \= {\bf si}\quad \= {\bf si}\quad \= ErrorSintactico(enco \=\kill
+push(Pila,$\$$)\\
+push(Pila,$S$)  /* $S$ es el símbolo inicial */\\
+REPETIR \\
+\> $A := $Tope(Pila) /* el símbolo en el tope de la pila */ \\
+\> $a := $analex()  /* $a$ es el siguiente símbolo de preanálisis */\\
+\> SI $A$ es terminal o \$ ENTONCES\\
+\> \> SI $A = a$ ENTONCES\\
+\> \> \> pop(Pila,$A$)\\
+\> \> \> $a := $analex() \\
+\> \> SI NO \\
+\> \> \> ErrorSintáctico(encontrado [lexema de $a$], esperaba $A$)\\
+\> \> FINSI\\
+\> SI NO /* $A$ es no terminal */ \\
+\> \> SI $Tabla[A,a] = A \rightarrow c_1 c_2 \ldots c_k $ ENTONCES\\
+\> \> \> pop(Pila,$A$)\\
+\> \> \> {\bf para} $i:=k$ {\bf hasta} $1$ {\bf hacer} push(Pila,$c_i$) {\bf fpara} \\
+\> \> SI NO \\
+\> \> \> ErrorSintáctico(encontrado [lexema de $a$], \\
+\> \> \> \> esperaba $\bigcup_{i=1}^{n}$ \pred($A\rightarrow \alpha_i$))\\
+\> \> FINSI\\
+\> FINSI\\
+HASTA $A = \$ $
+\end{tabbing}
+\end{small}
+\end{center}
+\caption{Algoritmo de análisis descendente dirigido por tabla.} \label{falgdt}
+\end{figure} 
+
+\begin{ejemplo}
+Para hacer una
+traza de este analizador sint\'actico sobre la gram\'atica
+LL(1) de las expresiones aritm\'eticas
+tomamos la tabla de
+analisis del ejemplo~\refej{ejtabarit} y aplicaremos el algoritmo de análisis
+a la siguiente entrada:  ``\verb!num + num * num $!''.
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|r|l|}
+\hline\hline
+\multicolumn{1}{|c|}{\sc Pila} & \multicolumn{1}{|c|}{\sc Entrada} & \multicolumn{1}{|c|}{\sc Salida} \\
+\hline
+\$ $E$            & \verb!num + num * num $! & $\nter{E} \longrightarrow \nter{T} \nter{$E'$}$ \\
+\$ $E'$ $T$       & \verb!num + num * num $! & $\nter{T} \longrightarrow \nter{F} \nter{$T'$}$ \\
+\$ $E'$ $T'$ $F$  & \verb!num + num * num $! & $\nter{F} \longrightarrow \ter{num}$ \\
+\$ $E'$ $T'$ $\ter{num}$  & \verb!num + num * num $! & emparejar {\bf num} \\
+\$ $E'$ $T'$      & \verb!+ num * num $! & $\nter{$T'$} \longrightarrow \epsilon$ \\
+\$ $E'$           & \verb!+ num * num $! & $\nter{$E'$} \longrightarrow \tertt{+} \nter{T} \nter{$E'$}$ \\
+\$ $E'$ $T$ \verb!+! & \verb! + num * num $! & emparejar \verb!+! \\
+\$ $E'$ $T$       & \verb!num * num $! & $\nter{T} \longrightarrow \nter{F} \nter{$T'$}$ \\
+\$ $E'$ $T'$ $F$  & \verb!num * num $! & $\nter{F} \longrightarrow \ter{num}$ \\
+\$ $E'$ $T'$ $\ter{num}$  & \verb!num * num $! & emparejar {\bf num} \\
+\$ $E'$ $T'$      & \verb!* num $! & $\nter{$T'$} \longrightarrow \tertt{*} \nter{F} \nter{$T'$}$ \\
+\$ $E'$ $T'$ $F$ \verb!*! & \verb!* num $! & emparejar \verb!*! \\
+\$ $E'$ $T'$ $F$  & \verb!num $! & $\nter{F} \longrightarrow \ter{num}$ \\
+\$ $E'$ $T'$ $\ter{num}$  & \verb!num $! & emparejar {\bf num} \\
+\$ $E'$ $T'$      & \verb!$! & $\nter{$T'$} \longrightarrow \epsilon$ \\
+\$ $E'$           & \verb!$! & $\nter{$E'$} \longrightarrow \epsilon$ \\
+\$                & \verb!$! & aceptar \\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+
+La columna de la izquierda muestra el contenido de la pila en cada
+momento, quedando el fondo a su izquierda y el tope a su derecha,
+donde se van colocando los s\'{\i}mbolos de las partes derechas de
+las producciones en orden inverso a como aparecen en dichas
+producciones.
+
+La columna central representa lo que en cada paso queda por analizar
+de la cadena de entrada. El primer s\'{\i}mbolo de la izquierda
+representa el s\'{\i}mbolo de prean\'alisis. Cuando este
+s\'{\i}mbolo coincide con el terminal de la pila se eliminan ambos (el
+tope y el prean\'alisis) y avanza el an\'alisis al
+siguiente s\'{\i}mbolo de la entrada.
+
+La columna de salida muestra los emparejamientos de {\em tokens\/}
+que se realizan y las producciones que se van aplicando. Al aplicar 
+una producción se desapila su parte izquierda y se apilan los símbolos
+de la parte derecha en orden inverso.
+\end{ejemplo}
+
+
+\begin{ejemplo}
+Sea la gram\'atica siguiente con sus conjuntos de predicci\'on
+ya calculados:
+$$
+\begin{array}{lcll}
+\nter{S} \der \nter{C} \nter{A} \nter{B} &  \{ \textbf{c} \} \\
+\nter{S} \der \ter{a} \nter{C} \ter{b}   &  \{ \textbf{a} \} \\
+\nter{A} \der \ter{a} \nter{S} \ter{d}   &  \{ \textbf{a} \} \\
+\nter{A} \der \epsilon                   &  \{ \textbf{b}, \textbf{d}, \$ \} \\
+\nter{B} \der \ter{b}                    &  \{ \textbf{b} \} \\
+\nter{B} \der \epsilon                   &  \{ \textbf{d}, \$ \} \\
+\nter{C} \der \ter{c}                    &  \{ \textbf{c} \} \\
+\end{array}
+$$
+La tabla de an\'alisis resulta
+
+\begin{center}
+\begin{footnotesize}
+%\begin{tabular}{|c|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|@{}c@{}|}
+%\begin{tabular}{|c|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|@{$\,$}c@{$\,$}|}
+\begin{tabular}{|c||c|c|c|c|c|}
+\hline
+     & $\ter{a}$ & $\ter{b}$ & $\ter{c}$ & $\ter{d}$ & \$ \\\hline\hline
+$S$  & { $S\rightarrow \ter{a} C\; \ter{b}$} & $e$ & { $S\rightarrow C A B$}& $e$ & $e$ \\\hline
+$A$  & { $A\rightarrow \ter{a} S\; \ter{d}$} & { $A \rightarrow \epsilon$}  & $e$ & { $A \rightarrow \epsilon$} & { $A \rightarrow \epsilon$} \\\hline
+$B$  & $e$ & { $B \rightarrow \ter{b}$}  & $e$ & { $B \rightarrow \epsilon$} & { $B \rightarrow \epsilon$} \\\hline
+$C$  & $e$ & $e$ & { $C \rightarrow \ter{c}$} & $e$ & $e$ \\\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+Y la traza del
+an\'alisis para la cadena ``\verb!cacdb!'' ser\'{\i}a:
+
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|r|l|}
+\hline\hline
+\multicolumn{1}{|c|}{\sc Pila} & \multicolumn{1}{|c|}{\sc Entrada} & \multicolumn{1}{|c|}{\sc Salida} \\
+\hline
+\$ $S$            & \verb!c a c d b $! & $\nter{S} \longrightarrow \nter{C} \nter{A} \nter{B}$ \\
+\$ $B$ $A$ $C$    & \verb!c a c d b $! & $\nter{C} \longrightarrow \ter{c}$ \\
+\$ $B$ $A$ $\ter{c}$ & \verb!c a c d b $! & emparejar $\ter{c}$ \\
+\$ $B$ $A$        & \verb!a c d b $!   & $\nter{A} \longrightarrow \ter{a} \nter{S} \ter{d}$\\
+\$ $B$ $\ter{d}$ $S$ $\ter{a}$   & \verb!a c d b $!   & emparejar $\ter{a}$ \\
+\$ $B$ $\ter{d}$ $S$ & \verb!c d b $!   & $\nter{S} \longrightarrow \nter{C} \nter{A} \nter{B}$\\
+\$ $B$ $\ter{d}$ $B$ $A$ $C$ & \verb!c d b $!   & $\nter{C} \longrightarrow \ter{c}$ \\
+\$ $B$ $\ter{d}$ $B$ $A$ $\ter{c}$ & \verb!c d b $!   & emparejar $\ter{c}$ \\
+\$ $B$ $\ter{d}$ $B$ $A$ & \verb!d b $!   & $\nter{A} \longrightarrow \epsilon$ \\
+\$ $B$ $\ter{d}$ $B$ & \verb!d b $!   & $\nter{B} \longrightarrow \epsilon$ \\
+\$ $B$ $\ter{d}$  & \verb!d b $!   & emparejar $\ter{d}$ \\
+\$ $B$            & \verb!b $!     & $\nter{B} \longrightarrow \ter{b}$ \\
+\$ $\ter{b}$      & \verb!b $!     & emparejar $\ter{b}$ \\
+\$                & \verb!$! & aceptar \\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\end{ejemplo}
+
+\section{Manipulación de errores}
+
+
+Durante la
+ejecuci\'on de un ASDR, se detecta un error cuando 
+se llega a una llamada al procedimiento de {\em Error\/}
+y en el analizador dirigido por tabla, cuando el terminal del tope de la pila 
+no coincide con el s\'{\i}mbolo de prean\'alisis o si se accede a
+una celda vac\'{\i}a (por tanto, etiquetada como {\em error\/}).
+
+Ya se ha indicado que los mensajes de error constan t\'{\i}picamente
+del \'ultimo lexema que entreg\'o el analizador l\'exico
+(el del {\em token\/} de prean\'alisis), como causante del error,
+y una indicaci\'on de los {\em tokens\/} que
+esperaba en su lugar (los terminales que aparezcan en la uni\'on
+de todos los conjuntos de predicci\'on de las reglas del no
+terminal al que pertenece la funci\'on). Por supuesto, al imprimir
+el mensaje de error se deben describir los {\em tokens\/} en un
+lenguaje comprensible por el usuario, es decir, si por ejemplo se
+esperaban los {\em tokens\/} ``\textbf{num}'' e ``\textbf{id}'', se debe 
+decir que se espera ``un número o un identificador'', no que se 
+espera ``num o id''.
+
+La posibilidad m\'as sencilla en el dise\~no de todo
+compilador es detener el proceso de compilaci\'on al detectar el
+primer error, pero tambi\'en existen muchas t\'ecnicas para
+recuperarse de un error y seguir analizando, lo cual permite
+detectar la mayor parte de los errores que hay en el programa fuente
+en una única compilación. A veces, sin embargo, un error provoca
+muchos otros errores (lo que se conoce como {\em errores en cascada\/}),
+por lo que la estrategia de recuperación de errores de un compilador
+debe estudiarse con cuidado para detectar el mayor número de errores
+posible, pero no producir muchos errores en cascada.
+
+\subsubsection{Conjuntos de sincronizaci\'on}
+
+Una posible
+estrategia para recuperarse de un error es seguir avanzando por la
+entrada hasta encontrar alg\'un s\'{\i}mbolo que pertenezca a
+un determinado conjunto de s\'{\i}mbolos de sincronizaci\'on.
+La construcci\'on de este conjunto se basa en diversas t\'ecnicas
+emp\'{\i}ricas:
+\begin{itemize}
+\item Para el no
+        terminal $A$ que se define en la producci\'on en la que se ha
+        producido el error, poner en el conjunto todos los s\'{\i}mbolos de
+        \sig($A$);
+\item Poner tambi\'en los de    \prim($A$);
+\item Si se puede generar la cadena
+        vac\'{\i}a, tomarla por omisi\'on; etc.
+\end{itemize}
+
+En general, los sistemas de recuperaci\'on de errores est\'an
+llenos de reglas emp\'{\i}ricas y soluciones {\em ad hoc}, por lo
+que hay mucho escrito sobre estas t\'ecnicas, pero nada que sea
+definitivo en cuanto a robustez y fiabilidad.
+
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{4.1, 4.2, 4.3 y 4.5}
+\refb{\cite{ASU90}}{4.4}
+\refb{\cite{Ben90}}{6.2.1 y 6.2.3}
+\refb{\cite{FL91}}{4.5, 5.1, 5.2, 5.3, 5.4, 5.6 y 5.9}
+\end{rbib}
+
+\clearpage
+%\section{Ejercicios}
+\Ejercicios
+
+\begin{ejercicio}
+Compru\'ebese que la siguiente gram\'atica es LL(1) sin
+modificarla (en esta y en el resto de gram\'aticas de estos
+ejercicios se supondr\'a que el s\'{\i}mbolo inicial es el
+primero).
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{B} \nter{C} \nter{D} \\
+\nter{B} \der \ter{a} \nter{C} \ter{b} \\
+\nter{B} \der \epsilon \\
+\nter{C} \der \ter{c} \nter{A} \ter{d} \\
+\nter{C} \der \ter{e} \nter{B} \ter{f} \\
+\nter{C} \der \ter{g} \nter{D} \ter{h} \\
+\nter{C} \der \epsilon \\
+\nter{D} \der \ter{i}
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+¿Es LL(1) la siguiente gram\'atica?
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{B} \nter{C} \nter{D} \\
+\nter{B} \der \ter{b} \opt \epsilon \\
+\nter{C} \der \ter{c} \opt \epsilon \\
+\nter{D} \der \ter{d} \opt \epsilon \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+De un simple vistazo se puede comprobar
+que la siguiente gram\'atica no es LL(1): 
+
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \\
+\nter{S} \der \nter{S} \ter{var} \nter{D} \\
+\nter{S} \der \epsilon \\
+\nter{D} \der \nter{D} \ter{ident} \nter{E} \\
+\nter{D} \der \nter{D} \ter{ident} \ter{sep} \\
+\nter{D} \der \ter{int} \\
+\nter{D} \der \ter{float} \\
+\nter{E} \der \nter{S} \ter{fproc}
+\end{array}
+$$
+
+Elim\'{\i}nese la recursividad por la
+izquierda y los factores comunes por la izquierda y compru\'ebese
+si la gram\'atica equivalente resultante cumple la condici\'on
+LL(1).
+\end{ejercicio}
+
+\newpage
+\begin{ejercicio}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{A} \nter{B} \\
+\nter{A} \der \ter{begin} \nter{S} \ter{end} \nter{B} \ter{theend} \\
+\nter{A} \der \epsilon \\
+\nter{B} \der \ter{var} \nter{L} \ter{:} \ter{tipo} \\
+\nter{B} \der \nter{B} \ter{fvar} \\
+\nter{B} \der \epsilon \\
+\nter{L} \der \nter{L} \ter{,} \nter{id} \\
+\nter{L} \der \ter{id}
+\end{array}
+$$
+\begin{enumerate}
+\item H\'aganse
+        las transformaciones necesarias para eliminar la recursividad por la
+        izquierda.
+\item Calc\'ulense
+        los conjuntos de primeros y siguientes de cada no terminal.
+\item Compru\'ebese
+        que la gram\'atica modificada cumple la condici\'on LL(1).
+\item Constr\'uyase
+        la tabla de an\'alisis sint\'actico LL(1) para esa nueva
+        gram\'atica.
+\item Finalmente h\'agase la traza del an\'alisis de la cadena: 
+  \begin{verbatim}
+
+      begin 
+        var a,b:tipo 
+        var c:tipo 
+        fvar 
+      end 
+        var d:tipo 
+      theend
+
+ \end{verbatim}
+        comprobando que las derivaciones son correctas mediante la
+        construcci\'on del \'arbol de an\'alisis sint\'actico.
+\end{enumerate}
+\end{ejercicio}
+
+\clearpage
+\begin{ejercicio}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{S} \ter{inst} \\
+\nter{S} \der \nter{T} \nter{R} \nter{V} \\
+\nter{T} \der \ter{tipo} \\
+\nter{T} \der \epsilon \\
+\nter{R} \der \ter{blq} \nter{V} \ter{fblq} \\
+\nter{R} \der \epsilon \\
+\nter{V} \der \ter{id} \nter{S} \ter{fin} \\
+\nter{V} \der \ter{id} \ter{;} \\
+\nter{V} \der \epsilon
+\end{array}
+$$
+
+Constr\'uyase
+un analizador sint\'actico descendente recursivo (ASDR) para la
+gram\'atica LL(1) equivalente a esta gram\'atica. Sup\'ongase
+que ya existen las funciones \verb!analex! (analizador l\'exico), 
+\verb!emparejar! (funci\'on de emparejamiento) y \verb!error!
+(emisi\'on de error sint\'actico). La funci\'on \verb!error!
+se debe llamar con una cadena de caracteres que indique exactamente
+qu\'e lexema ha provocado el error y qu\'e s\'{\i}mbolos
+se esperaban en lugar del encontrado en la entrada.
+\end{ejercicio}
+
+\begin{ejercicio}
+H\'aganse las mismas operaciones que
+en el ejercicio anterior para la gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{E} \der \tertt{[} \nter{L} \\
+\nter{E} \der \ter{a} \\
+\nter{L} \der \nter{E} \nter{Q} \\
+\nter{Q} \der \tertt{,} \nter{L} \\
+\nter{Q} \der \tertt{]}
+\end{array}
+$$
+Con los mismos supuestos y condiciones que en aquel caso. Escr\'{\i}base
+la secuencia de llamadas recursivas a las funciones que har\'{\i}a
+el ASDR durante su ejecuci\'on, incluidas las llamadas a la
+funci\'on de emparejamiento, para la cadena de entrada 
+``\verb![a,a]!''.
+\end{ejercicio}
+
+\clearpage
+\begin{ejercicio}
+Dada la siguiente gram\'atica:
+$$
+\begin{array}{lcl}
+\nter{P} \der \nter{D} \nter{S} \\
+\nter{D} \der \nter{D} \nter{V} \\
+\nter{D} \der \epsilon \\
+\nter{S} \der \nter{S} \nter{I} \\
+\nter{S} \der \epsilon \\
+\nter{V} \der \ter{decl} \ter{id} \ter{;} \\
+\nter{V} \der \ter{decl} \ter{id} \ter{(} \nter{P} \ter{)} \ter{;}\\
+\nter{V} \der \ter{decl} \ter{[} \nter{D} \ter{]} \ter{id} \ter{;}\\
+\nter{I} \der \ter{id} \ter{;} \\
+\nter{I} \der \ter{begin} \nter{P} \ter{end}
+\end{array}
+$$
+\begin{enumerate}
+\item H\'aganse las transformaciones necesarias para que cumpla la condici\'on
+        LL(1). 
+\item Constr\'uyase
+        la tabla de an\'alisis sint\'actico LL(1) para esa nueva
+        gram\'atica.
+\item Finalmente
+        h\'agase la traza del an\'alisis de las cadenas:
+      \begin{verbatim}
+  decl id ( begin id ; )
+
+  decl id ( decl [ decl id ; ] id ; ) ; id ;
+      \end{verbatim}
+Si durante el an\'alisis se produjera alg\'un error sint\'actico ind\'{\i}quese
+        qu\'e s\'{\i}mbolos podr\'{\i}an esperarse en lugar del
+        {\em token\/} de prean\'alisis que entr\'o.
+\end{enumerate}
+\end{ejercicio}
+
+
+%----------------- trozos rediseñados ----------------------------------
+
+\come{ % rediseñado
+un símbolo terminal ($\alpha \in T$), PRIMEROS($\alpha$) 
+$=$ \{$\alpha$\}.
+%
+\item Si $\alpha$ es un no terminal ($\alpha \in N$),
+ \begin{itemize}
+  \item Inicialmente, PRIMEROS($\alpha$) = $\emptyset$.
+  %
+  \item Si aparece la producción $\alpha \longrightarrow \epsilon$,
+
+   \begin{tabular}{l}
+   PRIMEROS($\alpha$) $=$ PRIMEROS($\alpha$) $\cup \{\epsilon\}$.
+   \end{tabular}
+  %
+  \item Si $\alpha \longrightarrow a_1 a_2 \ldots a_n$ entonces
+
+   \begin{tabular}{l}
+    PRIMEROS($\alpha$) $=$ PRIMEROS($\alpha$) $\cup$ PRIMEROS($a_1 a_2 \ldots a_n$).
+   \end{tabular}
+
+    Para el cálculo de PRIMEROS($a_1 a_2 \ldots a_n$) pueden darse dos casos:
+    \begin{itemize}
+    \item Si $\epsilon \notin$ PRIMEROS($a_1$) entonces
+
+     \begin{tabular}{l}
+       PRIMEROS($\alpha$) $=$ PRIMEROS($\alpha$) $\cup$ PRIMEROS($a_1$)
+     \end{tabular}
+    \item Si $\epsilon \in$ PRIMEROS($a_1$) entonces
+
+     \begin{tabular}{l}
+      PRIMEROS($\alpha$) $=$ PRIMEROS($\alpha$) $\cup$ (PRIMEROS($a_1$)$- \{\epsilon\}$)\\
+      \hspace{0.5cm} $\cup$ PRIMEROS($a_2 \ldots a_n$)
+     \end{tabular}
+    \end{itemize}
+    De nuevo pueden darse estos dos casos para PRIMEROS($a_2 \ldots a_n$)
+    y siguientes, hasta $a_n$.
+
+    Si $\forall i, \epsilon \in$ PRIMEROS($a_i$), entonces
+
+     \begin{tabular}{l}
+        PRIMEROS($\alpha$) $=$ PRIMEROS($\alpha$) $\cup \{\epsilon\}$.
+     \end{tabular}
+ \end{itemize}
+%
+\item Para recoger todos los casos posibles habr\'{\i}a que considerar que
+\begin{displaymath}
+\textrm{Si} \;\;\alpha \longrightarrow \alpha_1 \alpha_2 \ldots \alpha_n
+\;\;\textrm{entonces~~PRIMEROS}(\alpha) = 
+\bigcup_{i=1}^{n} \textrm{PRIMEROS}(\alpha_i)
+\end{displaymath}
+\end{enumerate}
+} % come (rediseñado)

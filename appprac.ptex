@@ -1,0 +1,1069 @@
+
+En cualquier libro sobre compiladores se propone la construcción de un
+compilador ``de juguete'' como la mejor manera de aprender los conocimientos 
+y las técnicas que se explican a lo largo del libro. Aunque un compilador
+real es un programa tremendamente complejo, es relativamente sencillo llevar
+a la práctica muchos de los conceptos tratados en este libro.
+
+A continuación se proponen una serie de ejercicios prácticos con la idea
+de tratar los aspectos más importantes del diseño de un compilador. Todos
+ellos especifican un formato estricto para la salida, lo cual permite
+corregir automáticamente casi todos los ejercicios, excepto alguna
+parte (los mensajes de error, por ejemplo).
+
+\section{Analizador léxico}
+
+Este ejercicio práctico consiste en construir un analizador léxico que
+reconozca los componentes léxicos o {\em tokens\/} de la tabla~\ref{tab:prLexico}
+
+\begin{table}[htp] \label{tab:prLexico}
+\begin{center}
+\begin{small}
+\begin{tabular}{c|c|c}
+\hline\hline
+{\sc Expresi\'on} &
+{\sc Componente} &
+{\sc Valor l\'exico} \\
+{\sc regular} &
+{\sc l\'exico} &
+{\sc entregado} \\
+\hline
+\verb![ \n\t]+! & (ninguno)     &  \\
+\verb+program+  & {\bf program} & (palabra reservada) \\
+\verb+begin+    & {\bf begin}   & (palabra reservada) \\
+\verb+end+      & {\bf end}     & (palabra reservada) \\
+\verb+var+      & {\bf var}     & (palabra reservada) \\
+\verb+integer+  & {\bf integer} & (palabra reservada) \\
+\verb+write+    & {\bf write}   & (palabra reservada) \\
+\verb+read+     & {\bf read}    & (palabra reservada) \\
+\verb+if+       & {\bf if}      & (palabra reservada) \\
+\verb+then+     & {\bf then}    & (palabra reservada) \\
+\verb+else+     & {\bf else}    & (palabra reservada) \\
+\verb+endif+    & {\bf endif}   & (palabra reservada) \\
+\verb+while+    & {\bf while}   & (palabra reservada) \\
+\verb+do+       & {\bf do}      & (palabra reservada) \\
+\verb+div+      & {\bf mulop}   & (palabra reservada) \\
+\verb+mod+      & {\bf mulop}   & (palabra reservada) \\
+\verb+[A-Za-z][0-9A-Za-z]*+ 
+                & {\bf id}     & (nombre del ident.) \\
+\verb![0-9]+!   & {\bf nint}   & (valor num\'erico) \\
+\verb!([0-9]+)"."([0-9]+)!   & {\bf nfix}   & (valor num\'erico) \\
+\verb!([0-9]+)"."([0-9]+)[eE]([-+])?([0-9]+)!   & {\bf nflo}   & (valor num\'erico) \\
+\verb+,+        & {\bf coma}    &  \\
+\verb+;+        & {\bf pyc}     &  \\
+\verb+.+        & {\bf punto}   &  \\
+\verb+:+        & {\bf dosp}    &  \\
+\verb+(+        & {\bf lpar}   &  \\
+\verb+)+        & {\bf rpar}   &  \\
+\verb+=+        & {\bf relop}  & \verb+=+ \\
+\verb+<>+       & {\bf relop}  & \verb+<>+ \\
+\verb+<+        & {\bf relop}  & \verb+<+ \\
+\verb+<=+       & {\bf relop}  & \verb+<=+ \\
+\verb+>+        & {\bf relop}  & \verb+>+ \\
+\verb+>=+       & {\bf relop}  & \verb+>=+ \\
+\verb!+!        & {\bf addop}  & \verb!+! \\
+\verb+-+        & {\bf addop}  & \verb+-+ \\
+\verb+*+        & {\bf mulop}  & \verb+*+ \\
+\verb+/+        & {\bf mulop}  & \verb+/+ \\
+\verb+:=+       & {\bf assop}  &  \\
+\end{tabular}
+\end{small}
+\end{center}
+\caption{{\em Tokens\/} que debe reconocer el analizador léxico.}
+\end{table}
+
+ Se sugiere que el programa esté implementado en C. El programa tiene que leer
+un fichero (cuyo nombre se le pasará como argumento) y analizar léxicamente
+su contenido. Para comprobar que funciona correctamente, el programa
+principal debe llamar a la función que implementa el analizador léxico 
+para cada {\em token\/} y debe imprimir por la salida estándar 
+(\texttt{stdout}) una línea por cada
+{\em token\/} reconocido, con el siguiente formato:
+
+\begin{center}
+\begin{small}
+\begin{tabular}{llll}
+(línea) & (columna) & (nombre token) & (lexema) \\
+\end{tabular}
+\end{small}
+\end{center}
+
+\begin{ejemploap} \label{ej:prLexico}
+ Dado el siguiente fichero de entrada:
+\begin{verbatim}
+program Programa + 34       / 2.3e*7
+\end{verbatim}
+ el analizador léxico debe generar la siguiente salida:
+\begin{small}
+\begin{verbatim}
+1 1 program program
+1 9 id Programa
+1 18 addop +
+1 20 nint 34
+2 7 mulop /
+2 9 nfix 2.3
+2 12 id e
+2 13 mulop *
+2 14 nint 7
+\end{verbatim}
+\end{small}
+\end{ejemploap}
+
+\paragraph{Notas:}
+\begin{itemize} 
+\item El analizador léxico debe ignorar los espacios en blanco, los
+tabuladores y los finales de línea, y debe devolver un {\em token\/} especial 
+cuando encuentre el final del fichero, con el lexema vacío.
+\item Se debe leer el fichero solamente una vez, y carácter a carácter. Para
+ello es recomendable utilizar la función ``\verb!fgetc!'' (pero teniendo en
+cuenta que lo que devuelve es un entero, y que devuelve $-1$ cuando llega al
+final del fichero). Además, no se debe utilizar la función ``\verb!ungetc!''
+ya que sólo permite devolver un carácter al {\em buffer\/} de entrada, y en
+algunos casos es necesario devolver más de un carácter. Por tanto, será
+necesario implementar algún tipo de {\em buffer\/} para almacenar estos
+caracteres y una función auxiliar que lea del {\em buffer\/} o, si está
+vacío, lea con ``\verb!fgetc!''.
+\item Cuando el analizador encuentre un carácter que no sea el comienzo de
+ningún componente léxico, debe mostrar un error (por \texttt{stderr}) como 
+el siguiente:
+\begin{verbatim}
+Error (1,5) : caracter '$' incorrecto
+\end{verbatim}
+\item La línea, la columna y el lexema se deben almacenar en variables
+globales. El tipo de {\em token\/} será un entero que devuelva la función
+que implementa el analizador léxico.
+\item De todos los métodos comentados en el capítulo~2 se debe elegir el
+más adecuado para implementar este analizador léxico, aunque un enfoque
+mixto (con diagramas de transiciones para los números y los operadores)
+es probablemente el mejor. 
+\end{itemize}
+
+\newpage
+\section{Analizador sintáctico descendente recursivo}
+
+Dada la siguiente gramática:
+$$
+\begin{array}{lcl}
+\nter{S}     \der \ter{program} \ter{id} \ter{pyc} 
+                  \nter{BDecl} \nter{Bloque} \ter{punto} \\
+\nter{Bloque} \der \ter{begin} \nter{SeqInstr} \ter{end} \\
+\nter{BDecl} \der \epsilon \\
+\nter{BDecl} \der \ter{var} \nter{Decl} \ter{pyc} \\
+\nter{Decl}  \der \nter{Decl} \ter{pyc} \nter{DVar} \\
+\nter{Decl}  \der \nter{DVar} \\
+\nter{DVar} \der \nter{LIdent} \ter{dosp} \ter{integer} \\
+\nter{LIdent} \der \nter{LIdent} \ter{coma} \ter{id} \\
+\nter{LIdent} \der \ter{id} \\
+\nter{SeqInstr} \der \nter{SeqInstr} \ter{pyc} \nter{Instr} \\
+\nter{SeqInstr} \der \nter{Instr} \\
+\nter{Instr} \der \nter{Bloque} \\
+\nter{Instr} \der \ter{id} \ter{assop} \nter{Expr}           \\
+\nter{Instr} \der \ter{write} \ter{lpar} \nter{LExpr} \ter{rpar} \\
+\nter{LExpr} \der \nter{LExpr} \ter{coma} \nter{Expr} \\
+\nter{LExpr} \der \nter{Expr} \\
+\nter{Instr} \der \ter{read} \ter{lpar} \ter{id} \ter{rpar}   \\
+\nter{Instr} \der \ter{if} \nter{Expr} \ter{then} \nter{Instr} \ter{endif} \\
+\nter{Instr} \der \ter{if} \nter{Expr} \ter{then} \nter{Instr}
+                \ter{else} \nter{Instr} \ter{endif} \\
+\nter{Instr} \der \ter{while} \nter{Expr} \ter{do} \nter{Instr} \\
+\nter{Expr}   \der \nter{Esimple} \ter{relop} \nter{Esimple} \\
+\nter{Expr}   \der \nter{Esimple} \\
+\nter{Esimple} \der \nter{Esimple} \ter{addop} \nter{Term} \\
+\nter{Esimple} \der \nter{Term} \\
+\nter{Term}    \der \nter{Term} \ter{mulop} \nter{Factor} \\
+\nter{Term}    \der \nter{Factor} \\
+\nter{Factor}  \der \ter{id} \\
+\nter{Factor}  \der \ter{nint} \\
+\nter{Factor}  \der \ter{nfix} \\
+\nter{Factor}  \der \ter{nflo} \\
+\nter{Factor}  \der \ter{lpar} \nter{Expr} \ter{rpar} \\
+\end{array}
+$$
+este ejercicio práctico consiste en:
+\begin{enumerate}
+\item Eliminar la recursividad por la izquierda y los factores comunes por la
+izquierda, obteniendo una gramática equivalente a la anterior.
+\item Calcular los conjuntos de predicción y comprobar que la gramática
+resultante es LL(1).
+\item Utilizando el analizador léxico del ejercicio práctico anterior, 
+construir un analizador sintáctico descendente recursivo que imprima por
+pantalla una derivación por la izquierda del programa de entrada (imprimiendo
+un número de regla por línea). Además, si el programa fuente contiene algún
+error sintáctico, el analizador debe producir un mensaje de error y terminar.
+El mensaje de error para un programa de entrada como el del
+ejemplo~\refejap{ej:prLexico} debería ser el siguiente:
+\begin{verbatim}
+Error (1,18): encontrado '+', esperaba ';'
+\end{verbatim}
+Debe indicar la línea, la columna y el lexema del {\em token\/} incorrecto y
+debe decir qué {\em tokens\/} se esperaban en su lugar (en un lenguaje 
+comprensible para un usuario que no conoce el funcionamiento de los 
+compiladores).
+\end{enumerate}
+
+\begin{ejemploap}
+Si la gramática fuera por ejemplo la siguiente:
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Prog} \nter{Bloque} \ter{punto} \\
+\nter{Bloque} \der \ter{begin} \nter{SI} \ter{end} \\
+\nter{Prog} \der \ter{program} \ter{id} \ter{pyc}  \\
+\nter{SI} \der \nter{Instr} \\
+\nter{Instr} \der \ter{read} \ter{lpar} \ter{id} \ter{rpar} \\
+\nter{Instr} \der \ter{write} \ter{lpar} \nter{Expr} \ter{rpar} \\
+\nter{Expr} \der \ter{id} \\
+\nter{Expr} \der \ter{nint} \\
+\nter{Expr} \der \ter{nfix} \\
+\end{array}
+$$
+y el programa fuente fuera:
+\begin{small}
+\begin{verbatim}
+program EjASDR;
+begin
+   write(25.7)
+end.
+\end{verbatim}
+\end{small}
+la salida del analizador debería ser:
+\begin{small}
+\begin{verbatim}
+1
+3
+2
+4
+6
+9
+\end{verbatim}
+\end{small}
+\end{ejemploap}
+
+\section{Analizador SLR} \label{asc:SLR}
+
+Este ejercicio práctico consiste en, a partir de la gramática del
+apartado anterior, hacer lo siguiente:
+\begin{enumerate}
+\item Construir el autómata reconocedor de prefijos viables para
+dicha gramática.
+\item Construir la tabla de análisis SLR.
+\item Construir, utilizando el analizador léxico del primer ejercicio
+práctico, un analizador SLR que imprima por la salida estándar una
+derivación por la derecha del programa de entrada\footnote{La
+secuencia de reducciones que realiza un analizador SLR es {\em la inversa\/}
+de una derivación por la derecha, no la propia derivación por
+la derecha.}. Si el programa contiene
+algún error sintáctico, el analizador debe producir un mensaje de error
+con el mismo formato que en el ejercicio práctico anterior y terminar.
+\end{enumerate}
+
+\section{Traductor descendente recursivo}
+
+ A partir del analizador descendente recursivo construido anteriormente,
+se debe construir un traductor que implemente el siguiente proceso de
+traducción de un programa en el lenguaje fuente (muy parecido a un
+subconjunto de Pascal) a C.
+
+\begin{ejemploap}
+Dado el programa fuente de la izquierda, se debe producir el programa
+que aparece a la derecha:
+\begin{small}
+\begin{verbatim}
+program EjTDR;                /* EjTDR */
+var a,b,c:integer;            int a,b,c;
+    e,f:integer;              int e,f;
+    g:integer;                int g;
+
+begin                         main() {
+  a := 76;                      a=76;
+  write(a,23.5,2.3E1);          printf("%d %f %f\n",a,23.5,2.3E1);
+  read(b);                      scanf("%d\n",b);
+  if a<>b then                  if (a!=b)
+    begin                       {
+      while a-b>0 do              while (a-b>0)
+        a:=a-1;                     a=a-1;
+      while a-b<0 do              while (a-b<0)
+        a:=a+1;                     a=a+1;
+      g:=1                        g=1;
+    end                         }
+  else                          else
+    g:=1                          g=1;
+  endif
+end.                          }
+\end{verbatim}
+\end{small}
+\end{ejemploap}
+
+\paragraph{Notas:}
+\begin{itemize}
+\item La traducción del programa fuente debe irse construyendo como una
+cadena de caracteres en memoria dinámica. Para ello se recomienda utilizar
+funciones para duplicar un {\em array\/} de caracteres en 
+memoria (\texttt{strdup}) y funciones para concatenar cadenas de caracteres
+(no se recomienda utilizar \texttt{strcat} sin haber hecho \texttt{malloc} o
+\texttt{realloc} previamente).
+\item Los mensajes de error léxico y sintáctico deben ser los que ya tenía
+implementados el analizador descendente recursivo.
+\end{itemize}
+
+\section{Traductor ascendente}
+
+ A partir de lo explicado en el capítulo~7, este ejercicio consiste en
+implementar dos ETDS basados en analizadores SLR. Para ello se puede
+reutilizar gran parte del código del analizador SLR que se ha propuesto
+en el apartado~\ref{asc:SLR}.
+
+\subsection*{Primer ETDS}
+
+Los componentes l\'exicos del lenguaje fuente son un subconjunto de las
+del primer ejercicio práctico:
+
+\begin{tabular}{ll}
+{\bf nint}: & un n\'umero entero sin signo. \\
+{\bf id}: & un identificador.               \\
+{\bf addop}: & los operadores de suma ``\verb!+!''~o resta ``\verb!-!''. \\
+{\bf coma}: & la coma, ``\verb!,!''.        \\
+{\bf pyc}: & el car\'acter punto y coma, ``\verb!;!''. \\
+{\bf Palabras reservadas:} & ``\verb!var!'' \\
+\end{tabular}
+
+\vspace{2em}
+ El ETDS a implementar es el siguiente:
+$$
+\begin{array}{lcll}
+\nter{S} \der \nter{D} \nter{I} &
+             \{ S.trad := D.trad \sep I.trad \} \\
+\nter{D} \der \nter{V} \nter{$D_1$} &
+             \{ D.trad := V.trad \sep D_1.trad \} \\
+\nter{D} \der \epsilon &
+             \{ D.trad := \verb+''+ \} \\
+\nter{V} \der \ter{var} \nter{L} \ter{pyc} &
+             \{ V.trad := \verb+'int '+ \sep L.trad \sep \verb+';'+ \} \\
+\nter{L} \der \nter{$L_1$} \ter{coma} \ter{id} &
+             \{ L.trad := L_1.trad \sep \verb+','+ \sep {\bf id}.lexema \} \\
+\nter{L} \der \ter{id} &
+             \{ L.trad := {\bf id}.lexema \} \\
+\nter{I} \der \nter{$I_1$} \ter{pyc} \nter{E} &
+             \{ I.trad := I_1.trad \sep \verb+';'+ \sep E.trad \} \\
+\nter{I} \der \nter{E} &
+             \{ I.trad := E.trad \} \\
+\nter{E} \der \nter{$E_1$} \ter{addop} \nter{T} &
+             \{ E.trad = \verb+'[ '+ \sep {\bf addop}.trad \sep \verb+' '+ \sep \\
+         &  &   &~~~~~~E_1.trad \sep \verb+' '+ \sep T.trad \sep \verb+' ]'+ \} \\
+\nter{E} \der \nter{T}   & \{ E.trad = T.trad \} \\
+\nter{T} \der \ter{nint} & \{ T.trad = {\bf nint}.lexema \} \\
+\nter{T} \der \ter{id} & \{ T.trad = {\bf id}.lexema \} \\
+\end{array}
+$$
+
+\paragraph{Notas:}
+\begin{enumerate}
+\item El atributo {\bf addop}$.trad$ es la traducci\'on de
+`\verb!+!'' y `\verb!-!'' a `{\tt sum}'' y `{\tt res}'' respectivamente.
+\item   El ETDS a implementar no debe ser modificado (ni simplificado, ni mejorado)
+en absoluto. 
+\item Antes de implementar el ETDS se debe construir el analizador
+sintáctico SLR para el lenguaje fuente y comprobar que analiza correctamente
+los programas de éste.
+Una vez se haya comprobado que el analizador
+sint\'actico funciona bien, se puede proceder a
+modificar el algoritmo de an\'alisis para que incorpore las acciones de
+traducci\'on.
+\end{enumerate}
+
+\begin{ejemploap}
+Ejemplo de traducción:
+\begin{small}
+\begin{verbatim}
+  var a,b,c;                      int a,b,c;
+  var d;                          int d;
+  a+b-10;                         [ res [ sum a b ] 10 ];
+  a+b-10+c                        [ sum [ res [ sum a b ] 10 ] c ]
+\end{verbatim}
+\end{small}
+\end{ejemploap}
+
+\subsection*{Segundo ETDS}
+
+En este segundo ETDS, los componentes léxicos son los mismos del anterior
+ETDS con algunas ampliaciones:
+
+\begin{tabular}{ll}
+{\bf nint}: & un n\'umero entero sin signo. \\
+{\bf id}: & un identificador.               \\
+{\bf addop}: & los operadores de suma ``\verb!+!''~o resta ``\verb!-!''. \\
+{\bf coma}: & la coma, ``\verb!,!''.        \\
+{\bf lbra}: & la llave izquierda, ``\verb!{!'' \\
+{\bf rbra}: & la llave derecha, ``\verb!}!'' \\
+{\bf pyc}: & el car\'acter punto y coma, ``\verb!;!''. \\
+{\bf Palabras reservadas:} & ``\verb!var!'', ``\verb!func!'' \\
+\end{tabular}
+
+Como se puede observar, se han añadido las llaves y la palabra
+reservada ``\verb!func!'' con respecto al analizador léxico del primer ETDS.
+
+ El ETDS a implementar es el de la figura~\ref{fg:ETDSprac}.
+
+\begin{figure}[ht]
+\begin{small}
+$$
+\begin{array}{lcll}
+\nter{S} \der                  & \{\; D.idh := \verb+''+ \;\} \\
+          & & 
+             \nter{D} \nter{I} & 
+             \{\; S.trad := D.trad \sep I.trad \;\} \\
+\nter{D} \der                      & \{\; V.idh := D.idh \;\} \\
+         &  & \nter{V}             & \{\; D_1.idh := D.idh \;\} \\
+         &  & \nter{$D_1$}         &
+             \{\; D.trad := V.trad \sep D_1.trad \;\} \\
+\nter{D} \der                      & \{\; F.idh := D.idh \;\} \\
+         &  & \nter{F}             & \{\; D_1.idh := D.idh \;\} \\
+         &  & \nter{$D_1$}         &
+             \{\; D.trad := F.trad \sep D_1.trad \;\} \\
+\nter{D} \der \epsilon & 
+             \{\; D.trad := \verb+''+ \;\} \\
+\nter{F} \der \ter{func} \ter{id} \ter{lbra}  & \{\; D.idh := F.idh \sep {\bf id}.lexema \sep \verb+'_'+ \;\} \\
+         & &  \nter{D} \nter{I} \ter{rbra}    & 
+             \{\; F.trad := \verb+' int '+ \sep F.idh \sep {\bf id}.lexema \sep \\
+         & & &~~~~ \verb+'(){ '+ \sep D.trad \sep I.trad \sep \verb+' }'+ \;\} \\
+\nter{V} \der \ter{var}         & \{\; L.idh := V.idh \;\} \\
+         & & \nter{L} \ter{pyc} &
+             \{\; V.trad := \verb+' int '+ \sep L.trad \sep \verb+';'+ \;\} \\
+\nter{L} \der \ter{id}          & \{\; Lp.idh := L.idh \;\} \\
+         & &  \nter{Lp}         &
+             \{\; L.trad := L.idh \sep {\bf id}.lexema \sep Lp.trad \;\} \\
+\nter{Lp} \der \ter{coma} \ter{id} & \{\; {Lp}_1.idh := Lp.idh \;\} \\
+          & &  \nter{${Lp}_1$}     &
+             \{\; Lp.trad := \verb+','+ \sep Lp.idh \sep {\bf id}.lexema \sep  Lp_1.trad \;\}  \\
+\nter{Lp} \der \epsilon         &
+             \{\; Lp.trad := \verb+''+ \;\} \\
+\nter{I} \der \nter{$I_1$} \ter{pyc} \nter{E} &
+             \{\; I.trad := I_1.trad \sep \verb+';'+ \sep E.trad \;\} \\
+\nter{I} \der \nter{E} &
+             \{\; I.trad := E.trad \;\} \\
+\nter{E} \der \nter{T}      & \{\; Ep.th := T.trad \;\} \\
+         & &  \nter{Ep}     & \{\; E.trad := Ep.trad \;\} \\
+\nter{Ep} \der \ter{addop} \nter{T} &
+             \{\; Ep_1.th = \verb+'[ '+ \sep {\bf addop}.trad \sep \verb+' '+ \sep \\
+         &  &   &~~~~~~Ep.th \sep \verb+' '+ \sep T.trad \sep \verb+' ]'+ \;\} \\
+         &  & \nter{${Ep}_1$} & \{\; Ep.trad := Ep_1.trad \;\} \\
+\nter{Ep} \der \epsilon     & \{\; Ep.trad := Ep.th \;\} \\
+\nter{T} \der \ter{nint} & \{\; T.trad = {\bf nint}.lexema \;\} \\
+\nter{T} \der \ter{id} & \{\; T.trad = {\bf id}.lexema \;\} \\
+\end{array}
+$$
+\end{small}
+\caption{Segundo ETDS para implementar con un analizador SLR.}
+\label{fg:ETDSprac}
+\end{figure}
+
+\paragraph{Notas:}
+\begin{enumerate}
+\item El ETDS no debe ser modificado. Como se puede observar al
+comparar este ETDS con el anterior, cuando se utiliza un analizador
+ascendente para construir el traductor no es recomendable eliminar
+la recursión por la izquierda de la gramática.
+\item Antes de implementar el ETDS es necesario estudiar qué 
+marcadores es necesario introducir en la gramática, y después se debe 
+implementar el analizador sintáctico SLR para la gramática con marcadores.
+\end{enumerate}
+
+\begin{ejemploap}
+Ejemplo de traducción:
+\begin{small}
+\begin{verbatim}
+  var a,b,c;                      int a,b,c;
+  func fu {                       int fu (){
+   func kung {                     int fu_kung () {
+     var c, d;                        int fu_kung_c, fu_kung_d;
+     7-d                              [ res 7 d ]
+   }                               }
+     var a, b;                       int fu_a, fu_b;
+     2+a-b+d                         [ sum [ res [ sum 2 a ] b ] d ]
+  }                               }
+  a+b-10;                         [ res [ sum a b ] 10 ];
+  a+b-10+c                        [ sum [ res [ sum a b ] 10 ] c ]
+\end{verbatim}
+\end{small}
+\end{ejemploap}
+
+\section{Compilador para un lenguaje sencillo} \label{sc:p3}
+
+Este ejercicio pr\'actico consiste en realizar (utilizando YACC (o {\tt
+bison}) y LEX (o {\tt flex})) un compilador para el lenguaje fuente
+que se describe m\'as adelante, que genere c\'odigo para el 
+lenguaje objeto {\tt m2r} (véase el apéndice~\ref{app:mdosr} para una
+descripción completa de este lenguaje).
+
+El lenguaje fuente es un subconjunto de Pascal, y la semántica es similar a
+la de dicho lenguaje. El lenguaje tiene tres tipos simples: booleanos, 
+enteros y reales. 
+La sintaxis del lenguaje fuente puede ser representada por la
+gram\'atica de la figura~\ref{fg:gramPRAC}. La especificaci\'on 
+l\'exica de los s\'{\i}mbolos terminales de la
+gram\'atica es la de la tabla de la figura~\ref{fg:lexPRAC}.
+
+
+\begin{figure}[htp]
+\begin{footnotesize}
+$$
+\begin{array}{lcl}
+\nter{S}     \der \ter{program} \ter{id} \ter{pyc} 
+                  \nter{BDecl} \nter{Bloque} \ter{punto} \\
+\nter{Bloque} \der \ter{begin} \nter{SeqInstr} \ter{end} \\
+\nter{BDecl} \der \epsilon \\
+\nter{BDecl} \der \nter{BlVar} \nter{BDecl} \\
+\nter{BlVar} \der \ter{var} \nter{Decl} \ter{pyc} \\
+\nter{Decl}  \der \nter{Decl} \ter{pyc} \nter{DVar} \\
+\nter{Decl}  \der \nter{DVar} \\
+\nter{DVar} \der \nter{LIdent} \ter{dosp} \nter{Tipo} \\
+\nter{Tipo} \der \ter{boolean} \\
+\nter{Tipo} \der \ter{integer} \\
+\nter{Tipo} \der \ter{real} \\
+\nter{LIdent} \der \nter{LIdent} \ter{coma} \ter{id} \\
+\nter{LIdent} \der \ter{id} \\
+\nter{SeqInstr} \der \nter{SeqInstr} \ter{pyc} \nter{Instr} \\
+\nter{SeqInstr} \der \nter{Instr} \\
+\nter{Instr} \der \nter{Bloque} \\
+\nter{Instr} \der \nter{Ref} \ter{assop} \nter{Expr}           \\
+\nter{Instr} \der \ter{wri} \ter{lpar} \nter{LExpr} \ter{rpar} \\
+\nter{LExpr} \der \nter{LExpr} \ter{coma} \nter{Expr} \\
+\nter{LExpr} \der \nter{Expr} \\
+\nter{Instr} \der \ter{read} \ter{lpar} \nter{LRef} \ter{rpar}   \\
+\nter{LRef} \der \nter{LRef} \ter{coma} \nter{Ref} \\
+\nter{LRef} \der \nter{Ref} \\
+\nter{Instr} \der \ter{if} \nter{Expr} \ter{then} \nter{Instr} \\
+\nter{Instr} \der \ter{if} \nter{Expr} \ter{then} \nter{Instr}
+                \ter{else} \nter{Instr} \\
+\nter{Instr} \der \ter{while} \nter{Expr} \ter{do} \nter{Instr} \\
+\nter{Expr}   \der \nter{Esimple} \ter{relop} \nter{Esimple} \\
+\nter{Expr}   \der \nter{Esimple} \\
+\nter{Esimple} \der \nter{Esimple} \ter{addop} \nter{Term} \\
+\nter{Esimple} \der \nter{Esimple} \ter{obool} \nter{Term} \\
+\nter{Esimple} \der \nter{Term} \\
+\nter{Esimple} \der \ter{addop} \nter{Term} \\
+\nter{Term}    \der \nter{Term} \ter{mulop} \nter{Factor} \\
+\nter{Term}    \der \nter{Term} \ter{ybool} \nter{Factor} \\
+\nter{Term}    \der \nter{Factor} \\
+\nter{Factor}  \der \nter{Ref} \\
+\nter{Factor}  \der \ter{nint} \\
+\nter{Factor}  \der \ter{nfix} \\
+\nter{Factor}  \der \ter{ctebool} \\
+\nter{Factor}  \der \ter{nobool} \nter{Factor} \\
+\nter{Factor}  \der \ter{lpar} \nter{Expr} \ter{rpar} \\
+\nter{Factor}  \der \ter{trunc} \ter{lpar} \nter{Esimple} \ter{rpar} \\
+\nter{Ref}   \der \ter{id} \\
+\end{array}
+$$
+\end{footnotesize}
+\caption{Gramática que genera el lenguaje de la sección~\ref{sc:p3}.}
+\label{fg:gramPRAC}
+\end{figure}
+
+\begin{figure}[htp]
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{c|c|c}
+\hline\hline
+{\sc Expresi\'on} &
+{\sc Componente} &
+{\sc Valor l\'exico} \\
+{\sc regular} &
+{\sc l\'exico} &
+{\sc entregado} \\
+\hline
+\verb![ \n\t]+! & (ninguno)     &  \\
+\verb+program+  & {\bf program} & (palabra reservada) \\
+\verb+begin+    & {\bf begin}   & (palabra reservada) \\
+\verb+end+      & {\bf end}     & (palabra reservada) \\
+\verb+var+      & {\bf var}     & (palabra reservada) \\
+\verb+boolean+  & {\bf boolean} & (palabra reservada) \\
+\verb+integer+  & {\bf integer} & (palabra reservada) \\
+\verb+real+     & {\bf real}    & (palabra reservada) \\
+\verb+writeln+  & {\bf wri}     & (palabra reservada) \\
+\verb+write+    & {\bf wri}     & (palabra reservada) \\
+\verb+read+     & {\bf read}    & (palabra reservada) \\
+\verb+if+       & {\bf if}      & (palabra reservada) \\
+\verb+then+     & {\bf then}    & (palabra reservada) \\
+\verb+else+     & {\bf else}    & (palabra reservada) \\
+\verb+while+    & {\bf while}   & (palabra reservada) \\
+\verb+do+       & {\bf do}      & (palabra reservada) \\
+\verb+and+      & {\bf ybool}   & (palabra reservada) \\
+\verb+or+       & {\bf obool}   & (palabra reservada) \\
+\verb+div+      & {\bf mulop}   & (palabra reservada) \\
+\verb+mod+      & {\bf mulop}   & (palabra reservada) \\
+\verb+true+     & {\bf ctebool} & (palabra reservada) \\
+\verb+false+    & {\bf ctebool} & (palabra reservada) \\
+\verb+not+      & {\bf nobool}  & (palabra reservada) \\
+\verb+trunc+    & {\bf trunc}   & (palabra reservada) \\
+\verb+[A-Za-z][0-9A-Za-z]*+ 
+                & {\bf id}     & (nombre del ident.) \\
+\verb![0-9]+!   & {\bf nint}   & (valor num\'erico) \\
+\verb!([0-9]+)"."([0-9]+)!   & {\bf nfix}   & (valor num\'erico) \\
+\verb+,+        & {\bf coma}    &  \\
+\verb+;+        & {\bf pyc}     &  \\
+\verb+.+        & {\bf punto}   &  \\
+\verb+:+        & {\bf dosp}    &  \\
+\verb+(+        & {\bf lpar}   &  \\
+\verb+)+        & {\bf rpar}   &  \\
+\verb+=+        & {\bf relop}  & \verb+=+ \\
+\verb+<>+       & {\bf relop}  & \verb+<>+ \\
+\verb+<+        & {\bf relop}  & \verb+<+ \\
+\verb+<=+       & {\bf relop}  & \verb+<=+ \\
+\verb+>+        & {\bf relop}  & \verb+>+ \\
+\verb+>=+       & {\bf relop}  & \verb+>=+ \\
+\verb!+!        & {\bf addop}  & \verb!+! \\
+\verb+-+        & {\bf addop}  & \verb+-+ \\
+\verb+*+        & {\bf mulop}  & \verb+*+ \\
+\verb+/+        & {\bf mulop}  & \verb+/+ \\
+\verb+:=+       & {\bf assop}  &  \\
+\end{tabular}
+\end{footnotesize}
+\end{center}
+\caption{Componentes léxicos del ejercicio práctico de la sección~\ref{sc:p3}.}
+\label{fg:lexPRAC}
+\end{figure}
+
+\noindent {\bf Notas:}
+\begin{enumerate}
+\item En Pascal (y en este lenguaje), al contrario que en C, no se distingue 
+entre letras mayúsculas y minúsculas. Por tanto, ``\verb+BeGiN+'', 
+``\verb+bEGIn+'' y ``\verb+BegiN+'' son sólo algunas de las posibles formas de 
+escribir la
+palabra reservada ``\verb+begin+''; lo mismo sucede con el resto de palabras
+reservadas que aparecen en la especificación léxica.
+Además, lo mismo sucede con los identificadores de variables: es posible 
+referirse a una variable utilizando indistintamente letras mayúsculas o
+minúsculas, por lo que por ejemplo la variable ``\verb+pep+'' se puede
+escribir también como ``\verb+Pep+'', ``\verb+PEP+'' o ``\verb+pEp+''.
+\item El analizador léxico debe ignorar los comentarios, que en este ejercicio 
+empiezan con la secuencia de caracteres ``\verb+(*+'' y terminan con la
+secuencia ``\verb+*)+''. Un comentario puede ocupar varias líneas y no se
+permiten los comentarios anidados.
+\end{enumerate}
+
+\subsection{Especificación semántica}
+
+Las reglas sem\'anticas de este lenguaje son similares a las de Pascal, y son
+las siguientes:
+
+\subsubsection*{Declaración de variables}
+
+\begin{itemize}
+\item No es posible declarar dos veces una variable con el mismo identificador,
+aunque sea con el mismo tipo (recuérdese que no se debe distinguir entre 
+mayúsculas y minúsculas). El identificador que aparece después de la
+palabra reservada ``\verb+program+'' no se debe almacenar en la tabla de
+símbolos.
+%
+\item No es posible utilizar una variable sin haberla declarado previamente.
+%
+\item Si al declarar una variable el espacio ocupado por \'esta sobrepasa
+el tama\~no m\'aximo de memoria para variables (siempre inferior a 16384, que
+es el tamaño de la memoria de la máquina virtual), el compilador debe producir 
+un mensaje de error indicando el lexema exacto de la variable que ya no cabe 
+en memoria.
+%
+\end{itemize}
+
+\subsubsection*{Instrucciones}
+%
+\begin{description}
+\item{\bf Asignación:} en esta instrucción tanto la referencia que aparece
+a la izquierda del operador ``\verb+:=+'' como la expresión de la derecha
+deben ser del mismo tipo. Solamente hay una excepción a esta regla, y 
+consiste en que está permitida también la asignación cuando la referencia
+es real y la expresión es entera.
+%
+\item{\bf Lectura y escritura:} aunque en Pascal existe otra instrucción
+para lectura (``\verb+readln+'') y es posible especificar el formato en las
+instrucciones de escritura, en este lenguaje solamente se permite una
+sentencia de lectura, ``\verb+read+'', y dos sentencias de escritura,
+``\verb+write+'' y ``\verb+writeln+'', que se diferencian únicamente en que
+la segunda escribe un carácter de nueva línea (un ``\verb+\n+'' de C) 
+después de haber escrito todas las expresiones.
+
+La lectura de valores enteros y reales no plantea ningún problema especial.
+Por simplificar, si lo que se debe leer es de tipo booleano
+se seguirá la siguiente norma (que no existe en Pascal): se leerá un carácter
+y si dicho carácter es una ``\verb+t+'' (minúscula), se entenderá que el valor
+leido es ``\verb+true+''; si el carácter leído es cualquier otro, se entenderá
+que se ha leido ``\verb+false+''. Al escribir un valor booleano se escribirá
+el carácter ``\verb+t+'' para ``\verb+true+'' y el carácter ``\verb+f+'' para
+``\verb+false+''.
+%
+\item{\bf Control de flujo:} las instrucciones ``\verb+if+'' y ``\verb+while+''
+tienen una semántica similar a la de C, con la única excepción de que se
+exige que el tipo de la expresión sea booleano; en caso contrario, se debe
+producir un error semántico.
+\end{description}
+
+\subsubsection*{Expresiones}
+\begin{description}
+\item{\bf Precedencia de operadores:} la siguiente tabla muestra los 
+operadores de este lenguaje ordenados
+de menor a mayor precedencia (todos aquellos que aparecen en la misma fila
+tiene la misma precedencia):
+
+\begin{center}
+\begin{tabular}{|c|}\hline
+{\sc Operadores} \\\hline\hline
+\verb+=+ \verb+<>+ \verb+>+ \verb+>=+ \verb+<+ \verb+<=+ \\\hline
+\verb!+! \verb+-+ \verb+or+ \\\hline
+\verb+*+ \verb+/+ \verb+div+ \verb+mod+ \verb+and+ \\\hline
+\verb+not+ \\\hline
+\end{tabular}
+\end{center}
+
+La gramática de la especificación sintáctica refleja esta tabla de precedencias,
+por lo que no es aconsejable modificarla (al menos las reglas de
+las expresiones).
+\item{\bf Operadores booleanos:} los operadores ``\verb+or+'', ``\verb+and+''
+y ``\verb+not+'' son equivalentes a los operadores ``\verb+||+'', ``\verb+&&+''
+y ``\verb+!+'' de C, con la restricción de que en este lenguaje los operandos
+deben ser booleanos (en C no existe esa restricción porque no existe el tipo
+booleano). Además, debe tenerse en cuenta la precedencia de los operadores
+al construirse una expresión booleana: la expresión en C ``\verb+2<3 && 3<4+''
+se debe escribir en este lenguaje como ``\verb+(2<3) and (3<4)+'', ya que los
+operadores relacionales tienen menor precedencia que el operador ``\verb+and+''.
+%
+\item{\bf Operadores relacionales:} son equivalentes a los de C, excepto el
+operador de igualdad ``\verb+=+'' (equivalente al ``\verb+==+'' de C) y el
+de desigualdad ``\verb+<>+'' (equivalente a ``\verb+!=+''). Estos operadores
+permiten comparar valores numéricos (enteros o reales) entre sí, y también 
+valores booleanos entre sí (en cuyo caso se 
+considera que ``\verb+false+'' es menor que ``\verb+true+''). No se permite
+comparar valores de distinto tipo (excepto valores enteros y reales, por
+supuesto).
+%
+\item{\bf Operadores aritméticos:} solamente pueden utilizarse con valores
+enteros o reales. Los operadores de suma ``\verb!+!'', resta ``\verb+-+''
+y producto ``\verb+*+'' son similares a los de C. En cambio, el
+operador de división ``\verb+/+'' realiza solamente divisiones reales, 
+independientemente de si los operandos son reales o enteros. Para realizar
+una división entera se debe utilizar el operador ``\verb+div+'', en cuyo
+caso ambos operandos deben ser enteros. Además, es posible obtener el
+módulo de una división entera con el operando ``\verb+mod+'', que también
+exige que los operandos sean enteros.
+%
+\end{description}
+
+\subsubsection*{Funciones predefinidas}
+
+ En Pascal existen muchas funciones predefinidas, pero en este ejercicio
+solamente es necesario implementar una de ellas, que 
+se ha incluido para facilitar la conversión de tipos:
+
+\begin{itemize}
+\item[\bf trunc] Esta función admite un argumento numérico (real o entero)
+y devuelve un entero que es la parte entera del argumento.
+%
+\end{itemize}
+
+\section{Compilador con tipos complejos}
+
+Este ejercicio pr\'actico consiste en ampliar el ejercicio anterior para 
+admitir la declaración y utilización de {\em arrays\/} y
+registros. Como en el ejercicio anterior, el código objeto debe ser el 
+lenguaje {\tt m2r}.
+
+El lenguaje fuente seguirá siendo un subconjunto de Pascal y la semántica 
+también será similar a la de dicho lenguaje, con una excepción: aunque el
+compilador de Pascal genera código para comprobar que los índices de un
+{\em array\/} están dentro del rango permitido, este compilador no debe
+generar dicho código, para que el código generado sea más legible
+y sencillo de depurar. 
+
+La sintaxis del lenguaje fuente puede ser representada por la
+gram\'atica de la figura~\ref{fg:gramPRAC} añadiéndole las siguientes reglas:
+$$
+\begin{array}{lcl}
+\nter{Tipo} \der \ter{record} \nter{Decl} \ter{end} \\
+\nter{Tipo} \der \ter{array} \ter{lcor} \nter{Rango} \ter{rcor} 
+                 \ter{of} \nter{Tipo} \\
+\nter{Rango} \der \ter{nint} \ter{ptopto} \ter{nint} \\
+\end{array}
+$$
+para declarar {\em arrays\/} y registros, y
+$$
+\begin{array}{lcl}
+\nter{Ref}   \der \ter{id} \\
+\nter{Ref}   \der \nter{Ref} \ter{lcor} \nter{LisExpr} \ter{rcor} \\
+\nter{Ref}   \der \nter{Ref} \ter{punto} \ter{id} \\
+\nter{LisExpr} \der \nter{LisExpr} \ter{coma} \nter{Expr} \\
+\nter{LisExpr} \der \nter{Expr} \\
+\end{array}
+$$
+para acceder a posiciones de {\em arrays\/} y a campos de
+registros. Aunque el no terminal
+{\em LisExpr\/} genera exactamente el mismo lenguaje que el 
+no terminal {\em LExpr\/}
+de la gramática de la tercera práctica, no es aconsejable simplificar la
+gramática unificando ambos no terminales, ya que el código que se debe
+generar en cada caso es muy diferente.
+Esta modificación de la gramática permitiría referencias como 
+``\verb+a[1,2][3,4]+'', que, por simplificar, no están permitidas en 
+este lenguaje y por tanto
+el compilador debe producir un error semántico si aparece una referencia
+de este tipo. En cambio, sí están permitidas referencias como ``\verb+a[1,2].b[3,4]+'',
+y es para permitir este tipo de referencias por lo que es necesaria
+una gramática como la anterior.
+
+La especificaci\'on l\'exica de los s\'{\i}mbolos terminales que se
+añaden a la gramática es:
+\begin{center}
+\begin{small}
+\begin{tabular}{c|c|c}
+\hline\hline
+{\sc Expresi\'on} &
+{\sc Componente} &
+{\sc Valor l\'exico} \\
+{\sc regular} &
+{\sc l\'exico} &
+{\sc entregado} \\
+\hline
+\verb+record+   & {\bf record}  & (palabra reservada) \\
+\verb+array+    & {\bf array}   & (palabra reservada) \\
+\verb+of+       & {\bf of}      & (palabra reservada) \\
+\verb+[+        & {\bf lcor}    &  \\
+\verb+]+        & {\bf rcor}    &  \\
+\verb+..+       & {\bf ptopto}  &  \\
+\end{tabular}
+\end{small}
+\end{center}
+
+\subsection{Especificación semántica}
+
+Las reglas sem\'anticas del ejercicio práctico anterior siguen vigentes en 
+este ejercicio y se añaden las siguientes reglas.
+
+\subsubsection*{Declaración de {\em arrays}}
+
+\begin{itemize}
+\item En la declaración de un {\em array\/}, el segundo número que aparece
+en el rango entre corchetes debe ser mayor o igual que el primero. Debe
+tenerse en cuenta que ambos valores son válidos como índices (al contrario
+que en C, que no incluye el valor que aparece entre corchetes en el
+rango de valores posibles de los índices del {\em array\/}).
+%
+\item Al declarar una variable de tipo {\em array\/} es posible que se
+agote la memoria disponible en la máquina objeto, por lo que debe
+producirse un error semántico. En ningún caso está permitido que se reserve 
+más memoria que
+la que sea imprescindible para un {\em array}.
+%
+\end{itemize}
+
+\subsubsection*{Acceso a componentes de {\em arrays} y a campos de registros}
+%
+\begin{itemize}
+\item En este lenguaje no es posible hacer referencia a un componente de
+un {\em array\/} sin poner tantos índices como sean necesarios según la
+declaración de la variable. Tanto si faltan como si sobran índices se
+debe producir un error semántico (lo antes posible, especialmente cuando
+sobran índices). De esta manera, el no terminal {\em Ref\/} debe devolver
+un tipo básico (entero, real o booleano) al resto del compilador,
+de manera que, si está bien diseñado, no debe ser necesario modificar 
+apenas el código del ejercicio práctico anterior.
+%
+\item No es posible poner una referencia a un registro sin poner a
+continuación el punto y el nombre de un campo. Por supuesto, el identificador 
+que aparece después del punto debe ser el de un campo del registro.
+%
+\item No está permitido poner corchetes (índices) a una referencia que no
+sea de tipo {\em array}. Tampoco está permitido poner un punto
+después de una referencia que no sea un registro.
+%
+\item El índice de un {\em array\/} debe ser de tipo entero; en caso
+contrario, se debe producir un error. 
+%
+\item Se debe recordar que es posible utilizar referencias a {\em arrays\/}
+en la parte izquierda de una asignación, en una sentencia de lectura y en
+una expresión. En los dos primeros casos el código que se debe generar es
+similar, y es ligeramente distinto del tercer caso.
+%
+\end{itemize}
+
+\section{Compilador con funciones}
+
+Este ejercicio pr\'actico consiste en implementar declaraciones y llamadas a 
+funciones a partir de una versión simplificada del ejercicio práctico de la
+sección~\ref{sc:p3}, que
+solamente incluirá los tipos entero y booleano (aunque los parámetros de
+las funciones solamente podrán ser enteros). Como en los ejercicios anteriores,
+el código objeto será el {\tt m2r}.
+El lenguaje fuente seguirá siendo un subconjunto de Pascal y la semántica 
+también será similar a la de dicho lenguaje. Opcionalmente, se podrán 
+implementar funciones locales a otras funciones.
+
+\newcommand{\asterix}{\rightarrow\;\;&}
+
+La sintaxis del lenguaje fuente puede ser representada por la
+gram\'atica de la figura~\ref{fg:gramP5}\footnote{Las reglas que se han 
+añadido 
+con respecto a la gramática de la figura~\ref{fg:gramPRAC} están marcadas
+con una flecha.}. La especificaci\'on l\'exica de este lenguaje incluye 
+casi todos los s\'{\i}mbolos terminales del ejercicio práctico de la
+sección~\ref{sc:p3} y la palabra reservada {\bf function}.
+
+\begin{figure}[htp]
+\begin{small}
+$$
+\begin{array}{llcl}
+&    \nter{S}     \der \ter{program} \ter{id} \ter{pyc} 
+                      \nter{BDecl} \nter{Bloque} \ter{punto} \\
+&    \nter{Bloque} \der \ter{begin} \nter{SeqInstr} \ter{end} \\
+&    \nter{BDecl} \der \epsilon \\
+&    \nter{BDecl} \der \nter{BlVar} \nter{BDecl} \\
+\asterix \nter{BDecl} \der \nter{DFun} \nter{BDecl} \\
+&    \nter{BlVar} \der \ter{var} \nter{Decl} \ter{pyc} \\
+&    \nter{Decl} \der \nter{Decl} \ter{pyc} \nter{DVar} \\
+&    \nter{Decl} \der \nter{DVar} \\
+&    \nter{DVar} \der \nter{LIdent} \ter{dosp} \nter{Tipo} \\
+\asterix \nter{DFun} \der \ter{function} \ter{id} \nter{Arg} \ter{dosp} \ter{integer} \ter{pyc} \\
+&           & &  \nter{BDFun} \nter{Bloque} \ter{pyc} \\
+\asterix \nter{Arg} \der \epsilon \\
+\asterix \nter{Arg} \der \ter{lpar} \nter{LArg} \ter{rpar} \\
+\asterix \nter{LArg} \der \nter{LArg} \ter{pyc} \nter{UnArg} \\
+\asterix \nter{LArg} \der \nter{UnArg} \\
+\asterix \nter{UnArg} \der \ter{id} \ter{dosp} \ter{integer} \\
+\asterix \nter{BDFun} \der \epsilon \\
+\asterix \nter{BDFun} \der \nter{BlVar} \nter{BDFun} \\
+&    \nter{Tipo} \der \ter{boolean} \\
+&    \nter{Tipo} \der \ter{integer} \\
+&    \nter{LIdent} \der \nter{LIdent} \ter{coma} \ter{id} \\
+&    \nter{LIdent} \der \ter{id} \\
+&    \nter{SeqInstr} \der \nter{SeqInstr} \ter{pyc} \nter{Instr} \\
+&    \nter{SeqInstr} \der \nter{Instr} \\
+&    \nter{Instr} \der \nter{Bloque} \\
+&    \nter{Instr} \der \nter{Ref} \ter{assop} \nter{Expr}           \\
+&    \nter{Instr} \der \ter{wri} \ter{lpar} \nter{LExpr} \ter{rpar} \\
+&    \nter{LExpr} \der \nter{LExpr} \ter{coma} \nter{Expr} \\
+&    \nter{LExpr} \der \nter{Expr} \\
+&    \nter{Instr} \der \ter{read} \ter{lpar} \nter{LRef} \ter{rpar}   \\
+&    \nter{LRef} \der \nter{LRef} \ter{coma} \nter{Ref} \\
+&    \nter{LRef} \der \nter{Ref} \\
+&    \nter{Instr} \der \ter{if} \nter{Expr} \ter{then} \nter{Instr} \\
+&    \nter{Instr} \der \ter{if} \nter{Expr} \ter{then} \nter{Instr}
+                      \ter{else} \nter{Instr} \\
+&    \nter{Instr} \der \ter{while} \nter{Expr} \ter{do} \nter{Instr} \\
+&    \nter{Expr}   \der \nter{Esimple} \ter{relop} \nter{Esimple} \\
+&    \nter{Expr}   \der \nter{Esimple} \\
+&    \nter{Esimple} \der \nter{Esimple} \ter{addop} \nter{Term} \\
+&    \nter{Esimple} \der \nter{Esimple} \ter{obool} \nter{Term} \\
+&    \nter{Esimple} \der \nter{Term} \\
+&    \nter{Esimple} \der \ter{addop} \nter{Term} \\
+&    \nter{Term}    \der \nter{Term} \ter{mulop} \nter{Factor} \\
+&    \nter{Term}    \der \nter{Term} \ter{ybool} \nter{Factor} \\
+&    \nter{Term}    \der \nter{Factor} \\
+&    \nter{Factor}  \der \nter{Ref} \\
+&    \nter{Factor}  \der \ter{nint} \\
+&    \nter{Factor}  \der \ter{ctebool} \\
+&    \nter{Factor}  \der \ter{nobool} \nter{Factor} \\
+&    \nter{Factor}  \der \ter{lpar} \nter{Expr} \ter{rpar} \\
+&    \nter{Ref}     \der \ter{id} \\
+\asterix \nter{Ref}     \der \ter{id} \ter{lpar} \nter{LisExpr} \ter{rpar} \\
+\asterix \nter{LisExpr} \der \nter{LisExpr} \ter{coma} \nter{Expr} \\
+\asterix \nter{LisExpr} \der \nter{Expr} \\
+\end{array}
+$$
+\end{small}
+\caption{Gramática para un compilador con funciones.}
+\label{fg:gramP5}
+\end{figure}
+
+
+\subsection{Especificaci\'on sem\'antica}
+
+Las reglas sem\'anticas del ejercicio práctico de la sección~\ref{sc:p3}
+siguen vigentes en esta ejercicio (las que se puedan aplicar, obviamente), 
+y se añaden las siguientes reglas:
+
+\subsubsection*{Declaración de funciones}
+
+\begin{itemize}
+\item En el lenguaje de este ejercicio práctico existen dos ámbitos: el de los
+símbolos (variables o funciones) globales, y el de los símbolos locales
+a una función (argumentos o variables locales). Cuando se declara una función, 
+el primer argumento (o la primera variable local, si no hay argumentos) se 
+considera que abre el ámbito de los símbolos locales a la función. Por tanto,
+es posible que algún parámetro o variable local tenga el mismo nombre
+que una variable o función declarada previamente en el
+ámbito global, pero no está permitido declarar dos símbolos con el
+mismo nombre dentro del mismo ámbito (sea global o local). 
+%
+\item Cuando la función se
+termina de compilar, los símbolos pertenecientes al ámbito local de la
+función se deben {\em olvidar\/}, eliminándolos de la tabla de símbolos.
+%
+\item Puesto que las funciones se almacenan en el ámbito global, no es 
+posible declarar una función con el mismo nombre que una
+variable o función declarada previamente.
+%
+\end{itemize}
+\noindent {\bf Nota de implementación:} Por simplificar, aunque en la
+gramática existen dos tipos básicos (enteros y booleanos), las funciones
+solamente pueden devolver enteros y sus parámetros deben ser de tipo
+entero. Por tanto, no es necesario implementar una tabla de tipos para
+almacenar el tipo de la función junto con el de sus argumentos, es
+suficiente con almacenar en la tabla de símbolos cuántos argumentos tiene.
+
+\subsubsection*{Llamadas a funciones}
+%
+\begin{itemize}
+%
+\item No está permitido hacer una llamada a una función sin poner tantos
+parámetros como argumentos tenga. Debe tenerse en cuenta que si la
+función se ha declarado sin argumentos, la llamada simplemente consiste
+en poner el nombre de la función (sin paréntesis), por lo que gramaticalmente
+es idéntica a una referencia a una variable.
+%
+\item No está permitido poner parámetros entre paréntesis a un identificador
+que no sea una función.
+%
+\item Como se dice más arriba, todos los parámetros de una función deben
+ser expresiones enteras (no están permitidos los argumentos booleanos).
+%
+\item Solamente está permitido poner el nombre de una función en la
+parte izquierda de una asignación en un caso: dentro del cuerpo de la
+propia función. El valor de la expresión a la derecha del ``\verb+:=+''
+será el valor que devuelva la función (cuando llegue al final de su 
+código). Está permitido asignar más de una vez valor al nombre de la
+función (dentro de su cuerpo, por supuesto)\footnote{En Pascal no existe
+una instrucción como el ``\texttt{return}'' de C, por lo que las
+funciones tienen que llegar al final de su código.}, y no se debe
+comprobar que el usuario del compilador hace una asignación de este
+tipo en cada función (puede ser muy complicado en algunos casos).
+%
+\item Los par\'a\-me\-tros se pasan por valor, y aunque dentro de una 
+funci\'on se modifique el valor de un par\'ametro (operaci\'on que, por lo tanto,
+est\'a permitida), dicha modificaci\'on no tendr\'a efecto fuera de esa 
+funci\'on. Los argumentos son todos, por tanto, de entrada y no
+pueden ser de salida.
+%
+\item Por supuesto, el compilador debe permitir las llamadas recursivas sin
+ningún tipo de limitación, aunque la especificación sintáctica solamente 
+permite la recursividad directa (que una función se llame a sí misma).
+%
+\end{itemize}
+
+\subsection{Ampliación opcional: funciones locales}
+
+ Para realizar esta ampliación habría que modificar la regla de la 
+declaración de funciones, de manera que quedase de esta forma:
+
+\begin{center}
+$$
+\begin{array}{lcl}
+\nter{DFun} \der \ter{function} \ter{id} \nter{Arg} \ter{dosp} \ter{integer} \ter{pyc} \\
+            & &  \nter{BDecl} \nter{Bloque} \ter{pyc} \\
+\end{array}
+$$
+\end{center}
+y eliminar las reglas del no terminal {\em BDFun}.
+Esta modificación de la gramática permitiría declarar funciones locales
+a otras funciones, y por tanto habría más ámbitos además de el ámbito local
+y el global. El gran problema de esta ampliación es el acceso a variables
+situadas en aquellos ámbitos que no son ni el ámbito local ni el ámbito
+global; además, la gestión de la tabla de símbolos se complica un poco
+con respecto a la del ejercicio sin la ampliación.
+

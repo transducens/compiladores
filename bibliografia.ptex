@@ -1,0 +1,117 @@
+
+% el orden de los items en el dvi/ps es en el que aparecen aquí.
+
+\item[] En este epígrafe vamos a citar aquéllos libros de texto sobre diseño
+de compiladores que, a nuestro juicio, son más adecuados para un curso
+como aquellos hacia los que está orientado nuestro libro. Además, citaremos
+otros libros interesantes, pero que no nos parecen tan importantes. Las
+referencias aparecen en orden de importancia (siempre
+según nuestro criterio). \vspace{1cm}
+
+\bibitem[Louden, 1997]{Lou97}
+Louden, K. C. (1997).
+\newblock {\em Compiler construction: principles and practice}.
+\newblock PWS Publishing Company, Boston, Massachusetts. 
+\begin{quote}
+ Probablemente el mejor libro que se ha escrito en los últi\-mos años. Aunque
+es muy completo, no llega a ser tan exhaustivo
+como el libro de~\cite{ASU90}, pero tiene un enfoque mucho más pedagógico y 
+es un libro muy apropiado para la mayoría de los cursos sobre diseño de 
+compiladores. No solamente expone bien todas las posibilidades que pueden
+plantearse en los distintos temas, sino que además el
+enfoque y la estructura de cada tema son los más adecuados.
+\end{quote}
+
+\bibitem[Aho, Sethi y Ullman, 1990]{ASU90}
+Aho, A. V., Sethi, R. y Ullman, J. D. (1990).
+\newblock {\em Compiladores: principios, técnicas y herramientas}.
+\newblock Addison-Wesley Iberoamericana, Madrid.
+\begin{quote}
+ Este libro es la traducción al castellano de {\em Compilers: Principles, 
+Techniques and Tools} (1986), Addison-Wesley, Reading, MA. Aunque la calidad
+de la traducción no es excesivamente buena, es el libro más 
+importante y conocido\footnote{También se le conoce coloquialmente como
+el ``libro del dragón'' (the ``dragon book'') porque en la cubierta aparece
+un dragón.} en esta materia. Es un libro muy completo, que trata en
+profundidad todos los aspectos del diseño de compiladores. Sin embargo, 
+empieza a quedarse obsoleto en algunos aspectos. El
+contenido del libro se presta a ser utilizado para cursos de 
+distintos niveles y puede llegar a ser excesivo para cursos introductorios.
+\end{quote}
+
+\bibitem[Bennett, 1990]{Ben90}
+Bennett, J. P. (1990).
+\newblock {\em Introduction to compiling techniques: a first course using 
+ANSI C, LEX and YACC}.
+\newblock McGraw-Hill International (UK).
+\begin{quote}
+ Un buen libro para cursos introductorios al diseño de compiladores. Aunque no
+es tan completo como los otros libros (ni pretende serlo), tiene excelentes
+planteamientos pedagógicos en muchos aspectos. Además, está orientado a la
+realización práctica de compiladores con LEX y YACC, lo cual lo
+hace muy adecuado para cursos orientados a los trabajos prácticos.
+\end{quote}
+
+\bibitem[Fischer y LeBlanc, 1991]{FL91}
+Fischer, C. N., LeBlanc, R. J., Jr. (1991).
+\newblock {\em Crafting a Compiler with C}.
+\newblock Benjamin/Cummings, Menlo Park, California. 
+\begin{quote}
+ Un libro que trata especialmente bien el capítulo de análisis 
+sintáctico descendente predictivo, que es la especialidad de los
+autores. También plantea bien los capítulos
+de análisis léxico y análisis sintáctico ascendente, pero el resto
+del libro está basado en ejemplos en C que dificultan la comprensión
+del contenido. 
+\end{quote}
+
+
+\section*{Otras referencias interesantes}
+
+\bibitem[Terry, 1997]{Ter97}
+Terry, P. D. (1997).
+\newblock {\em Compilers \& compiler generators: an introduction with C++}.
+\newblock International Thomson Computer Press, Boston, Massachusetts.
+
+\bibitem[Aho y Ullman, 1972]{AU72}
+Aho, A. V., Ullman, J. D. (1972).
+\newblock {\em The Theory of Parsing, Translation and
+           Compiling, vol. 1: Parsing}.
+\newblock Prentice-Hall, Englewood Cliffs, N.J. 
+
+\bibitem[Teufel, Schmidt y Teufel, 1995]{TST95}
+Teufel, B., Schmidt, S., Teufel, T. (1995).
+\newblock {\em Compiladores: conceptos fundamentales}.
+\newblock Addison-Wesley Iberoamericana, Wilmington, Delaware.   
+
+\bibitem[Tremblay y Sorenson, 1985]{TS85}
+Tremblay, J. P., Sorenson, P. G. (1985).
+\newblock {\em The theory and practice of compiler writing}.
+\newblock McGraw-Hill, New York. 
+
+\bibitem[Appel, 1998]{App98}
+Appel, A. W. (1998)
+\newblock {\em Modern compiler implementation in Java}.
+\newblock Cambridge University Press, Cambridge, UK.
+
+\bibitem[Holub, 1990]{Hol90}
+Holub, A. I. (1990)
+\newblock {\em Compiler Design in C}.
+\newblock Prentice-Hall, Englewood Cliffs, N.J. 
+
+\bibitem[Hopcroft y Ullman, 1979]{HU79}
+Hopcroft, J. E., Ullman, J. D. (1979).
+\newblock {\em Introduction to Automata Theory,
+           Languages and Computation}. 
+\newblock Addison-Wesley, Reading, Massachusetts. 
+
+
+\come{
+
+Otras posibles referencias:
+
+Wilhelm & Maurer
+
+Wirth
+
+}

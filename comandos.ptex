@@ -1,0 +1,97 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\come}[1]{} 
+\newcommand{\com}[1]{{\small\sl \begin{quote} #1 \end{quote}}}
+
+\newcommand{\ter}[1]{\mbox{\bf #1}\;}
+\newcommand{\tertt}[1]{\;\mbox{$\texttt{#1}$}\;}
+\newcommand{\terttprin}[1]{\mbox{$\texttt{#1}$}\;}
+\newcommand{\terttsin}[1]{\mbox{$\texttt{#1}$}}
+\newcommand{\nter}[1]{\mbox{\em #1}\;}
+\newcommand{\nterbnf}[1]{\mbox{\verb+<+#1\verb+>+}}
+\newcommand{\der}{&\longrightarrow &}
+\newcommand{\opt}{\;|\;\;}
+\newcommand{\sep}{\;||\;}
+\newcommand{\Der}{&$\longrightarrow$&}
+\newcommand{\deriva}{\Rightarrow}
+\newcommand{\Deriva}{\Longrightarrow}
+\newcommand{\flecha}{\rightarrow}
+\newcommand{\Flecha}{$\rightarrow$}
+
+\newcommand{\punto}{\;\bullet\;}
+\newcommand{\Punto}{$\bullet$}
+
+%-----------------------------------------------------------------------
+\newcommand{\prim}{\textsc{Prim}}
+\newcommand{\sig}{\textsc{Sig}}
+\newcommand{\pred}{\textsc{Pred}}
+%-----------------------------------------------------------------------
+
+\newlength{\maxim}
+
+\newcommand{\faltafig}[1]{\begin{center} \fbox{Figura(#1)}  \end{center}}
+%------------------------------------------------------------------
+\newcounter{contejemplo}[chapter]
+
+\newenvironment{ejemplo}
+  {\refstepcounter{contejemplo}
+   \begin{description}
+     \item[Ejemplo \arabic{chapter}.\arabic{contejemplo}]~\newline
+  }
+  {\flushright$\triangleleft$ 
+   \end{description}}
+\newcommand{\refej}[1]{\mbox{\arabic{chapter}.\ref{#1}}}
+
+\newenvironment{ejemploap}
+  {\refstepcounter{contejemplo}
+   \begin{description}
+     \item[Ejemplo \Alph{chapter}.\arabic{contejemplo}]~\newline
+  }
+  {\flushright$\triangleleft$ 
+   \end{description}}
+
+\newcommand{\refejap}[1]{\mbox{\Alph{chapter}.\ref{#1}}}
+\newcommand{\marcafinej}{\flushright$\triangleleft$}
+%------------------------------------------------------------------
+\newcounter{contejercicio}[chapter]
+
+\newenvironment{ejercicio}
+  {\refstepcounter{contejercicio}
+   \begin{description}
+     \item[Ejercicio \arabic{chapter}.\arabic{contejercicio}]~\newline
+  }
+  {\vspace{1em} 
+   \hrule
+   \end{description}}
+\newcommand{\refejer}[1]{\mbox{\arabic{chapter}.\ref{#1}}}  %  por si acaso ???
+
+\newcounter{contcapitulo}
+\newcounter{contsoleje}
+
+\newenvironment{soleje}
+  {\refstepcounter{contsoleje}
+   \begin{description}
+     \item[Ejercicio \arabic{contcapitulo}.\arabic{contsoleje}]~\newline
+  }
+  {\vspace{1em} 
+   \hrule
+   \end{description}}
+\newcommand{\solucion}{~\newline\noindent {\bf \underline{Solución:}}~\newline}
+\newcommand{\refsoleje}[1]{\mbox{\arabic{contcapitulo}.\ref{#1}}}  %  por si acaso ???
+
+%--------------------------------------------------------------------------
+
+%\newcommand{\Ejercicios}{\section*{Ejercicios} \addcontentsline{toc}{section}{\numberline {}Ejercicios}}
+\newcommand{\Ejercicios}{\section{Ejercicios}}
+%\newcommand{\Refbib}    {\section*{Referencias bibliográficas} \addcontentsline{toc}{section}{\numberline {}Referencias bibliográficas}}
+\newcommand{\Refbib}    {\section{Referencias bibliográficas}}
+
+\newenvironment{rbib}
+  {\begin{tabular}{lll} 
+   {\sc Referencias} & & {\sc Epígrafes} \\ 
+                     & &                \\
+  }
+  {\end{tabular}}
+
+\newcommand{\refb}[2]{#1 & &  #2 \\}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

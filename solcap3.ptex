@@ -1,0 +1,323 @@
+
+\section{Soluciones a los ejercicios del capítulo 3}
+
+\stepcounter{contcapitulo}
+\setcounter{contsoleje}{0}
+
+\begin{soleje}
+Dise\~nar una gram\'atica {\em no ambigua\/} para el lenguaje de
+las expresiones
+que se pueden construir en Zaskal
+usando \'{u}nicamente ``{\tt true}'', ``{\tt false}'' y operadores booleanos.
+Los operadores de Zaskal son:
+``{\tt or}'' (binario, infijo), ``{\tt and}'' (binario, infijo),
+``{\tt not}'' (unario, {\em postfijo}),  ``{\tt (}''
+y ``{\tt )}''. Sin contar los par\'{e}ntesis, la precedencia relativa
+de los operadores es
+$$\mbox{\tt not} > \mbox{\tt and} > \mbox{\tt or};$$
+adem\'{a}s, ``{\tt and}'' y {\tt or}'' son asociativos por la
+derecha. Por ejemplo, la expresi\'{o}n
+\begin{center}
+{\tt (true and false not) or false and true not not}
+\end{center}
+ser\'{\i}a una expresion correcta en Zaskal (que se evalua como \texttt{true},
+por cierto).
+
+\solucion
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{T} \ter{or} \nter{E} \\
+\nter{E} \der \nter{T} \\
+\nter{T} \der \nter{F} \ter{and} \nter{T} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \tertt{(} \nter{E} \tertt{)} \\
+\nter{F} \der \nter{F} \ter{not} \\
+\nter{F} \der \ter{true} \opt \ter{false} \\
+\end{array}
+$$
+
+\end{soleje}
+%
+\begin{soleje}
+Dise\~nar una gram\'atica {\em no ambigua\/} para el lenguaje de
+las expresiones regulares que se pueden construir con el alfabeto \{0,1\}.
+Los operadores que se usan para construir expresiones regulares son los 
+siguientes (ordenados de menor a mayor precedencia):
+\begin{center}
+\begin{tabular}{|c|l|l|l|}
+\hline
+{\tt a|b} & uni\'on & binario & asociatividad \\
+          &         &         & por la izquierda \\
+\hline
+{\tt ab}  & concatenaci\'on & binario & asociatividad \\
+          &                 &         & por la derecha \\
+\hline
+ {\tt a}$^{+}$, {\tt a}$^{*}$ & clausura & unarios & \\
+\hline
+\end{tabular}
+\end{center}
+ Algunas expresiones regulares que deben poder ser generadas por la
+gram\'a\-tica son:
+$$
+\begin{array}{l}
+010 \\
+(01^{*}|(0|1^{+})^{*}|1)1  \\
+(0(1^{+})0|1(0^{+})1)^{*}0011 \\
+({1100^{*+*}})^{+*}
+\end{array}
+$$
+\solucion
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \tertt{|} \nter{T} \\
+\nter{E} \der \nter{T} \\
+\nter{T} \der \nter{F} \nter{T} \\
+\nter{T} \der \nter{F} \\
+\nter{F} \der \tertt{(} \nter{E} \tertt{)} \\
+\nter{F} \der \nter{F}^{\tertt{+}} \\
+\nter{F} \der \nter{F}^{\tertt{*}} \\
+\nter{F} \der \ter{0} \\
+\nter{F} \der \ter{1} \\
+\end{array}
+$$
+\end{soleje}
+%
+\begin{soleje}
+Diseñar una gramática {\em no ambigua\/} para los lenguajes que permiten
+escribir cualquier número de declaraciones de variables enteras, caracteres
+o reales en Pascal y C.
+
+\solucion
+
+\underline{\textsf{Gramática para declaraciones en C:}}
+
+~~~~Ejemplo de declaraciones que debe admitir:
+
+~~~~~~~~\verb!int i,i1; char c,e;!
+
+$$
+\begin{array}{lcl}
+\nter{L} \der \nter{D} \nter{L} \\
+\nter{L} \der \nter{D} \\
+\nter{D} \der \nter{T} \nter{V} \ter{puntco} \\
+\nter{V} \der \ter{ident} \ter{coma} \nter{V} \\
+\nter{V} \der \ter{ident} \\
+\nter{T} \der \ter{int} \\
+\nter{T} \der \ter{char} \\
+\nter{T} \der \ter{float} \\
+\end{array}
+$$
+
+\underline{\textsf{Gramática para declaraciones en Pascal:}}
+
+~~~~Ejemplo de declaraciones que debe admitir:
+
+~~~~~~~~\verb!var i,i1: integer; c,e: char;!
+
+$$
+\begin{array}{lcl}
+\nter{LD} \der \ter{var} \nter{L} \\
+\nter{L}  \der \nter{D} \nter{L} \\
+\nter{L}  \der \nter{D} \\
+\nter{D}  \der \nter{V} \ter{dospunt} \nter{T} \ter{puntco} \\
+\nter{V}  \der \ter{ident} \ter{coma} \nter{V} \\
+\nter{V}  \der \ter{ident} \\
+\nter{T}  \der \ter{integer} \\
+\nter{T}  \der \ter{char} \\
+\nter{T}  \der \ter{real} \\
+\end{array}
+$$
+\end{soleje}
+%
+\begin{soleje}
+Las reglas siguientes definen el lenguaje {\tt LogPro}. Escríbanse las
+expresiones regulares que definen los {\em tokens\/} de este lenguaje
+y despu\'es diséñese una gram\'{a}tica para él.
+%
+\begin{itemize}
+\item Un programa en el lenguaje {\tt LogPro} consta de una secuencia
+de cero o m\'{a}s hechos o  reglas y {\em una} \'unica pregunta.
+\item Un hecho es un predicado seguido de un punto.
+\item Una regla es un predicado seguido del s\'{\i}mbolo {\tt <-},
+la parte derecha de la regla y un punto.
+\item Una pregunta empieza con el s\'{\i}mbolo {\tt <-} seguido de la
+parte derecha de una regla y termina en un punto.
+\item Un predicado tiene un nombre (que es una secuencia de letras,
+d\'{\i}gitos y el s\'{\i}mbolo \verb|_| (el caracter de subrayado)
+que empieza por una letra
+min\'uscula) y cero o m\'as argumentos separados por comas y encerrados
+entre par\'entesis (al contrario que en C, 
+si no tiene argumentos, no se ponen los par\'entesis).
+\item Un argumento puede ser un n\'umero (una secuencia de uno m\'as
+d\'{\i}gitos sin signo), una variable (una secuencia de letras, d\'{\i}gitos
+y el s\'{\i}mbolo \verb|_|, que empieza por una letra may\'uscula o por
+\verb|_|) o un predicado.
+\item La parte derecha de una regla es una expresi\'on booleana, y est\'a
+formada por una secuencia de t\'erminos booleanos combinados
+con los operadores '{\tt ,}' (una coma, representa la operaci\'on l\'ogica
+{\em and\/}) y '{\tt ;}' (un punto y coma, representa al {\em or\/} l\'ogico). 
+Los dos
+operandos tienen la asociatividad por la izquierda, y el '{\tt ;}' tiene
+menor precedencia (se evalua despu\'es) que el '{\tt ,}'. Se pueden utilizar
+par\'entesis para agrupar expresiones, de la misma manera que se utilizan 
+en expresiones de C o Pascal.
+\item Un t\'ermino booleano puede ser un predicado o una expresi\'on
+relacional. Una expresi\'on relacional est\'a formada por dos expresiones
+aritm\'eticas separadas por un operador relacional, que puede ser uno de
+estos s\'{\i}mbolos: {\tt ==}, {\tt !=}, \verb+<+, {\tt <=}, \verb+>+,
+{\tt >=}.
+\item Una expresi\'on aritm\'etica est\'a formada por n\'umeros, variables,
+par\'en\-tesis y los operadores {\tt +}, {\tt -}, {\tt *} y {\tt /}, con la
+misma precedencia y asociatividad que tienen en lenguajes como C o Pascal
+(una expresi\'on aritm\'etica en {\tt LogPro} es sint\'acticamente correcta
+en C o Pascal).
+\item De igual forma que en C o Pascal, se pueden utilizar espacios en
+blanco, tabuladores y cambios de linea para mejorar la legibilidad de un
+programa en {\tt LogPro}, pero no son elementos del lenguaje.
+\item Un argumento de un predicado puede ser tambi\'en una
+lista, que est\'a formada por un corchete izquierdo, una secuencia de
+elementos separados por comas, una cola opcional y un corchete derecho.
+Cualquier tipo de argumento de un predicado puede ser un elemento de una
+lista (se puede construir una lista de listas), y la cola (que puede
+aparecer o no) est\'a formada por el s\'{\i}mbolo {\tt |} seguido de una
+lista. La cola, si aparece, va situada inmediatamente antes del corchete
+derecho (aunque puede haber blancos entre estos elementos).
+\end{itemize}
+\paragraph{Ejemplo:}
+\begin{small}
+\begin{verbatim}
+preD1   .
+preD2(23,_23,f(a)) <- (eurt,eslaf;cierto), 2+3*4<= 3, X == 5.
+preD3(Predicado, [l,i,s,t,a
+       |[c,o,l,a]]).
+<-preD4(preD2(Y,2,f(X)),preD1)
+.
+\end{verbatim}
+\end{small}
+\solucion
+
+\textsf{Tabla de tokens con sus respectivas expresiones regulares}
+\begin{center}
+\begin{tabular}{l|l}
+\multicolumn{1}{c|}{Token} & \multicolumn{1}{|c}{Expresión regular} \\\hline\hline
+separa & ``\verb+<-+'' \\
+punto & ``\verb+.+'' \\
+coma & ``\verb+,+'' \\
+puntco & ``\verb+;+'' \\
+lpar & ``\verb+(+'' \\
+rpar & ``\verb+)+'' \\
+lcor & ``\verb+[+'' \\
+rcor & ``\verb+]+'' \\
+barra & ``\verb+|+'' \\
+nompred & \verb+[a-z][a-zA-Z0-9_]*+ \\
+numero & \verb![0-9]+! \\
+variable & \verb+[A-Z_][a-zA-Z0-9_]*+ \\
+oprel & \verb+(!=|==|>=|>|<=|<)+ \\
+mulop & \verb+(*|/)+ \\
+addop & \verb!(+|-)! \\
+\end{tabular}
+\end{center}
+
+\textsf{Gramática que reconoce el lenguaje} {\bf LogPro}:
+
+$$
+\begin{array}{lcl}
+\nter{Prog} \der \nter{LH} \nter{Preg} \\
+\nter{LH}  \der \nter{HR} \nter{LH} \opt \epsilon \\
+\nter{HR}  \der \nter{H} \opt \nter{R}\\
+\nter{H}  \der \nter{Pred} \ter{punto} \\
+\nter{R}  \der \nter{Pred} \ter{separa} \nter{PD} \ter{punto} \\
+\nter{Preg}  \der \ter{separa} \nter{PD} \ter{punto} \\
+\nter{Pred}  \der \ter{nompred} \nter{LA} \\
+\nter{LA}  \der \ter{lpar} \nter{Arg} \nter{FArg} \opt \epsilon \\
+\nter{Arg}  \der \ter{numero} \opt \ter{variable} 
+                  \opt \nter{Pred} \opt \nter{Lista} \\
+\nter{FArg}  \der \ter{coma} \nter{Arg} \nter{FArg} \opt \ter{rpar} \\
+\nter{PD}  \der \nter{PD} \ter{puntco} \nter{EB} \opt \nter{EB} \\
+\nter{EB}  \der \nter{EB} \ter{coma} \nter{EBf} \opt \nter{EBf} \\
+\nter{EBf}  \der \ter{lpar} \nter{PD} \ter{rpar} \opt \nter{Pred} \opt \nter{ER} \\
+\nter{ER}  \der \nter{EA} \ter{oprel} \nter{EA} \\
+\nter{EA}  \der \nter{EA} \ter{addop} \nter{EAt} \opt \nter{EAt} \\
+\nter{EAt}  \der \nter{EAt} \ter{mulop} \nter{EAf} \opt \nter{EAf} \\
+\nter{EAf}  \der \ter{lpar} \nter{EA} \ter{rpar} \opt \ter{numero} \opt \ter{variable} \\
+\nter{Lista} \der \ter{lcor} \nter{LE} \nter{Cola} \ter{rcor} \\
+\nter{LE} \der \nter{Arg} \nter{LArg} \\
+\nter{LArg} \der \ter{coma} \nter{Arg} \nter{LArg} \opt \epsilon \\
+\nter{Cola} \der \ter{barra} \nter{Lista} \opt \epsilon \\ 
+\end{array}
+$$
+
+\end{soleje}
+%
+\begin{soleje}
+Dise\~nar una gram\'atica {\em no ambigua\/} que genere el lenguaje G
+definido por las siguientes frases:
+ \begin{enumerate}
+ \item Un programa en G es una secuencia de uno o m\'as m\'etodos.
+ \item Un m\'etodo est\'a formado por una declaraci\'on de variables y
+  una secuencia de cero o m\'as mensajes acabada en una sentencia de
+  retorno.
+ \item Una declaraci\'on de variables est\'a formada por una barra
+  vertical (`{\tt |}'), una secuencia de cero o m\'as identificadores y
+  otra barra vertical.
+ \item Un mensaje puede ser una asignaci\'on, una expresi\'on o un mensaje
+  de m\'etodo.
+ \item Un mensaje de asignaci\'on est\'a formado por una variable, el
+  simbolo `{\tt :=}'~ y un mensaje.
+ \item Las expresiones pueden contener n\'umeros enteros, variables,
+  los operadores `{\tt +}', `{\tt -}', `{\tt *}', `{\tt /}', con la
+  misma asociatividad que en C o Pascal, pero {\em sin precedencia}. Una 
+   expresi\'on puede ser un mensaje entre par\'entesis.
+ \item Un mensaje de m\'etodo est\'a formado por un identificador, un
+  corchete izquierdo, una secuencia de cero o m\'as expresiones separadas
+  por un punto y coma entre cada dos expresiones, y un corchete derecho.
+ \item Una sentencia de retorno est\'a formada por el s\'{\i}mbolo `\verb+^+'~
+  y una expresi\'on.
+ \end{enumerate}
+
+\solucion
+$$
+\begin{array}{lcl}
+\nter{G} \der \nter{Met} \nter{G} \opt \nter{Met} \\
+\nter{Met}  \der \nter{Decl} \nter{SMen} \nter{Ret} \\
+\nter{SMen}  \der \nter{Men} \nter{SMen} \opt \epsilon\\
+\nter{Decl}  \der \ter{barra} \nter{Sid} \ter{barra} \\
+\nter{Sid}  \der \ter{ident} \nter{Sid} \opt \epsilon \\
+\nter{Men}  \der \nter{Asig} \opt \nter{Expr} \opt \nter{Memet} \\
+\nter{Asig}  \der \ter{variable} \ter{asig} \nter{Men} \\
+\nter{Expr}  \der \ter{lpar} \nter{Men} \ter{rpar} 
+                  \opt \nter{Expr} \ter{op} \nter{F} \opt \nter{F} \\
+\nter{F}  \der \ter{numero} \opt \ter{variable} \\ 
+\nter{Memet}  \der \ter{ident} \ter{lcor} \nter{SE} \ter{rcor} \\
+\nter{SE}  \der \nter{Expr} \nter{FSE} \opt \epsilon \\
+\nter{FSE}  \der \ter{puntco} \nter{Expr} \nter{FSE} \opt \epsilon \\
+\nter{Ret} \der \ter{circunflejo} \nter{Expr} \\
+\end{array}
+$$
+\end{soleje}
+%
+\begin{soleje}
+Dise\~nar una gram\'atica {\em no ambigua\/} que genere (car\'acter
+a car\'acter) el lenguaje de todos los n\'umeros enteros sin signo que sean
+pares, considerando que el 0 es par tambi\'en. Algunos n\'umeros que 
+tendr\'{\i}a que generar esta gram\'atica son:
+\begin{verbatim}
+             0
+           234
+         11112
+          2350
+         00078
+\end{verbatim}
+\solucion
+$$
+\begin{array}{lcl}
+\nter{N} \der \nter{D} \nter{N} \\
+\nter{N} \der \nter{DigPar} \\
+\nter{D} \der \ter{0} \opt \ter{1} \opt \ter{2} \opt \ter{3} \opt \ter{4} 
+              \opt \ter{5} \opt \ter{6} \opt \ter{7} \opt \ter{8}
+              \opt \ter{9} \\
+\nter{DigPar} \der \ter{0} \opt \ter{2} \opt \ter{4} 
+              \opt \ter{6} \opt \ter{8} \\
+\end{array}
+$$
+\end{soleje}

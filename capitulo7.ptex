@@ -1,0 +1,1827 @@
+
+\section{Introducción}
+
+ Como se ha explicado anteriormente, los compiladores suelen realizar en
+la primera pasada las fases de análisis (léxico, sintáctico y semántico)
+y la generación de la representación intermedia o código intermedio
+correspondiente al programa fuente, lo que normalmente constituye el
+{\em front end\/} del compilador, y que se suele especificar utilizando
+un ETDS. 
+
+En este capítulo vamos a explicar las técnicas para construir traductores 
+de una sola pasada (traductores dirigidos por la sintaxis, basados en ETDS), 
+que se pueden dividir en dos grupos, según la clase de análisis sintáctico 
+que se realice:
+
+\begin{description}
+\item[Traductores descendentes:] son traductores basados en analizadores
+descendentes predictivos, y por tanto requieren que la gramática sea LL(1)
+(aunque existen traductores basados en gramáticas LL($k$)). 
+
+En general,
+implementar un ETDS basado en una gramática LL(1) suele conllevar la
+utilización de atributos heredados para las expresiones aritméticas, que 
+suele ser la parte más sencilla del proceso de traducción. Sin embargo,
+para lenguajes sencillos puede ser una alternativa muy interesante, ya que,
+como se estudia a continuación, la implementación de ETDS sobre ASDR (los
+traductores descendentes recursivos) suele ser muy sencilla y rápida, una
+vez construido el analizador sintáctico. Aunque es posible implementar
+traductores a partir de analizadores descendentes dirigidos por tabla, 
+suele ser mucho más complicado que utilizar un ASDR, por lo que casi nunca
+se utilizan este tipo de analizadores.
+%
+\item[Traductores ascendentes:] son traductores basados en analizadores
+ascendentes de la familia LR (SLR, LALR(1), LR(1), $\ldots$). Como veremos
+más adelante, es relativamente sencillo transformar un analizador SLR en
+un traductor, aunque es un poco más complicado implementar los atributos 
+heredados. 
+
+Aunque los analizadores SLR son sencillos de construir, el conjunto de
+lenguajes que pueden analizar está muy limitado, por lo que se suelen
+utilizar analizadores LALR(1), que permiten analizar un conjunto más
+amplio de lenguajes con un coste espacial mucho menor que el de un
+analizador LR(1) y poco mayor que el de un analizador SLR. 
+\end{description}
+
+ Desde hace bastantes años se ha ido desarrollando muchas herramientas para
+facilitar la construcción de traductores de una o más pasadas, normalmente
+utilizando analizadores ascendentes. La más conocida de todas estas 
+herramientas es YACC, que genera traductores basados en 
+analizadores LALR(1) a partir de una notación muy similar a la de los
+ETDS. La popularidad de esta herramienta se debe a su
+disponibilidad en prácticamente todos los sistemas UNIX\footnote{En Linux y
+otros sistemas UNIX existe una versión más avanzada desarrollada bajo licencia
+GNU llamada {\tt bison}.}, aunque existen también versiones para otros sistemas 
+operativos.
+
+\section{Traductores descendentes recursivos}
+
+La implementaci\'on de un esquema de traducci\'on se hace incorporando las 
+acciones sem\'anticas a un analizador sint\'actico descendente
+recursivo (ASDR) y eso exige que la gram\'atica sea LL(1).
+As\'{\i} pues, antes de implementar el esquema de
+traducci\'on, debemos asegurarnos de que la gram\'atica es
+LL(1). 
+
+Aunque lo normal sería partir de la gramática LL(1) para diseñar el ETDS,
+si tenemos un ETDS basado en una gramática que sea recursiva por la izquierda
+o que tenga factores comunes por la izquierda es posible aplicar algunas
+reglas para eliminar estas características (que impiden que la gramática sea
+LL(1)) manteniendo a la vez las acciones semánticas 
+especificadas en el ETDS original. Aún así, una vez eliminadas estas 
+características es posible que la gramática resultante no sea LL(1), por lo
+que es necesario comprobarlo, como ya vimos en el capítulo 4.
+
+\subsection{Eliminaci\'on de la recursividad izquierda} \label{ssec:recizq}
+
+En el capítulo 4 se estudia el
+problema de la eliminaci\'on de la recursividad izquierda en una
+producci\'on, utilizando la siguiente regla (simplificada):
+
+\begin{quote}
+Dos producciones recursivas, $A \flecha \nter{A} \nter{Y} \opt \nter{X}$
+se transforman en tres producciones que ya no presentan recursividad por la
+izquierda:
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{X} \nter{$A'$} \\
+\nter{$A'$} \der \nter{Y} \nter{$A'$} \opt \epsilon \\
+\end{array} 
+$$
+\end{quote}
+
+Ahora se trata de ampliar esta regla para incluir el tratamiento que
+hay que dar a las acciones sem\'anticas que aparezcan en esas
+producciones. Dadas las siguientes producciones en un ETDS,
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{$A_1$} \nter{Y}     \;\{\; A.a := g(A_1.a,Y.y) \;\} \\
+\nter{A} \der \nter{X}                  \;\{\; A.a := f(X.x) \;\} \\
+\end{array} 
+$$
+habría que transformarlas en:
+$$
+\begin{array}{lcl}
+\nter{A} \der \nter{X} \;\{\; A'.h:=f(X.x) \;\}\; \nter{$A'$} \;\{\; A.a := A'.s \;\} \\
+\nter{${A'}$} \der \nter{Y} \;\{\; {A'}_1.h:=g({A'}.h,Y.y) \;\}\; \nter{${A'}_1$} \;\{\; {A'}.s := {A'}_1.s \;\} \\
+\nter{$A'$} \der \epsilon \;\{\; A'.s := A'.h \;\} \\
+\end{array} 
+$$
+
+El s\'{\i}mbolo $A'$
+es introducido de la misma forma que se hizo para el caso de las
+gram\'aticas. Este nuevo s\'{\i}mbolo auxiliar tiene siempre,
+por definici\'on, dos atributos: ``$s$'', que es
+sintetizado y ``$h$'' que es heredado\footnote{En realidad, habría que añadir una
+pareja de atributos (uno heredado y otro sintetizado) a ese nuevo  símbolo por
+cada atributo distinto que manipule el ETDS original. Es decir, si $A$ tiene un
+atributo de tipo y otro de código traducido, serán necesarios dos pares de
+atributos para $A'$.}.
+Las funciones $f$ y $g$ son la forma de representar cu\'ales son las 
+relaciones entre los atributos. Es decir:
+\begin{itemize}
+\item En la
+        producci\'on recursiva aparece  $A.a := g(A_1.a,Y.y)$,
+        lo que indica que, en ese caso, el atributo $A.a$
+        se calcula a partir de los valores de los atributos $A_1.a$
+        e $Y.y$ mediante la funci\'on $g$.
+\item En la parte no
+        recursiva,  $A.a:=f(X.x)$
+        indica que, en este caso, el valor de $A.a$ se calcula a
+        partir de $X.x$ por medio de esa funci\'on $f$. Estas funciones
+        $f$ y $g$ en las producciones que resultan de aplicar este procedimiento
+        se aplican a otros atributos y sirven para calcular otros distintos,
+        como se deriva de que $A'.h:=f(X.x)$
+	y ${A'}_1.h:=g({A'}.h,Y.y)$.
+\end{itemize}
+
+Se puede comprobar muy f\'acilmente que ambos esquemas de
+traducci\'on (el original y el modificado) llevan a cabo la
+misma tarea. Para ello basta con
+hacer el an\'alisis sint\'actico de una misma cadena con
+ambas gram\'aticas y evaluar los atributos con ambos ETDS hasta
+ver qu\'e traducci\'on se obtiene en el atributo del nodo
+ra\'{\i}z ($A.a$ en este caso), comprobando que es id\'entica.
+
+
+\begin{ejemplo}
+
+ Sea la primera producci\'on del ETDS del ejemplo~6.\ref{cseis:ejDDSETDS},
+con sus acciones sem\'anticas:
+
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{$E_1$} \tertt{+} \nter{T} \;\{\; E.trad := $``\verb+s[+''$||\;E_1.trad\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''$ \;\} \\
+\nter{E} \der \nter{T} \;\{\; E.trad := T.trad \;\} \\
+\end{array}
+$$
+
+Antes de transformar estas producciones debemos identificar 
+los siguientes elementos:
+$$
+\begin{array}{|c|c|c|c|c|}\hline
+A & Y & X & f(X.x) & g(A_1.a,Y.y) \\\hline
+E & \tertt{+} \nter{T} & T & T.trad & $``\verb+s[+''$||\;E_1.trad\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''$ \\
+\hline
+\end{array}
+$$
+por tanto la aplicaci\'on de la regla transforma las dos producciones
+anteriores en las tres siguientes:
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{T} \;\{\; E'.h:=T.trad \;\}\; \nter{$E'$} \;\{\; E.trad:=E'.s \;\} \\
+\nter{$E'$} \der \tertt{+} \nter{T} \;\{\; {E'}_1.h:=$``\verb+s[+''$||\;E'.h\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''$ \;\}\; \nter{$E'$} \;\{\; {E'}.s := {E'}_1.s \;\} \\
+\nter{$E'$} \der \epsilon \;\{\; E'.s := E'.h \;\} \\
+\end{array}
+$$
+\end{small}
+Como se observa, los atributos de los s\'{\i}mbolos originales
+mantienen sus nombres, mientras que los del s\'{\i}mbolo auxiliar
+$E'$ introducido por la regla son siempre ``$s$'' para el
+sintetizado y ``$h$'' para el heredado.
+\end{ejemplo}
+
+
+\subsection{Factorizaci\'on izquierda}
+
+
+¿Qu\'e
+sucede con las acciones sem\'anticas cuando el ETDS est\'a
+construido sobre producciones que tienen factores comunes por la
+izquierda? Volvemos a estar ante una situaci\'on que no permite
+la implementaci\'on descendente del ETDS. Para poder hacerlo hay
+que factorizar dichas producciones teniendo cuidado con lo que pasa
+con la evaluaci\'on de atributos. La factorizaci\'on
+introducir\'a un nuevo s\'{\i}mbolo (v\'ease la
+factorizaci\'on izquierda en el capítulo 4) y ese nuevo s\'{\i}mbolo
+aportar\'a una traducci\'on o evaluaci\'on parcial que
+luego habr\'a que encajar con el resto de la traducci\'on
+hecha por las partes diferentes de las producciones. B\'asicamente
+podr\'{\i}amos considerar que las acciones sem\'anticas
+tambi\'en quedan factorizadas.
+
+\begin{ejemplo}
+
+Sea el siguiente problema de traducci\'on basado en el t\'{\i}pico
+problema de las sentencias {\em if}:
+
+\begin{tabular}{lcl}
+\texttt{if ( e ) s else s endif} & \Flecha &  \texttt{si e entonces s si\_no s} \\
+\texttt{if ( e ) s endif}        & \Flecha &  \texttt{si e entonces s} \\
+\end{tabular}
+
+El ETDS para hacer esta traducci\'on resulta:
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{if} \tertt{(} \nter{E} \tertt{)} \nter{$S_1$} \ter{else} \nter{$S_2$} \ter{endif} \;\{\; S.trad := $``\verb!si!''$ || \\
+         &  &  \;\;\;\; E.trad\; || $``\verb!entonces!''$ ||\; S_1.trad \;|| $``\verb!si_no!''$ ||\; S_2.trad \;\} \\
+\nter{S} \der \ter{if} \tertt{(} \nter{E} \tertt{)} \nter{$S_1$} \ter{endif} \;\{\; S.trad := $``\verb!si!''$ ||\; E.trad \;|| \\
+         &  &  \;\;\;\; $``\verb!entonces!''$ ||\; S_1.trad \;\} \\
+\end{array}
+$$
+\end{small}
+Y la modificaci\'on resultante de factorizar es:
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{if} \tertt{(} \nter{E} \tertt{)} \nter{$S_1$} \nter{$S'$} \;\{\; S.trad := $``\verb!si!''$ || \\
+         &  &  \;\;\;\; E.trad\; || $``\verb!entonces!''$ ||\; S_1.trad\; ||\; S'.trad \;\} \\
+\nter{$S'$} \der \ter{endif} \;\{\; S'.trad := $``''$ \;\} \\
+\nter{$S'$} \der \ter{else} \nter{S} \ter{endif} \;\{\; S'.trad := $``\verb!sino!''$ ||\; S.trad \;\} \\
+\end{array}
+$$
+\end{small}
+
+Se puede comprobar f\'acilmente que las traducciones parciales
+de $S'$ luego encajan en la traducci\'on de $S$ de forma que la
+traducci\'on queda igual que antes de factorizar.
+\end{ejemplo}
+
+
+\subsection{Implementaci\'on de un traductor descendente recursivo}
+
+Para poder
+construirlo hay que asegurarse de que la gram\'atica cumpla la
+condici\'on LL(1). La implementaci\'on de un ETDS parte de
+un ASDR (analizador sint\'actico descendente recursivo), en el
+que se incluyen las acciones sem\'anticas casi literalmente y
+se realizan algunos cambios en las cabeceras de las funciones que
+analizan los no terminales y en sus partes declarativas. No obstante,
+siguiendo las siguientes reglas se puede implementar un ETDS
+partiendo de cero.
+\begin{enumerate}
+\item Aspecto de las funciones asociadas a los no terminales:\newline
+Para cada no terminal $A$, se construye una funci\'on que tenga un
+par\'a\-metro por cada atributo heredado de $A$, y que devolver\'a
+como resultado el valor del atributo sintetizado de $A$.
+\begin{itemize}
+\item Si hubiera
+        varios atributos sintetizados de $A$, habr\'{\i}a que cambiar la
+        funci\'on para que devuelva los valores de todos ellos. Si $A$ no
+        tuviera atributos sintetizados, la funci\'on no devolvería
+        ning\'un valor.
+\item Dentro de la
+        funci\'on se declara {\em una variable local} por cada
+        atributo que aparezca en los símbolos de las
+       partes derechas de las distintas producciones alternativas de $A$, 
+        salvo los que coincidan con atributos heredados de $A$ (que son
+       parámetros de la función).
+\end{itemize}
+\item Eleccion de la producción a aplicar:\newline
+En el c\'odigo de la funci\'on para $A$ se decide la
+alternativa a aplicar igual que en el an\'alisis sint\'actico
+(seg\'un los terminales que hay en los conjuntos de predicci\'on
+de cada alternativa).
+\item An\'alisis sintáctico:\newline
+Se procesa de izquierda a derecha cada elemento de cada alternativa (que
+puede ser un terminal, un no terminal o una acci\'on
+sem\'antica) de la siguiente forma:
+\begin{itemize}
+\item Si es un terminal ({\em token}) $x$: almacenar el valor del 
+     atributo del terminal
+	en la variable local correspondiente para ese atributo 
+        ({\em s\'olo} si existe un atributo asociado a ese terminal) y 
+        despu\'es llamar a la funci\'on ``emparejar'' para ese terminal:
+        ``\texttt{emparejar(x)}''.
+\item Si es un no terminal $B$: incluir la sentencia $c = B(b_{1},b_{2},\ldots,b_{k})$,
+        donde $b_1, b_2, \ldots, b_k$ son las
+        variables que corresponden a los atributos heredados del s\'{\i}mbolo
+        $B$ y ``$c$'' es la variable que corresponde al
+        atributo sintetizado de $B$.
+\item Si es una acci\'on sem\'antica: copiarla en ese mismo sitio, 
+    adaptán\-dola si es necesario para que utilice los atributos correctos.
+\end{itemize}
+\item Retorno de valores:\newline
+La \'ultima sentencia de una funci\'on de an\'alisis debe ser devolver
+ el valor sintetizado del s\'{\i}mbolo no terminal que analiza esa
+funci\'on, aunque es posible hacerlo al terminar de analizar cada
+producción en lugar de al final de la función.
+\item Ejecuci\'on:\newline
+El traductor se pone en marcha con una llamada a la funci\'on del s\'{\i}mbolo
+        inicial.
+\end{enumerate}
+
+
+\begin{ejemplo}
+
+Un ETDS para traducir a notación prefija expresiones aritm\'eticas con sumas y
+multiplicaciones (como el que aparece en el ejemplo~6.\ref{cseis:ejDDSETDS}) es 
+el siguiente:
+\begin{small}
+$$
+\begin{array}{lcll}
+\nter{E} \der \nter{$E_1$} \tertt{+} \nter{T} & \{\; E.trad := $``\verb+s[+''$||\;E_1.trad\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''$ \;\} \\
+\nter{E} \der \nter{T}                        & \{\; E.trad = T.trad \;\} \\
+\nter{T} \der \nter{$T_1$} \tertt{*} \nter{F} & \{\; T.trad := $``\verb!p[!''$||\;T_1.trad\;||$``\verb!,!''$||\;F.trad\;||$``\verb!]!''$ \;\} \\
+\nter{T} \der \nter{F}                        & \{\; T.trad = F.trad \;\} \\
+\nter{F} \der \ter{num}                       & \{\; F.trad := \textbf{num}.valex \;\} \\
+\nter{F} \der \tertt{(} \nter{E} \tertt{)}    & \{\; F.trad := E.trad \;\}\\
+\end{array}
+$$
+\end{small}
+
+Como las producciones de $E$ y $T$ son recursivas por la izquierda, 
+hay que deshacer esa recursividad aplicando la metodolog\'{\i}a descrita en el
+apartado~\ref{ssec:recizq}, quedando como sigue el ETDS modificado:
+
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{T} \;\{\; E'.h:=T.trad \;\}\; \nter{$E'$} \;\{\; E.trad:=E'.s \;\} \\
+\nter{$E'$} \der \tertt{+} \nter{T} \;\{\; {E'}_1.h:=$``\verb+s[+''$||\;E'.h\;||$``\verb!,!''$||\;T.trad\;||$``\verb!]!''$ \;\}\; \nter{${E'}_1$} \;\{\; {E'}.s := {E'}_1.s \;\} \\
+\nter{$E'$} \der \epsilon \;\{\; E'.s := E'.h \;\} \\
+\nter{T} \der \nter{F} \;\{\; T'.h:=F.trad \;\}\; \nter{$T'$} \;\{\; T.trad:=T'.s \;\} \\
+\nter{$T'$} \der \tertt{*} \nter{F} \;\{\; {T'}_1.h:=$``\verb+p[+''$||\;T'.h\;||$``\verb!,!''$||\;F.trad\;||$``\verb!]!''$ \;\}\; \nter{${T'}_1$} \;\{\; {T'}.s := {T'}_1.s \;\} \\
+\nter{$T'$} \der \epsilon \;\{\; T'.s := T'.h \;\} \\
+\nter{F} \der \ter{num} \;\{\; F.trad := \textbf{num}.lexema \;\}\\
+\nter{F} \der \tertt{(} \nter{E} \tertt{)} \;\{\; F.trad := E.trad \;\}\\
+\end{array}
+$$
+\end{small}
+
+A continuaci\'on se procede a la implementaci\'on en C de
+los subprogramas del ETDS, siguiendo los pasos descritos
+anteriormente:
+\begin{itemize}
+\item $E$ : tiene un \'unico atributo sintetizado (una cadena de caracteres,
+        como todos en este ejemplo) y ninguno heredado, luego ser\'a
+        una función sin par\'ametros formales.
+\begin{footnotesize}
+\begin{verbatim}
+char *E()
+{
+  char *E_trad,*T_trad,*Ep_h,*Ep_s;
+
+  T_trad=T();
+  Ep_h=T_trad; Ep_s=Ep(Ep_h); E_trad=Ep_s;
+  return(E_trad);  (* devuelve el atributo sintetizado de E *)
+}
+\end{verbatim}
+\end{footnotesize}
+
+\item $E'$ : como todos los s\'{\i}mbolos auxiliares introducidos en
+        la eliminaci\'on de recursividad tiene un atributo sintetizado
+        y uno heredado, luego ser\'a una función con un
+        par\'ametro formal para el atributo heredado. Como hay dos
+        alternativas hay que distinguir (como se hace en el ASDR) qu\'e
+        alternativa tomar en funci\'on del {\em token\/} que lleve el
+        s\'{\i}mbolo de prean\'alisis.
+\begin{footnotesize}
+\begin{verbatim}
+char *Ep ( char *Ep_h )
+{
+  char *T_trad,*Ep1_h,*Ep1_s,*Ep_s;
+
+  if ( preanalisis==MAS )
+     {  /*  E' -> + T E' */
+        emparejar(MAS); T_trad=T();
+        Ep1_h=concat("s[",Ep_h,",",T_trad,"]"); 
+        Ep1_s=Ep(Ep1_h); Ep_s=Ep1_s;
+     }
+  else if ( preanalisis==RPAR || preanalisis==FDF ) 
+       Ep_s=Ep_h; /*E' -> epsilon */
+  else ErrorSintactico(lexema,MAS,RPAR,FDF);
+
+  return(Ep_s);
+}
+\end{verbatim}
+\end{footnotesize}
+
+\item $T$ : tiene un \'unico atributo sintetizado y sin heredados,
+        como $E$.
+\begin{footnotesize}
+\begin{verbatim}
+char *T()
+{
+  char *T_trad,*F_trad,*Tp_h,*Tp_s;
+
+  F_trad=F();
+  Tp_h=F_trad; Tp_s=Tp(Tp_h); T_trad=Tp_s();
+  return(T_trad);  (* devuelve el atributo sintetizado de T *)
+}
+\end{verbatim}
+\end{footnotesize}
+
+\item $T'$ : tiene el mismo comportamiento que $E'$.
+
+\begin{footnotesize}
+\begin{verbatim}
+char *Tp ( char *Tp_h )
+{
+  char *F_trad,*Tp1_h,*Tp1_s,*Tp_s;
+
+  if ( preanalisis==POR )
+     {  /*  T' -> * F T' */
+        emparejar(POR); F_trad=F();
+        Tp1_h=concat("p[",Tp_h,",",F_trad,"]"); 
+        Tp1_s=Tp(Tp1_h); Tp_s=Tp1_s;
+     }
+  else if ( preanalisis==MAS || preanalisis==RPAR 
+            || preanalisis==FDF )
+      Tp_s=Tp_h; /*T' -> epsilon */
+  else ErrorSintactico(lexema,POR,MAS,RPAR,FDF);
+
+  return(Tp_s);
+}
+\end{verbatim}
+\end{footnotesize}
+
+\item $F$ : tiene un \'unico atributo sintetizado y sin heredados,
+        luego tambi\'en ser\'a una función sin
+        par\'ametros formales. Nótese cómo el lexema del \emph{token} \textbf{num}
+  se copia antes de la llamada a ``\verb!Emparejar!'', ya que ésta avanza al
+  siguiente \emph{token} de la entrada.
+\begin{footnotesize}
+\begin{verbatim}
+char *F()
+{
+ char *Num_trad,*E_trad,*F_trad;
+
+ switch ( preanalisis ) {
+   case NUM  : Num_trad=strdup(lexema); Emparejar(NUM);
+               F_trad=Num_trad; break;
+   case LPAR : Emparejar(LPAR); E_trad=E(); Emparejar(RPAR);
+               F_trad=E_trad; break;
+   default   : ErrorSintactico(lexema,NUM,LPAR);
+ }
+ return(F_trad);
+}
+\end{verbatim}
+\end{footnotesize}
+\end{itemize}
+
+\paragraph{Nota de implementaci\'on:} Es frecuente que un
+traductor tenga que manejar diferentes atributos sintetizados para un
+mismo no terminal y que éstos deban ser devueltos, por tanto, por una misma
+funci\'on. Para la manipulaci\'on de m\'ultiples
+atributos se suelen definir registros que contienen los distintos
+atributos como distintos campos y se le pasa a la funci\'on como
+argumento un puntero a dicho registro para que \'esta pueda
+actualizar los campos que son atributos sintetizados. Al mismo
+tiempo, se pueden incluir en el registro los atributos heredados, que
+deberían ser inicializados antes de la llamada con los valores
+adecuados. Por ejemplo:
+
+\begin{verbatim}
+          typedef struct {
+                float h1,h2;     /* atributos heredados */
+                int atr1;
+                char *atr2;
+          } AtribA;
+\end{verbatim}
+
+As\'{\i}, la funci\'on para el
+no terminal $A$ tendr\'a un
+prototipo como el siguiente: \texttt{void A( AtribA *aA );} y en su 
+llamada se pasar\'a un puntero a una variable (por ejemplo \texttt{atsA})
+que haya sido definida de ese tipo:  \texttt{A(\&atsA)}.
+\end{ejemplo}
+
+\section{Traductores ascendentes}
+
+ Las características de un ETDS permiten construir un traductor que
+evalúe todos los atributos y ejecute todas las acciones semánticas a la
+vez que realiza el análisis sintáctico. Este tipo de traductores se
+conocen como {\em traductores de una sola pasada}. Aunque es más sencillo
+implementar un ETDS a partir de un analizador sintáctico descendente
+recursivo, la elección de este tipo de analizador obliga a utilizar una
+gramática LL(1) como base para diseñar el ETDS, cuando suele ser más
+sencillo diseñar un ETDS a partir de una gramática que tenga recursividad
+por la izquierda, por ejemplo. Por otra parte, a veces la semántica obliga
+a escoger gramáticas recursivas por la izquierda (p. ej. cuando deseamos
+reflejar en la gramática la asociatividad por la izquierda de un operador
+binario), que no serían LL(1). La elección de un analizador descendente
+recursivo obliga a modificar el ETDS para obtener uno equivalente basado en
+una gramática LL(1) equivalente a la original, y esta tarea suele ser tediosa
+y puede producir errores difíciles de detectar.
+
+ Para evitar rediseñar el ETDS y adaptarlo a una gramática LL(1) se debe
+emplear analizadores ascendentes, siendo los más utilizados los de 
+la familia LR: SLR, LALR y LR. La implementación de ETDS sobre 
+analizadores LR requiere varias modificaciones en las estructuras de datos 
+y en el algoritmo de análisis por desplazamiento-reducción que se estudiarán 
+más adelante.
+
+ Afortunadamente, la aparición de herramientas como YACC y 
+LEX\footnote{Estos programas generan un traductor (basado en un
+analizador LALR(1)) a partir de una especificación en una
+notación similar a los ETDS.} ha facilitado
+considerablemente la implementación de ETDS con analizadores LR, pero es 
+imprescindible que un diseñador de compiladores conozca las técnicas que 
+existen (y que son utilizadas por YACC y LEX) para la 
+implementación de ETDS con analizadores LR.
+
+\subsection{Equivalencia entre estados y símbolos} \label{asoest}
+
+ En una tabla de análisis LR cada estado representa un {\em prefijo viable}, 
+que es un prefijo de una parte derecha de una regla que el analizador está
+intentando completar. Para diseñar traductores 
+basados en analizadores LR se suele establecer una equivalencia entre
+los estados del analizador y los símbolos de la gramática, de manera que 
+cada estado del analizador (excepto el
+estado inicial) tiene asociado un símbolo de la gramática. Un estado $s$ se
+asocia con el símbolo (no terminal o terminal) con el que se llega a dicho estado,
+ya sea a través de una acción de desplazar o al apilar el estado correspondiente 
+de la tabla ``\verb+Ir_a+'' al final de una acción de reducción.
+
+ Si se construye el autómata reconocedor de prefijos viables, se puede 
+observar mucho más fácilmente esta equivalencia: el símbolo que etiqueta la
+transición que lleva a un estado $s$ es el que se asocia con dicho estado.
+Dicho símbolo es el situado más a la derecha en el prefijo viable que se
+ha reconocido hasta el momento.
+
+\begin{ejemplo} \label{csiete:ejuno}
+Dada la siguiente gramática:
+$$
+\begin{array}{lcl}
+\nter{E} \der \nter{E} \ter{addop} \nter{T} \\
+\nter{E} \der \nter{T} \\
+\nter{T} \der \ter{num} \\
+\nter{T} \der \ter{(} \nter{E} \ter{)} \\
+\end{array}
+$$
+el autómata reconocedor de prefijos viables se puede ver en la 
+figura~\ref{csiete:fauto}, y la tabla de análisis SLR
+es la siguiente\footnote{En la tabla, junto a cada estado se ha puesto el símbolo
+asociado correspondiente y el prefijo viable.}:
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.9\textwidth]{cap7f1.pdf}
+\end{center}
+\caption{Autómata reconocedor de prefijos viables para el ejemplo~\refej{csiete:ejuno}.}
+\label{csiete:fauto}
+\end{figure}
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|r|c||c||c|c|c|c|c||c|c|} \hline\hline
+\multicolumn{1}{|c|}{\bf Prefijo} &  &  & \multicolumn{5}{|c||}{\bf Acci\'on} & \multicolumn{2}{c|}{\bf Ir\_a} \\
+            \cline{4-10}
+\multicolumn{1}{|c|}{\bf viable} &  {\bf Símbolo}   & {\bf Estado} 
+            & {\bf addop} & {\bf num} & {\bf (} & {\bf )} 
+            & {$\$$} & $E$ & $T$ \\
+\hline\hline
+-                   & -          & 0  &    & d3 & d4  &    &    & 1 & 2    \\\hline
+$E$                 & $E$        & 1  & d5 &    &     &    & a! &   &      \\\hline
+$T$                 & $T$        & 2  & r2 &    &     & r2 & r2 &   &      \\\hline
+{\bf num}           & {\bf num}  & 3  & r3 &    &     & r3 & r3 &   &      \\\hline
+{\bf (}             & {\bf (}    & 4  &    & d3 & d4  &    &    & 6 & 2    \\\hline
+$E$ {\bf addop}     & {\bf addop}& 5  &    & d3 & d4  &    &    &   & 7    \\\hline
+{\bf (} $E$         & $E$        & 6  & d5 &    &     & d8 &    &   &      \\\hline
+$E$ {\bf addop} $T$ & $T$        & 7  & r1 &    &     & r1 & r1 &   &      \\\hline
+{\bf (} $E$ {\bf )} & {\bf )}    & 8  & r4 &    &     & r4 & r4 &   &      \\\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+\end{ejemplo}
+
+ El proceso de análisis de una cadena del lenguaje fuente consiste en ir
+construyendo prefijos viables cada vez más largos, hasta completar una
+parte derecha de una regla; cuando esto sucede, se sustituye la parte derecha
+por la parte izquierda (si esa sustitución produce otro prefijo viable).
+Cuando se hace una traza del análisis de una cadena solamente con estados no
+se puede apreciar este proceso, pero si se sustituye cada estado en 
+la traza por su símbolo asociado se puede observar perfectamente dicho 
+proceso de análisis.
+
+\begin{ejemplo}
+Dada la tabla del ejemplo anterior y la cadena de entrada ``\verb!7+5!'', 
+la traza del análisis
+de dicha cadena (con el símbolo asociado a cada estado debajo de él) sería:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|cccc|cccc|c|}\hline
+\multicolumn{4}{|c|}{\sc Pila} & \multicolumn{4}{|c|}{\sc Entrada} & {\sc Acción} \\\hline
+0 & & & &      {\bf num} & {\bf addop} & {\bf num} & {\bf \$} & \verb+d3+ \\
+- & & & &      $7$       & $+$         & $5$       &          & \\\hline\hline
+0 & 3 & & &              & {\bf addop} & {\bf num} & {\bf \$} & \verb+r3+ \\
+- & {\bf num} & & &      & $+$         & $5$       &          & \\\hline\hline
+0 & 2 & & &              & {\bf addop} & {\bf num} & {\bf \$} & \verb+r2+ \\
+- & $T$ & & &            & $+$         & $5$       &          & \\\hline\hline
+0 & 1 & & &              & {\bf addop} & {\bf num} & {\bf \$} & \verb+d5+ \\
+- & $E$ & & &            & $+$         & $5$       &          & \\\hline\hline
+0 & 1 & 5 & &            &             & {\bf num} & {\bf \$} & \verb+d3+ \\
+- & $E$ & {\bf addop} & &&             & $5$       &          & \\\hline\hline
+0 & 1 & 5 & 3 &            &           &           & {\bf \$} & \verb+r3+ \\
+- & $E$ & {\bf addop} & {\bf num} &&   &           &          & \\\hline\hline
+0 & 1 & 5 & 7 &            &           &           & {\bf \$} & \verb+r1+ \\
+- & $E$ & {\bf addop} & $T$ &&         &           &          & \\\hline\hline
+0 & 1 & & &            &           &           & {\bf \$} & \verb+a!+ \\
+- & $E$ & & &          &           &           &          & \\\hline\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+\end{ejemplo}
+
+ Teniendo en cuenta que el proceso de análisis es el inverso de una derivación
+por la derecha de la cadena de entrada, es relativamente sencillo hacer una traza 
+del análisis {\em sin estados}, usando únicamente los símbolos. Solamente se
+necesitaría la gramática y no sería necesario, por tanto,
+construir la tabla de análisis (siempre que la gramática sea LR).
+
+Cuando se tiene que implementar un ETDS sobre un analizador LR es 
+imprescindible conocer con toda exactitud las posibles configuraciones de la
+pila en un momento dado del análisis. Esto no implica ser capaz de hacer este
+tipo de trazas mentalmente, pero sí conocer muy bien el funcionamiento del
+algoritmo de análisis, es decir, la forma de construir poco a poco las
+partes derechas de las reglas en la pila hasta completar una parte derecha y
+sustituirla por la parte izquierda correspondiente, que a su vez contribuirá
+a completar otra parte derecha de otra regla que se había empezado a construir
+antes.
+
+
+\subsection{Implementación de ETDS sencillos}
+
+ En esta sección hablaremos de cómo implementar ETDS sin atributos heredados 
+y con todas las acciones semánticas situadas al final, que es el caso más 
+sencillo. En posteriores secciones estudiaremos cómo el esquema estudiado en
+esta sección se puede adaptar para ETDS más complejos.
+
+ Para transformar un analizador sintáctico por desplazamiento--reducción (como
+los de la familia LR) en un traductor hay que resolver las siguientes
+cuestiones:
+
+\begin{description}
+\item[1. ¿Dónde se almacenan los atributos?] ~\newline 
+Los atributos de los no terminales y
+los de los terminales (como mínimo el lexema) se deben almacenar en alguna
+estructura de datos, para que puedan ser utilizados en las acciones semánticas
+del ETDS que queremos implementar. Dada la naturaleza de las gramáticas
+independientes del contexto y del algoritmo de análisis, lo más razonable 
+es utilizar una pila para almacenar los atributos, ya que en un momento 
+dado del análisis se pueden tener varios símbolos\footnote{En adelante hablaremos
+indistintamente de estados o símbolos en la pila de análisis.} en la pila pertenecientes 
+a distintas partes derechas de reglas\footnote{El algoritmo de análisis va
+construyendo en la parte superior de la pila las partes derechas de las reglas y cuando
+consigue completar una de ellas (y se cumplen ciertas condiciones), se sustituye
+toda la parte derecha por la parte izquierda y se sigue intentando buscar 
+otra parte derecha. Este comportamiento hace que en un momento determinado
+se encuentren en la pila varias partes derechas en construcción.};
+incluso es posible que el mismo símbolo aparezca varias veces en la pila.
+
+Aunque es posible hacer que las acciones semánticas gestionen directamente una
+pila de forma transparente al analizador sintáctico, lo más usual
+es utilizar una pila de atributos (también llamada {\em pila 
+semántica}) que funciona de forma paralela a la de los
+estados del analizador. Dependiendo de la implementación se
+puede utilizar una pila de registros ({\tt struct} en C) en los que cada
+campo del registro es un atributo (incluidos los atributos de los terminales),
+ o bien una pila de uniones para ahorrar
+algo de memoria cuando un símbolo tiene menos atributos que los demás:
+
+\newpage
+\begin{footnotesize}
+\begin{verbatim}
+#define MAXPILA ....
+
+typedef struct {
+                               /* atributos de los terminales */
+           char *lexema;   
+           int linea,columna;
+                               /* atributos de los no terminales */
+           char *trad;
+           char *otra;
+} Atributos;
+
+int PilaEstados[MAXPILA];   /* pila de estados */
+Atributos PA[MAXPILA];      /* pila de atributos */
+int tope = 0;               /* representa la posición en el array
+                              del elemento situado en el tope de la pila */
+\end{verbatim}
+\end{footnotesize}
+
+Cuando en la pila de estados se apila
+un estado, en la pila de atributos se apila el registro con los atributos 
+correspondientes al
+símbolo de la gramática asociado a ese estado; cuando se desapilan estados, se
+desapilan registros de atributos de la pila de atributos. Es necesario que
+la pila se implemente como un {\em array\/} puesto que, como veremos más
+adelante, vamos a acceder a los atributos de todos los símbolos de la parte
+derecha de la regla, no sólo a los del símbolo situado en el tope de la pila.
+
+Durante el proceso de análisis solamente hay dos situaciones en las que se
+apila un estado: 
+\begin{enumerate}
+\item Se puede demostrar que, cuando se produce un desplazamiento a un estado $s$,
+el símbolo asociado a ese estado $s$ siempre es un terminal, por lo que en la 
+pila de atributos
+se tendrían que apilar los atributos de dicho terminal (lexema, etc.).
+\item En una reducción, se apila la parte izquierda de una regla después
+de haber desapilado todos los símbolos de la parte derecha. En este caso, lo
+que se apilaría en la pila de atributos serían los atributos asociados a la
+parte izquierda de la regla que acabamos de reducir.
+\end{enumerate}
+%
+\item[2. ¿Cómo se transmite el lexema de los terminales?] ~\newline 
+En un analizador
+sintáctico solamente se necesita el lexema del último terminal leido (para
+producir un posible mensaje de error), pero en un traductor se necesitan los
+lexemas de todos los terminales de una regla para poder utilizarlos en las
+acciones semánticas del ETDS (si son necesarios). Por este motivo, el analizador
+léxico de un traductor debe almacenar el lexema (y posiblemente la línea y
+la columna asociadas a ese lexema) en algún lugar para que se apilen al
+desplazar dicho símbolo en la pila de estados. Lo habitual es utilizar una
+variable global de tipo {\tt Atributos} que llamaremos {\tt AtrTerminal} 
+(en YACC se llama {\tt yylval}), que almacene los atributos
+del terminal (y deje el resto de atributos sin asignar); esta variable es la
+que se apilará en la pila de atributos cuando se apile el terminal.
+%
+\item[3. ¿En qué momento se ejecutan las acciones semánticas?] ~\newline
+Suponiendo que tenemos que implementar un ETDS en el que todas las acciones
+semánticas están situadas al final de las reglas (y en el que solamente hay
+atributos sintetizados), el momento ideal para ejecutar las acciones es cuando
+estamos a punto de reducir por una regla dada. 
+
+ Las acciones semánticas en esta clase de ETDS lo que hacen es calcular los
+atributos de la parte izquierda de la regla en función de los atributos de
+los símbolos de la parte derecha. Estos atributos de la parte derecha se
+encuentran en la pila (en el tope se encuentran los del símbolo más a la
+derecha, debajo del tope los del penúltimo símbolo, etc.), y pueden ser
+utilizados por la acción semántica. Sin embargo, aunque la posición en la
+que se van a situar los atributos de la parte izquierda es conocida, no se
+pueden modificar dichos atributos puesto que corresponden a los del primer
+símbolo de la parte derecha, y es posible que se utilicen en otra acción
+semántica asociada también a esta regla. Por este motivo, la solución
+consiste en utilizar otra variable global (también de
+tipo {\tt Atributos}), que llamaremos {\tt AtrPI}
+ (llamada {\tt yyval} en YACC,
+que es distinta de {\tt yylval}) para almacenar los atributos de la parte
+izquierda mientras se van calculando. 
+
+Una vez se han ejecutado todas las acciones semánticas asociadas 
+a la regla, se desapilan los estados/símbolos de la pila de estados (y
+los atributos correspondientes de la pila de atributos), y, al apilar el
+estado asociado a la parte izquierda de la regla, se apila el valor de 
+{\tt AtrPI} en la pila de atributos.
+\end{description}
+
+Las modificaciones que habría que realizar al algoritmo de análisis del
+epígrafe~\ref{sec:DR} (figura~\ref{alg:despred}) para
+convertirlo en un traductor están marcadas en negrita:
+\begin{center}
+\begin{quote}
+\begin{footnotesize}
+\begin{tabbing}
+\quad \=\quad \=\quad \=\quad \= \kill
+  {\bf push(0,AtrEstado0)~~~~/* los atributos del estado 0 se ignoran */} \\
+  $a := $analex()                                                     \\
+  REPETIR                                                             \\
+  \>    sea $s$ el estado en el tope de la pila                       \\
+  \>    SI Accion[$s,a$] = d$j$ ENTONCES                            \\
+  \>     \> {\bf push($j$,{\tt AtrTerminal})}                      \\
+  \>     \> $a := $analex()                                           \\
+  \>    SI NO SI Accion[$s,a$] = r$k$ ENTONCES                       \\
+  \>     \> {\bf /* Ejecutar las acciones semánticas de la regla $k$ y dejar los}     \\
+  \>     \> {\bf  atributos de la parte izquierda en {\tt AtrPI} */} \\
+  \>     \> {\bf EjecutarAccionesSemanticas($k$)}                     \\
+  \>     \> PARA $i:=1$ HASTA Longitud\_Parte\_Derecha($k$) HACER pop() \\
+  \>     \> {\bf ~~~~~~~~~~~~~~~~~~~~/* pop() desapila de las 2 pilas */}\\
+  \>     \> sea $p$ el estado en el tope de la pila                   \\
+  \>     \> sea $A$ el símbolo de la parte izquierda de la regla $k$  \\
+  \>     \> {\bf push(Ir\_a[$p,A$], {\tt AtrPI})}               \\
+  \>    SI NO SI Accion[$s,a$] = aceptar ENTONCES                      \\
+  \>     \> fin del analisis {\bf /* en el tope de la pila están los}       \\
+  \>     \> {\bf ~~~~~~~~~~~~~~~~~~~~atributos del símbolo inicial */}             \\
+  \>    SI NO                                                          \\
+  \>     \>error                                                      \\
+  \>    FIN\_SI                                                        \\
+  HASTA fin del analisis                                              \\
+\end{tabbing}
+\end{footnotesize}
+\end{quote}
+\end{center}
+Además, el analizador léxico debe rellenar los atributos del token que ha
+reconocido (modificando {\tt AtrTerminal}) antes de devolver el control al
+analizador sintáctico.
+
+\begin{ejemplo} \label{csiete:ejetuno}
+El siguiente ETDS (basado en la gramática del ejemplo~\refej{csiete:ejuno})
+realiza un proceso simple de traducción, utilizando
+solamente atributos sintetizados.
+\begin{center}
+\begin{footnotesize}
+$$
+\begin{array}{clcll}
+(1) & \nter{E} \der \nter{$E_1$} \ter{addop} \nter{T}  & \{~ si ~~~ ${\bf addop}$.lexema ~~=~~ \verb!'+'! ~~~ entonces  \\
+    &    & &                                           & ~~~E.trad := \verb!'sum('!||E_1.trad\;||\verb!','!||T.trad\;||\verb!')'! \\                           
+    &    & &                                           & ~si\;\;no \\                           
+    &    & &                                           & ~~~E.trad := \verb!'res('!||E_1.trad\;||\verb!','!||T.trad\;||\verb!')'! \\                           
+    &    & &                                           & ~finsi ~\} \\                           
+(2) & \nter{E} \der \nter{T}                         & \{~ E.trad := T.trad ~\} \\
+(3) & \nter{T} \der \ter{num}                        & \{~ T.trad := {\bf num}.lexema ~\} \\
+(4) & \nter{T} \der \ter{(} \nter{E} \ter{)}         & \{~ T.trad := E.trad ~\} 
+\end{array}
+$$
+\end{footnotesize}
+\end{center}
+Las acciones semánticas que habría que realizar al reducir por cada regla 
+serían, ya traducidas a código en C:
+
+\begin{center}
+\begin{footnotesize}
+\begin{tabular}{|c|l|}\hline
+{\sc Regla} & {\sc Acción semántica} \\\hline\hline
+$(1)$ & \verb+if (!strcmp(PA[tope-1].lexema,+\verb!"+"))! \\
+  & ~~~\verb+AtrPI.trad = concat("sum(",PA[tope-2].trad,",",+ \\
+  & ~~~~~~~\verb+PA[tope].trad,")");+ \\
+  & \verb+else+     \\
+  & ~~~\verb+AtrPI.trad = concat("res(",PA[tope-2].trad,",",+ \\
+  & ~~~~~~~\verb+PA[tope].trad,")");+ \\\hline
+$(2)$ & \verb!AtrPI.trad = PA[tope].trad;! \\\hline
+$(3)$ & \verb!AtrPI.trad = PA[tope].lexema;! \\\hline
+$(4)$ & \verb!AtrPI.trad = PA[tope].trad;! \\\hline
+\end{tabular}
+\end{footnotesize}
+\end{center}
+
+La traza del proceso de traducción de la cadena de entrada ``\verb!7+5!''
+sería la siguiente:
+
+
+
+\begin{scriptsize}
+\begin{center}
+\begin{tabular}{|c|cccc|cccc|c|}\hline
+\multicolumn{5}{|c|}{\sc Pila} & \multicolumn{4}{|c|}{\sc Entrada} & {\sc Acción}\\\hline
+estado & 0 & & & & {\bf num} & {\bf addop} & {\bf num} & {\bf \$} & \verb+d3+ \\
+lexema &   & & & &     $7$   &   $+$       &   $5$     &          &           \\
+trad   &   & & & &           &             &           &          &           \\\hline\hline
+estado & 0 & {\bf num} & & & & {\bf addop} & {\bf num} & {\bf \$} & \verb+r3+ \\
+lexema &   & \verb!7!  & & & &   $+$       &  $5$      &          &  acción   \\
+trad   &   &           & & & &             &           &          &  $(3)$    \\\hline\hline
+estado & 0 & $T$       & & & & {\bf addop} & {\bf num} & {\bf \$} & \verb+r2+ \\
+lexema &   &           & & & &   $+$       &  $5$      &          &  acción         \\
+trad   &   & \verb!7!  & & & &             &           &          &  $(2)$         \\\hline\hline
+estado & 0 & $E$       & & & & {\bf addop} & {\bf num} & {\bf \$} & \verb+d5+ \\
+lexema &   &           & & & &   $+$       &  $5$      &          &           \\
+trad   &   & \verb!7!  & & & &             &           &          &           \\\hline\hline
+estado & 0 & $E$       & {\bf addop} & &   & & {\bf num} & {\bf \$} & \verb+d3+ \\
+lexema &   &           & \verb!+!    & &   & &  $5$      &          &           \\
+trad   &   & \verb!7!  &             & &   & &           &          &           \\\hline\hline
+estado & 0 & $E$       & {\bf addop} & {\bf num} & && & {\bf \$} & \verb+r3+ \\
+lexema &   &           & \verb!+!    & \verb!5!  & && &          &   acción        \\
+trad   &   & \verb!7!  &             &           & && &          &   $(3)$        \\\hline\hline
+estado & 0 & $E$       & {\bf addop} & $T$     & && & {\bf \$} & \verb+r1+ \\
+lexema &   &           & \verb!+!    &         & && &          &   acción   \\
+trad   &   & \verb!7!  &             & \verb!5!& && &          &   $(1)$     \\\hline\hline
+estado & 0 & $E$       & & & &  & & {\bf \$} & \verb+aceptar+ \\
+lexema &   &           & & & &  & &          &           \\
+trad   &   & \verb!sum(7,5)!  & & & &             &           &          &           \\\hline
+\end{tabular}
+\end{center}
+\end{scriptsize}
+\end{ejemplo}
+
+\subsection{Implementación de ETDS más complejos}
+
+ Aunque lo deseable es tener ETDS sencillos, lo normal es que los ETDS tengan
+acciones intermedias (acciones situadas antes del final de la parte derecha
+de la regla) y atributos heredados. En muchas ocasiones, las acciones intermedias
+asignan valores a atributos heredados, pero también se suelen utilizar para
+otras tareas no relacionadas directamente con los atributos, como
+almacenar valores en variables globales (p. ej. en la tabla de símbolos).
+
+Este segundo tipo de acciones intermedias es relativamente sencillo 
+de implementar, pero requiere una pequeña modificación en el esquema estudiado
+en el apartado anterior: se introduce en la gramática un nuevo no terminal
+(llamado {\em marcador}) en la posición en la que está situada la acción
+semántica, y se añade a la gramática una regla en la que este no terminal
+deriva a la cadena vacia; al reducir por esta nueva regla se ejecuta la
+acción semántica. Por cada acción intermedia se introduce un marcador 
+nuevo, ya que las acciones normalmente son distintas (si dos acciones son
+idénticas se puede aprovechar el marcador previamente introducido).
+
+Esta modificación (introducir marcadores) no debe hacerse directamente sobre 
+el ETDS, sino que se debe hacer sobre la gramática (y las acciones semánticas)
+al implementar dicho ETDS con un analizador LR.
+La introducción de uno o más marcadores modifica ligeramente la tabla de
+análisis: es muy sencillo rehacer el autómata para tener en cuenta el
+marcador (se añade un nuevo estado), y la tabla de análisis apenas 
+cambia (los siguientes de cada no terminal no cambian), pero debe rehacerse
+teniendo en cuenta el nuevo autómata.
+
+ Normalmente, las acciones intermedias utilizan los atributos de los sím\-bolos
+situados antes que ella en la parte derecha. En el momento de ejecutar la
+acción semántica, estos atributos se encuentran en la parte superior de la 
+pila (en el tope están los atributos del símbolo anterior a la acción).
+
+\begin{ejemplo} \label{csiete:ejetdos}
+El siguiente fragmento de ETDS tiene una acción intermedia 
+que almacena el lexema del identificador en una tabla\footnote{Para almacenar
+los identificadores en una tabla se utiliza la función {\em Guarda()}.}.
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Tipo} \nter{LisID} \ter{;} \;\{~ AsignarTipo(Tipo.t) ~\}  \\
+\nter{Tipo} \der \ter{int}                     \;\{~ Tipo.t := ENTERO ~\} \\
+\nter{Tipo} \der \ter{char}                    \;\{~ Tipo.t := CARACTER ~~\} \\
+\nter{LisID} \der \ter{id} \ter{coma}          \;\{~ Guarda({\bf id}.lexema) ~\}\; \nter{LisID} \\
+\nter{LisID} \der \ter{id}                     \;\{~ Guarda({\bf id}.lexema) ~\} \\
+\end{array}
+$$
+\end{small}
+La gramática que se tendría que utilizar para hacer la tabla de análisis sería:
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Tipo} \nter{LisID} \ter{;} \\
+\nter{Tipo} \der \ter{int}                    \\
+\nter{Tipo} \der \ter{char}                   \\
+\nter{LisID} \der \ter{id} \ter{coma} \nter{M} \nter{LisID}  \\
+\nter{LisID} \der \ter{id}                     \\
+\nter{M} \der \epsilon 
+\end{array}
+$$
+\end{small}
+en la que $M$ es un {\em marcador}, y al reducir por la regla 6 (la del 
+marcador) se ejecutará la acción intermedia ($Guarda({\bf id}.lexema)$).
+Para acceder al lexema del 
+identificador se debe tener en cuenta que en el tope de la pila está la
+{\bf coma} y debajo de ella el {\bf id} con sus atributos (lexema, etc.).
+La configuración de la pila en el momento de reducir por la regla del
+marcador (que es cuando se tiene que ejecutar la acción intermedia) sería
+la siguiente:
+
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|cccc|c|}\hline
+\multicolumn{5}{|c|}{\sc Pila} & {\sc Acción} \\\hline
+estado & 0 & $\ldots$      & {\bf id}   & {\bf coma} & \verb!reducir! $M \flecha \epsilon$ \\
+lexema &   &               & \verb!a!   &            & \\\hline
+tope   &   &               &            & $\uparrow$ & \\\hline
+\end{tabular}
+\end{center}
+\end{small}
+
+Por tanto, la acción que se tendría que ejecutar al reducir por el marcador
+sería \texttt{Guarda(PA[tope-1].lexema)}.
+\end{ejemplo}
+
+ Los marcadores no solamente ocupan un espacio en la pila de estados, sino
+que también (igual que el resto de símbolos de la gramática) ocupan un
+espacio en la pila de atributos. Ese espacio se puede utilizar para almacenar
+atributos heredados (como veremos más adelante) y también para guardar valores
+locales al análisis de una regla, es decir, valores que no pueden ser almacenados
+en variables globales (porque dentro de una regla se puede volver a analizar 
+la misma regla y reescribir ese valor) ni en variables locales.
+
+\begin{ejemplo} \label{csiete:ejettres}
+ El siguiente fragmento de ETDS tiene una acción intermedia 
+que almacena el lexema del identificador en una tabla, y el valor que devuelve
+se debe guardar para ser usado al final de la regla.
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Tipo} \nter{LisID} \ter{;} \;\{~ AsignarTipo(Tipo.t) ~\}  \\
+\nter{Tipo} \der \ter{int}                    \;\{~ Tipo.t := ENTERO ~\} \\
+\nter{Tipo} \der \ter{char}                   \;\{~ Tipo.t := CARACTER ~~\} \\
+\nter{LisID} \der \ter{id} \ter{coma} \;\{~ vlocal := Guarda({\bf id}.lexema) ~\}\; \nter{LisID} \;\{~ Registra(vlocal) ~\} \\
+\nter{LisID} \der \ter{id}                     \;\{~ v := Guarda({\bf id}.lexema); Registra(v) ~\} \\
+\end{array}
+$$
+\end{small}
+El valor de la variable $vlocal$ se obtiene en la acción intermedia y se
+utiliza en la acción situada al final de la regla. Si guardamos el valor de 
+{\em vlocal\/} en una variable global, al ser una regla recursiva, es posible que
+(si hay más de dos identificadores) se reescriba ese valor con otro y se pierda
+por tanto el valor anterior. Para solucionar este problema lo más sencillo es
+utilizar alguno de los atributos del marcador (p. ej. el llamado ``$t$'')
+para almacenar ese valor, y adaptar la acción situada al final de la regla 
+para que use ese atributo. La gramática que se debe utilizar para construir
+la tabla de análisis es la misma del ejemplo anterior (\refej{csiete:ejetdos}),
+pero las acciones semánticas asociadas a sus reglas cambian. La
+configuración de la pila en el momento de reducir por el marcador es
+exactamente la misma que en el ejemplo anterior, por lo que la acción
+semántica asociada a esa regla será similar.
+La configuración de la pila en el momento de reducir por la regla
+$$
+\nter{LisID} \longrightarrow \ter{id} \ter{coma} \nter{M} \nter{LisID}
+$$
+sería la siguiente:
+\begin{small}
+\begin{center}
+\begin{tabular}{|c|cccccc|c|}\hline
+\multicolumn{7}{|c|}{\sc Pila} & {\sc Acción} \\\hline
+estado & 0 & $\ldots$      & {\bf id}   & {\bf coma} & $M$        & $LisID$      & \verb!reducir! $LisID \flecha \ldots$ \\
+lexema &   &               & \verb!a!   &            &            &              & \\
+t      &   &               &            &            & $(vlocal)$ &              & \\\hline
+tope   &   &               &            &            &            & $\uparrow$   & \\\hline
+\end{tabular}
+\end{center}
+\end{small}
+Por tanto, la acción que se debe ejecutar al reducir por esta regla es\newline
+\texttt{Registra(PA[tope-1].t)}. 
+
+La siguiente tabla muestra estas producciones junto con las acciones que se 
+deben ejecutar al reducir por ellas:
+\begin{small}
+\begin{center}
+\begin{tabular}{|l|l|}\hline
+{\sc Producción} & {\sc Acción semántica asociada} \\\hline\hline
+$M \;\flecha\; \epsilon$ & \texttt{AtrPI.t = Guarda(PA[tope-1].lexema);} \\\hline
+$LisID \;\flecha\; \ter{id} \ter{coma} \nter{M} \nter{LisID}$ & \texttt{Registra(PA[tope-1].t);} \\\hline
+\end{tabular}
+\end{center}
+\end{small}
+
+En el siguiente apartado se muestra cómo 
+escribir este ETDS en la notación de YACC.
+\end{ejemplo}
+
+\subsection{Notación de YACC}
+
+ YACC es un programa muy extendido en UNIX (y Linux), que también
+tiene versiones para otros sistemas operativos: MS-DOS, MacOS, etc. 
+YACC genera, a partir de un fichero con un ETDS 
+(escrito en una notación específica), un 
+traductor basado en una gramática LALR(1). Además, el traductor generado por
+YACC está preparado para trabajar con los analizadores léxicos generados
+por LEX. Existe abundante documentación sobre estos
+dos programas\footnote{Prácticamente todos los libros sobre compiladores 
+dedican un par de capítulos a YACC y LEX.}, por lo
+que aquí solamente estudiaremos muy brevemente la notación de YACC para
+describir ETDS y cómo se pueden utilizar los marcadores.
+
+Los anteriores ejemplos de ETDS se pueden traducir a la
+notación de YACC de la siguiente manera:
+
+\begin{description}
+\item[Ejemplo~\refej{csiete:ejetuno}: (traducido a la notación de YACC)]
+\begin{footnotesize}
+\begin{verbatim}
+
+
+%%
+
+/* por convención (aunque no es necesario), se suelen poner
+  los terminales en mayúsculas y los no terminales en minúsculas */
+
+/* En esta regla (e : e ADDOP t)
+      "$$" es la parte izquierda, 
+      "$1" es la "e" de la parte derecha,
+      "$2" es el "ADDOP" y
+      "$3" es la "t" 
+
+$$  $1 $2    $3                                          */
+e : e  ADDOP t  { /* código en C */
+                 if (!strcmp($2.lexema,"+")) 
+                   $$.trad=concat("sum(",$1.trad,",",$3.trad,")");
+                 else
+                   $$.trad=concat("res(",$1.trad,",",$3.trad,")");
+                }
+  | t           { $$.trad = $1.trad; }  /* otra regla de "e" */
+  ;
+
+t : NUM         { $$.trad = $1.lexema; }
+  | LPAR e RPAR { $$.trad = $2.trad; }
+  ;
+
+\end{verbatim}
+\end{footnotesize}
+
+Lo que hace YACC con una especificación de este tipo es lo siguiente:
+\begin{enumerate}
+\item Traducir las acciones semánticas a código real en C, sustituyendo las
+referencias con ``\verb!$!'' por la posición correspondiente en la pila, y
+traduciendo ``\verb!$$!'' por ``\verb!yyval!'', que es la variable que se
+utiliza para almacenar los atributos de la parte izquierda de la regla
+(la que hemos llamado anteriormente ``\verb!AtrPI!''). Las referencias
+como ``\verb!$2!'' se traducen por algo equivalente a ``\verb!yypv[tope-lp+(2)]!'',
+donde ``\verb!yypv!'' es la pila de atributos y ``\verb!lp!'' es el número
+de símbolos de la parte derecha de la producción que aparecen antes
+de la acción semántica; si la
+acción está situada al final de la regla, ``\verb!lp!'' es la longitud de la
+parte derecha de la regla. Por ejemplo, las
+acciones de las producciones de \verb!t! quedarían de la siguiente manera:
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|}\hline
+\verb!t : NUM!  & \verb!yyval.trad = yypv[tope-1+(1)].lexema;! \\
+\verb!t : LPAR e RPAR! & \verb!yyval.trad = yypv[tope-3+(2)].trad! \\\hline
+\end{tabular}
+\end{small}
+\end{center}
+Como se puede observar, el resultado de las operaciones entre los corchetes
+permite acceder a la posición correcta en la pila.
+\item Construir la tabla de análisis LALR(1) para la gramática, y generar
+el traductor.
+\end{enumerate}
+%
+\item[Ejemplo~\refej{csiete:ejetdos}: (traducido a la notación de YACC)]
+\begin{footnotesize}
+\begin{verbatim}
+
+
+%%
+
+s    : tipo lisID PYC     { AsignarTipo($1.t); }
+     ;
+
+tipo : INT                { $$.t = ENTERO; }
+     ; /* se pueden poner todas las reglas de un no terminal 
+         juntas o separadas */
+tipo : CHAR               { $$.t = CARACTER; }
+     ;
+
+lisID : ID COMA   { /* accion intermedia */ Guarda($1.lexema); } lisID
+      | ID        { Guarda($1.lexema); }
+      ;
+/* No es necesario poner marcadores, YACC pone automáticamente el
+marcador cuando se trata de una acción intermedia */
+
+\end{verbatim}
+\end{footnotesize}
+%
+En este caso, como en el anterior, lo primero que hace YACC es 
+traducir las acciones semánticas. La traducción de todas las acciones
+situadas al final de la regla es trivial, y la de la acción intermedia
+sería: \texttt{Guarda(yypv[tope-2+(1)].lexema);}. Debe tenerse en cuenta
+que en el momento de ejecutar la acción intermedia solamente se han
+analizado dos símbolos de la producción, de ahí el ``\verb!2!'' que se
+le resta a ``\verb!tope!''.
+
+A continuación, YACC situa un marcador en el lugar de cada acción
+semántica (con lo cual quedaría la gramática del ejemplo~\refej{csiete:ejetdos})
+y asocia a cada regla las acciones que previamente ha traducido, de manera
+que la acción asociada a la reducción por la regla del marcador es la
+que hemos visto en el párrafo anterior, que es equivalente a la que aparece
+en el ejemplo~\refej{csiete:ejetdos}.
+%
+\item[Ejemplo~\refej{csiete:ejettres}: (traducido a la notación de YACC)]
+\begin{footnotesize}
+\begin{verbatim}
+
+
+%%
+
+s    : tipo lisID PYC     { AsignarTipo($1.t); }
+     ;
+
+tipo : INT                { $$.t = ENTERO; }
+     | CHAR               { $$.t = CARACTER; }
+     ;
+
+lisID : ID COMA   { $$.t = Guarda($1.lexema); }
+/* Si en una acción intermedia se hace referencia a $$ se están
+  utilizando los atributos del marcador, no los de la parte 
+  izquierda */
+
+          lisID   { Registra($3.t); }
+/* Como YACC sustituye las acciones intermedias por un 
+  marcador, la acción ocupa un lugar:   $1 es "ID", 
+                                        $2 es "COMA", 
+                                        $3 es el marcador y 
+                                        $4 es "lisID"
+*/
+      | ID        { { int v;  /* para declarar variables locales 
+                                hay que abrir otro bloque   */
+                      v = Guarda($1.lexema); Registra(v); 
+                    }
+                  }
+      ;
+\end{verbatim}
+\end{footnotesize}
+
+En este caso, la acción intermedia se traduciría por:
+\begin{verbatim}
+       yyval.t = Guarda(yypv[tope-2+(1)].lexema);
+\end{verbatim}
+Al asociar esta acción a la reducción por la regla del marcador, el
+resultado de la llamada a ``\verb!Guarda!'' se almacena en el atributo ``\verb!t!''
+del marcador; por este motivo, cuando en una acción intermedia se hace
+referencia a ``\verb!$$!'' se está accediendo a los atributos del marcador.
+Esto es posible porque YACC primero traduce las acciones y después
+construye la gramática y asocia las acciones a las reducciones de las
+producciones de la gramática.
+\marcafinej
+\end{description}
+
+\subsection{ETDS con atributos heredados}
+
+ El principal problema de la implementación de ETDS con atributos heredados
+es que no existe una posición en la pila para el no terminal que tiene atributos
+heredados, puesto que está situado a la derecha de la acción y todavía no se
+ha analizado. De hecho, la posición en la que irá el no terminal es conocida, pero
+va a ser utilizada por un símbolo de la parte derecha de una regla del no
+terminal (y a su vez puede ser utilizada por descendientes de dicho símbolo si
+es un no terminal), por lo que no es posible guardar ninguna información en
+esa posición, ya que normalmente se perderá.
+
+\begin{ejemplo} \label{csiete:ejetcua}
+ El siguiente fragmento de ETDS tiene una acción intermedia 
+que asigna el tipo de {\em Tipo} a {\em LisID} como atributo heredado.
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Tipo} \;\{~ \mbox{\em LisID}.th := Tipo.t ~\}\; \nter{LisID} \ter{;} \;\{~ AsignarTipo(Tipo.t) ~\}  \\
+\nter{Tipo} \der \ter{int}                    \;\{~ Tipo.t := ENTERO ~\} \\
+\nter{Tipo} \der \ter{char}                   \;\{~ Tipo.t := CARACTER ~~\} \\
+\nter{LisID} \der \ter{id}         \;\{~ Guarda({\bf id}.lexema,\mbox{\em LisID}.th) ~\}
+\end{array}
+$$
+\end{small}
+Si se hace una traza se puede comprobar que, en el momento en que debería 
+ejecutarse la acción intermedia, en la pila solamente está {\em Tipo}, y el 
+espacio que más tarde ocupará {\em LisID\/} está libre y va a ser ocupado por el
+{\bf id}.
+\end{ejemplo}
+
+La solución a este problema consiste en estudiar cada regla en la que
+aparezca en la parte derecha el no terminal en cuestión (en el ejemplo {\em LisID});
+en dichas reglas se debe asignar siempre (excepto casos muy excepcionales) un
+valor al atributo heredado. Puesto que el espacio para dicho atributo heredado
+no existe, y casi siempre existe un atributo sintetizado de otro no terminal ya
+analizado que contiene el valor que queremos darle al atributo heredado (en
+este caso {\em Tipo.t}), lo que se debe hacer es {\em asociar el atributo heredado 
+con dicho atributo sintetizado}.
+Por tanto, cada 
+atributo heredado estará asociado con uno o más atributos sintetizados de otros
+símbolos, uno por cada regla en la que aparezca el no terminal en la
+parte derecha.
+
+Una vez hemos asociado el atributo heredado con el atributo sintetizado que 
+contiene el valor que queremos asignarle,
+cuando se va a utilizar dicho atributo heredado en una
+regla es necesario acceder en la pila al atributo sintetizado correspondiente
+(que estará en 
+alguna posición por debajo del primer símbolo de la parte derecha).
+
+\begin{ejemplo}
+En el ejemplo anterior (\refej{csiete:ejetcua}), 
+el atributo {\em LisID.th\/} se puede asociar 
+con {\em Tipo.t\/}. Cuando, en la regla de {\em LisID\/} se tiene que utilizar
+el atributo heredado se accede a {\em Tipo.t\/}, que está debajo del {\bf id} en
+la pila. En este caso, la acción semántica intermedia que le asigna valor al
+atributo heredado se eliminaría y no sería necesario poner ningún marcador.
+En la notación de YACC, este ETDS se escribiría de la siguiente
+manera (resolviendo ya el problema del atributo heredado porque YACC no
+admite atributos heredados):
+
+\begin{footnotesize}
+\begin{verbatim}
+%%
+
+s    : tipo lisID PYC     { AsignarTipo($1.t); }     ;
+
+tipo : INT                { $$.t = ENTERO; }
+     | CHAR               { $$.t = CARACTER; }
+     ;
+
+lisID :  ID        { Guarda($1.lexema,$0.t);
+
+        /* si $1, $2, ... denotan los símbolos de la parte derecha,
+              $0 denota el símbolo que hay debajo del primer 
+                  símbolo de la parte derecha (en este caso 'tipo'),
+              $-1 el que está dos posiciones por debajo, etc. */
+
+                   }
+      ;
+\end{verbatim}
+\begin{center}
+\begin{tabular}{|c|cccc|cccc|l|}\hline
+\multicolumn{5}{|c|}{\sc Pila} & \multicolumn{4}{|c|}{\sc Entrada} & \multicolumn{1}{|c|}{\sc Acción}\\\hline
+estado & 0 & & & & {\bf int} & {\bf id}  & {\bf ;} & {\bf \$} & \verb+desplazar+ \\
+lexema &   & & & & \verb!int!& \verb!a!  &          & &          \\
+t      &   & & & &           &           &          & &          \\\hline\hline
+estado & 0 & {\bf int} & & & & {\bf id}  & {\bf ;} & {\bf \$} & \verb+reducir+ $Tipo \flecha \textbf{int}$ \\
+lexema &   & \verb!int!& & & & \verb!a!  &          & &          \\
+t      &   & & & &           &           &          & &          \\\hline
+\verb!$!& \verb!$0! & \verb!$1! & & &           &     &      &          & \verb!$$.t = ENTERO;!  \\\hline\hline
+estado & 0 & $Tipo$ & & & & {\bf id}  & {\bf ;} & {\bf \$} & \verb+desplazar+ \\
+lexema &   &        & & & & \verb!a!  &          &    &       \\
+t      &   & \verb!ENTERO!& & &           &           & &         &           \\\hline\hline
+estado & 0 & $Tipo$ & {\bf id} & & &  & {\bf ;} & {\bf \$} & \verb+reducir+ $LisID \flecha \textbf{id}$ \\
+lexema &   &        & \verb!a! & & &  &          & &          \\
+t      &   & \verb!ENTERO!& & &           &           & &         &           \\\hline
+\verb!$!& \verb!$-1! &\verb!$0! & \verb!$1! & &           &           &          & & \verb!Guarda($1.lexema,$0.t);!     \\\hline\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+\end{ejemplo}
+
+ Normalmente, los ETDS con atributos heredados no son tan sencillos de
+implementar como el ejemplo anterior, en el que no es necesario utilizar 
+marcadores y pueden darse otras situaciones más complejas:
+\begin{enumerate}
+\item Que en dos (o más) reglas distintas los atributos asociados al atributo
+heredado estén a distinta distancia en la pila,
+\item Que el atributo heredado se obtenga como una función de uno o más
+atributos sintetizados, es decir, que su valor no sea simplemente la copia
+del valor de un atributo sintetizado,
+\item Que el no terminal que tiene el atributo heredado tenga reglas recursivas.
+\end{enumerate}
+ Vamos a estudiar estas situaciones con variaciones del ejemplo anterior.
+
+\begin{ejemplo}
+Supongamos que el ETDS fuera el siguiente:
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Tipo} \;\{~ \mbox{\em LisID}.th := Tipo.t ~\}\; \nter{LisID} \tertt{;} \;\{~ AsignarTipo(Tipo.t) ~\}  \\
+\nter{S} \der \ter{var} \nter{Tipo} \ter{dosp}  \;\{~ \mbox{\em LisID}.th := Tipo.t ~\}\; \nter{LisID} \ter{fvar}  \;\{~ AsignarTipo(Tipo.t) ~\}  \\
+\nter{Tipo} \der \ter{int}                   \;\{~ Tipo.t := ENTERO ~\} \\
+\nter{Tipo} \der \ter{char}                  \;\{~ Tipo.t := CARACTER ~~\} \\
+\nter{LisID} \der \ter{id}                   \;\{~ Guarda({\bf id}.lexema,\mbox{\em LisID}.th) ~\}
+\end{array}
+$$
+\end{small}
+En este caso, el no terminal {\em LisID\/} aparece en dos reglas, y en ambos casos
+el atributo asociado con {\em LisID.th\/} es {\em Tipo.t\/} (lo cual no suele
+ser habitual). Como se puede observar sin necesidad de hacer una traza, la
+distancia a la que va a estar {\em Tipo.t\/} de la regla de {\em LisID\/} es
+distinta según qué regla de las dos de {\em S\/} se esté analizando. Si se
+está analizando la primera regla, {\em Tipo.t\/} estará en ``{\tt \$0}'', como
+en el ejemplo anterior, pero si se está analizando la segunda regla estaría en
+``{\tt \$-1}''. En la acción semántica de la regla de {\em LisID\/} no se
+puede saber (sin utilizar una variable global, lo cual es peligroso) qué regla
+de {\em S\/} se está analizando, hay que elegir entre ``{\tt \$0}'' y ``{\tt \$-1}''.
+
+Para resolver este problema debemos conseguir que {\em Tipo.t\/} esté siempre
+a la misma distancia del {\bf id} en la pila, y la solución es muy sencilla: en
+la primera de las dos reglas de {\em S\/} se pone un marcador a la derecha de
+{\em Tipo\/} que va a ocupar el hueco del terminal {\bf dosp} en la otra regla,
+de manera que {\em Tipo.t\/} siempre va a estar en ``{\tt \$-1}'':
+
+\begin{footnotesize}
+\begin{verbatim}
+%%
+
+s    :     tipo {/* Marcador */} lisID PYC    { AsignarTipo($1.t); }
+     | VAR tipo       DOSP       lisID FVAR   { AsignarTipo($2.t); }
+     ;
+
+tipo : INT                { $$.t = ENTERO; }
+     | CHAR               { $$.t = CARACTER; }
+     ;
+
+lisID :  ID        { Guarda($1.lexema,$-1.t); }
+      ;
+\end{verbatim}
+\end{footnotesize}
+Las dos posibles configuraciones de la pila al reducir por $LisID \flecha \ter{id}$
+serían:
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|c|cccc||c|}\hline
+estado & \multicolumn{2}{|c}{0} & $Tipo$        & $Marcador$ & {\bf id}   \\
+lexema &   & &               &            & \verb!a!   \\
+t      &   & & \verb!ENTERO! &            &            \\\hline
+\verb!$!&  & & \verb!$-1!    & \verb!$0!  & \verb!$1!  \\\hline\hline
+estado & 0 & {\bf var} & $Tipo$        & {\bf dosp} & {\bf id}   \\
+lexema &   &           &               &            & \verb!a!   \\
+t      &   &           & \verb!ENTERO! &            &            \\\hline
+\verb!$!&  & \verb!$-2!& \verb!$-1!    & \verb!$0!  & \verb!$1!  \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+En este caso tampoco es necesario sustituir las acciones intermedias que
+asignan valor a {\em LisID.th\/} por marcadores.
+\end{ejemplo}
+
+\begin{ejemplo}
+Supongamos ahora que el ETDS fuera:
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Tipo} \;\{~ \mbox{\em LisID}.th := GuardaTip(Tipo.t)  ~\}\; \nter{LisID} \tertt{;} \;\{~ AsignarTipo(Tipo.t) ~\}  \\
+\nter{Tipo} \der \ter{int}                   \;\{~ Tipo.t := ENTERO ~\} \\
+\nter{Tipo} \der \ter{char}                  \;\{~ Tipo.t := CARACTER ~~\} \\
+\nter{LisID} \der \ter{id}                   \;\{~ Guarda({\bf id}.lexema,\mbox{\em LisID}.th) ~\}
+\end{array}
+$$
+\end{small}
+El atributo {\em LisID.th\/} se obtiene como el resultado de llamar a la
+función {\em GuardaTip()\/} con {\em Tipo.t\/}. En este caso no es posible 
+asociar el atributo heredado con ningún otro atributo sintetizado; además, esa
+función podría tener efectos secundarios, como modificar el valor de alguna
+variable global. Por estos dos motivos, lo que se debe hacer en este caso
+(y en otros similares, aunque sean más sencillos) es poner un marcador en el
+lugar de la acción semántica y utilizar los atributos del marcador para 
+almacenar el valor del atributo heredado, es decir, asociar un atributo 
+sintetizado del marcador con el atributo heredado:
+
+\begin{footnotesize}
+\begin{verbatim}
+%%
+
+s    : tipo       { $$.t = GuardaTip($1.t); }  /* $$ aquí se refiere al marcador */
+       lisID PYC  { AsignarTipo($1.t); }
+     ;
+
+tipo : INT        { $$.t = ENTERO; }
+     | CHAR       { $$.t = CARACTER; }
+     ;
+
+lisID :  ID       { Guarda($1.lexema,$0.t); }
+      ;
+\end{verbatim}
+\end{footnotesize}
+
+Como se puede observar en la solución al problema en la notación de YACC, 
+el marcador queda situado inmediatamente debajo del {\bf id} en la pila
+ (en ``{\tt \$0}'').
+\end{ejemplo}
+
+\begin{ejemplo} 
+Dado el siguiente ETDS:
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Tipo} \;\{~ \mbox{\em LisID}.th := Tipo.t  ~\}\; \nter{LisID} \tertt{;} \{~ AsignarTipo(Tipo.t) ~\}  \\
+\nter{Tipo} \der \ter{int}                   \;\{~ Tipo.t := ENTERO ~\} \\
+\nter{Tipo} \der \ter{char}                  \;\{~ Tipo.t := CARACTER ~\} \\
+\nter{LisID} \der \{~ LisID_1.th := LisID.th ~\}\; \nter{$LisID_1$} \ter{coma} \\
+              & & \;\;\ter{id} \;\{~ Guarda({\bf id}.lexema,\mbox{\em LisID}.th) ~\} \\
+\nter{LisID} \der \ter{id}                   \;\{~ Guarda({\bf id}.lexema,\mbox{\em LisID}.th) ~\}
+\end{array}
+$$
+\end{small}
+Hay una regla recursiva por la izquierda para el no terminal 
+{\em LisID\/}. Si se hace una traza solamente del análisis, sin tener en 
+cuenta las acciones de traducción, se puede observar que {\em Tipo\/} está
+siempre situado inmediatamente debajo de cualquiera de las dos reglas de
+{\em LisID\/}, independientemente del número de {\bf id} que aparezcan en
+la cadena de entrada. Las dos posibles configuraciones de la pila al
+reducir por las reglas de $LisID$ serían:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|c|cc||ccc|}\hline
+estado & 0 & $Tipo$        & {\bf id}   &            & \\
+lexema &   &               & \verb!a!   &            & \\
+t      &   & \verb!ENTERO! &            &            & \\\hline
+\verb!$!&  & \verb!$0!     & \verb!$1!  &            & \\\hline\hline
+estado & 0 & $Tipo$        & $LisID$    & {\bf coma} & {\bf id}  \\
+lexema &   &               &            &            & \verb!b!  \\
+t      &   & \verb!ENTERO! &            &            &           \\\hline
+\verb!$!&  & \verb!$0!     & \verb!$1!  & \verb!$2!  & \verb!$3! \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+En este caso, la acción semántica que transmite el
+atributo heredado de {\em LisID\/} a $LisID_1$ no sólo no es necesario 
+sustituirla por un marcador, sino que si introducimos un marcador (o la
+acción semántica) YACC va a producir un conflicto reducción--reducción
+en la tabla de análisis\footnote{En general, si en una especificación para YACC
+se ponen acciones (o marcadores) al principio de la parte derecha de las reglas
+es muy probable que aparezcan conflictos reducción--reducción.}, y es 
+probable que el traductor funcione mal. La solución sería eliminar dicha acción
+semántica, igual que hacemos con la de la regla de {\em S\/}:
+
+\begin{footnotesize}
+\begin{verbatim}
+%%
+
+s    : tipo lisID PYC     { AsignarTipo($1.t); }
+     ;
+
+tipo : INT         { $$.t = ENTERO; }
+     | CHAR        { $$.t = CARACTER; }
+     ;
+
+lisID : lisID COMA ID { Guarda($3.lexema,$0.t); }
+      | ID            { Guarda($1.lexema,$0.t); }
+      ;
+\end{verbatim}
+\end{footnotesize}
+\end{ejemplo}
+
+\begin{ejemplo}
+ ¿Qué ocurre si la recursividad es por la derecha?
+\begin{small}
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{Tipo} \;\{~ \mbox{\em LisID}.th := Tipo.t  ~\}\; \nter{LisID} \tertt{;} \;\{~ AsignarTipo(Tipo.t) ~\}  \\
+\nter{Tipo} \der \ter{int}                   \;\{~ Tipo.t := ENTERO ~\} \\
+\nter{Tipo} \der \ter{char}                  \;\{~ Tipo.t := CARACTER ~\} \\
+\nter{LisID} \der \ter{id} \ter{coma} \;\{~ Guarda({\bf id}.lexema,\mbox{\em LisID}.th);  \\
+             & &  ~~~~~~~~~~~~~~~~~~ LisID_1.th := LisID.th ~\} \\
+             & & \nter{$LisID_1$}            \\
+\nter{LisID} \der \ter{id}                   \;\{~ Guarda({\bf id}.lexema,\mbox{\em LisID}.th) ~\}
+\end{array}
+$$
+\end{small}
+En este caso concreto, si se hace una pequeña traza se puede observar que
+{\em Tipo\/} se va alejando de las reglas de {\em LisID\/} conforme
+añadimos {\bf id} a la pila. La evolución de la pila para la 
+cadena de entrada ``\verb!int a,b,c!''sería la siguiente:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|c|ccccccc|}\hline
+estado & 0 & $Tipo$        & {\bf id}   &            &           &             & \\
+lexema &   &               & \verb!a!   &            & & & \\
+t      &   & \verb!ENTERO! &            &            & & & \\\hline
+estado & 0 & $Tipo$        & {\bf id}   & {\bf coma} & {\bf id}  &             &\\
+lexema &   &               & \verb!a!   &            & \verb!b!  & &\\
+t      &   & \verb!ENTERO! &            &            &           & &\\\hline
+estado & 0 & $Tipo$        & {\bf id}   & {\bf coma} & {\bf id}  & {\bf coma} & \\
+lexema &   &               & \verb!a!   &            & \verb!b!  & &\\
+t      &   & \verb!ENTERO! &            &            &           & &\\\hline
+estado & 0 & $Tipo$        & {\bf id}   & {\bf coma} & {\bf id}  & {\bf coma} & {\bf id} \\
+lexema &   &               & \verb!a!   &            & \verb!b!  &            & \verb!c! \\
+t      &   & \verb!ENTERO! &            &            &           &            & \\\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+
+
+Este alejamiento de $Tipo$ hace necesario introducir un marcador en
+la posición de la acción semántica que vaya transmitiendo el valor de
+{\em Tipo.t\/} a las diferentes {\em LisID\/}; y no sólo debe transmitirlo,
+sino que debe hacer que se encuentre siempre en la misma posición 
+relativa con respecto a las reglas de {\em LisID\/}. Además, en este ETDS la
+acción semántica que transmite el atributo heredado hace también una llamada
+a la función {\em Guarda\/}, por lo que hay doble motivo para poner el
+marcador:
+
+\begin{footnotesize}
+\begin{verbatim}
+%%
+
+s    : tipo lisID PYC     { AsignarTipo($1.t); }
+     ;
+
+tipo : INT         { $$.t = ENTERO; }
+     | CHAR        { $$.t = CARACTER; }
+     ;
+
+lisID : ID COMA    { Guarda($1.lexema,$0.t); 
+                     $$.t = $0.t; /* transmitir el atr. heredado */
+                   }
+        lisID
+      | ID            { Guarda($1.lexema,$0.t); }
+      ;
+\end{verbatim}
+\end{footnotesize}
+
+Las configuraciones de la pila en el momento de ejecutar las
+acciones semánticas en las producciones de \emph{LisID} serían:
+
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|c|cc||cc|c|}\hline
+\multicolumn{5}{|c|}{\sc Pila} & {\sc Acción} \\\hline
+estado & 0 & $Tipo$        & {\bf id}   &            &   \verb!reducir! $LisID \flecha \ter{id}$\\
+lexema &   &               & \verb!a!   &            &   \\
+t      &   & \verb!ENTERO! &            &            &   \\\hline
+\verb!$!&  & \verb!$0!     & \verb!$1!  &            &   \\\hline\hline
+estado & 0 & $\ldots\; Marcador$   & {\bf id}   &      &   \verb!reducir! $LisID \flecha \ter{id}$\\
+lexema &   &               & \verb!a!   &            &   \\
+t      &   & $\ldots\; $\verb!ENTERO! &            &            &   \\\hline
+\verb!$!&  & \verb!$0!     & \verb!$1!  &            &   \\\hline\hline
+estado & 0 & $Tipo$        &  {\bf id}  & {\bf coma} &   \verb!reducir! $Marcador \flecha \;\epsilon$ \\
+lexema &   &               &  \verb!b!  &            &   \\
+t      &   & \verb!ENTERO! &            &            &   \\\hline
+\verb!$!&  & \verb!$0!     & \verb!$1!  & \verb!$2!  &   \\\hline\hline
+estado & 0 & $\ldots\; Marcador$       &  {\bf id}  & {\bf coma} &   \verb!reducir! $Marcador \flecha \;\epsilon$ \\
+lexema &   &               &  \verb!b!  &            &   \\
+t      &   & $\ldots\; $\verb!ENTERO! &            &            &   \\\hline
+\verb!$!&  & \verb!$0!     & \verb!$1!  & \verb!$2!  &   \\\hline\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+\end{ejemplo}
+
+\begin{ejemplo}
+Un caso típico en muchos ETDS es el de un atributo heredado que va bajando
+en el árbol en unas producciones recursivas, hasta llegar al caso base, que
+debe devolver como atributo sintetizado el atributo heredado que le llega.
+Dado el siguiente ETDS, que cuenta el número de variables 
+declaradas\footnote{Evidentemente existen formas más eficientes de contar
+las variables declaradas, incluso con otros ETDS más sencillos.}:
+$$
+\begin{array}{lcl}
+\nter{S} \der \ter{var} \;\{\; A.h:=0 \;\}\; \nter{A} \;\{\; S.s := A.s \;\} \\
+\nter{A} \der \ter{id}  \;\{\; A_1.h:=A.h+1\;\}\; \nter{$A_1$} \;\{\; A.s := A_1.s \;\} \\
+\nter{A} \der \epsilon  \;\{\; A.s := A.h \;\}
+\end{array}
+$$
+Su implementación en YACC sería la siguiente:
+
+\begin{footnotesize}
+\begin{verbatim}
+%%
+
+s    : VAR { /* M1 */ $$.h=0; }  a  { $$.s=$3.s; }
+     ;
+
+a    : ID  { /* M2 */ $$.h=$0.h + 1; } a { $$.s=$3.s; }
+     | /* epsilon */                   { $$.s=$0.h; }
+     ;
+
+\end{verbatim}
+\end{footnotesize}
+
+La traza de este ETDS para una cadena de entrada como ``\verb!var e f!''
+se puede observar en la figura~\ref{fg:trazaYACC}. Debemos recordar que
+al reducir por una producción vacía no existe ``\verb!$1!'', ni ``\verb!$2!'',
+etc., y que no se desapila ningún símbolo y se apila la parte izquierda
+de la regla. Esto sucede tanto en los marcadores como en 
+$A \flecha \;\epsilon$.
+\end{ejemplo}
+
+\begin{figure}[htp]
+\begin{footnotesize}
+\begin{center}
+\begin{tabular}{|c|cccccccc|c@{$\;\;$}c@{$\;\;$}c@{$\;\;$}c|l|}\hline
+\multicolumn{9}{|c|}{\sc Pila} & \multicolumn{4}{|c|}{\sc Entrada} & \multicolumn{1}{|c|}{\sc Acción}\\\hline
+est & 0 & & &                 & & & &              & {\bf var} & {\bf id}  & {\bf id} & {\bf \$} & \verb+desplazar+ \\
+h      &   & & &                 & & & &              &           &           &          & &          \\
+s      &   & & &                 & & & &              &           &           &          & &          \\\hline\hline
+est & 0 & \texttt{VAR} & &    & & & &              &           & {\bf id}  & {\bf id} & {\bf \$} & \verb+reducir+ $\texttt{M1} \flecha \;\epsilon$ \\
+h      &   & & &                 & & & &              &           &           &          & &          \\
+s      &   & & &                 & & & &              &           &           &          & &          \\\hline
+\verb!$!&  & & &                 & & & &              &           &           &          &          & \verb!$$.h=0;! \\\hline\hline
+est & 0 & \texttt{VAR} & \texttt{M1} & & & &&             &           & {\bf id}  & {\bf id} & {\bf \$} & \verb+desplazar+ \\
+h      &   &              & 0 &  & & & &              &           &           &          & &          \\
+s      &   & & &                 & & & &              &           &           &          & &          \\\hline\hline
+est & 0 & \texttt{VAR} & \texttt{M1} & \texttt{ID} & & && &           &           & {\bf id} & {\bf \$} & \verb+reducir+ $\texttt{M2} \flecha \;\epsilon$ \\
+h      &   &              & 0 &  & & & &              &           &           &          & &          \\
+s      &   & & &                 & & & &              &           &           &          & &          \\\hline
+\verb!$!&  &              & \verb!$0!  &  \verb!$1! & & & &       & &         &          &          & \verb!$$.h=$0.h + 1;! \\\hline\hline
+est & 0 & \texttt{VAR} & \texttt{M1} & \texttt{ID} & \texttt{M2} & &&        &           &  & {\bf id} & {\bf \$} & \verb+desplazar+ \\
+h      &   &              & 0    &             & 1    & &&        & &         &          & &          \\
+s      &   & & &                 & & & &              &           &           &          & &          \\\hline\hline
+est & 0 & \texttt{VAR} & \texttt{M1} & \texttt{ID} & \texttt{M2} & \texttt{ID} &&        &           &  & & {\bf \$} & \verb+reducir+ $\texttt{M2} \flecha \;\epsilon$ \\
+h      &   &              & 0    &             & 1    & &&        & &         &          & &          \\
+s      &   & & &                 & & & &              &           &           &          & &          \\\hline
+\verb!$!&  &              &      &             & \verb!$0! & \verb!$1! & &    & &         &          &         & \verb!$$.h=$0.h + 1;! \\\hline\hline
+est & 0 & \texttt{VAR} & \texttt{M1} & \texttt{ID} & \texttt{M2} & \texttt{ID} & \texttt{M2} &        &           &  & & {\bf \$} & \verb+reducir+ $\texttt{a} \flecha \;\epsilon$ \\
+h      &   &              & 0    &             & 1    &           &  2     &       & &         &          & &          \\
+s      &   & & &                 & & & &              &           &           &          & &          \\\hline
+\verb!$!&  &              &      &             &  &    &\verb!$0! &    & &         &          &         & \verb!$$.s=$0.h;! \\\hline\hline
+est & 0 & \texttt{VAR} & \texttt{M1} & \texttt{ID} & \texttt{M2} & \texttt{ID} & \texttt{M2} & \texttt{a}     &           &  & & {\bf \$} & \verb+reducir+ $\texttt{a} \flecha \tertt{ID} \texttt{M2} \tertt{a} $ \\
+h      &   &              & 0    &             & 1    &           &  2     &       & &         &          & &          \\
+s      &   &              &      &             &      &           &        &  2    &           &           &          & &          \\\hline
+\verb!$!&  &              &      &             &      & \verb!$1! &\verb!$2! &\verb!$3! &      &         &          & &         \verb!$$.s=$3.s;! \\\hline\hline
+est & 0 & \texttt{VAR} & \texttt{M1} & \texttt{ID} & \texttt{M2} & \texttt{a} & &     &           &  & & {\bf \$} & \verb+reducir+ $\texttt{a} \flecha \tertt{ID} \texttt{M2} \tertt{a} $ \\
+h      &   &              & 0    &             & 1    &           &      &       & &         &          & &          \\
+s      &   &              &      &             &      &    2      &        &      &           &           &          & &          \\\hline
+\verb!$!&  &              &      &  \verb!$1!  & \verb!$2!  & \verb!$3! & & & &         &          &         & \verb!$$.s=$3.s;! \\\hline\hline
+est & 0 & \texttt{VAR} & \texttt{M1} & \texttt{a}  &      &  & &     &           &  & & {\bf \$} & \verb+reducir+ $\texttt{s} \flecha \tertt{VAR} \texttt{M1} \tertt{a} $ \\
+h      &   &              & 0    &             &      &           &      &       & &         &          & &          \\
+s      &   &              &      & 2           &      &          &        &      &           &           &          & &          \\\hline
+\verb!$!&  & \verb!$1!    & \verb!$2! &  \verb!$3!  &   &  & & & &         &          &         & \verb!$$.s=$3.s;! \\\hline\hline
+est & 0 & \texttt{s}   &   &   &      &  & &     &           &  & & {\bf \$} & \verb+aceptar+  \\
+h      &   &              &     &             &      &           &      &       & &         &          & &          \\
+s      &   & 2            &      &            &      &          &        &      &           &           &          & &          \\\hline\hline
+\end{tabular}
+\end{center}
+\end{footnotesize}
+\caption{Traza del análisis de ``\texttt{var e f}''.}
+\label{fg:trazaYACC}
+\end{figure}
+
+
+\subsection{Principales usos de los marcadores}
+
+ Como hemos estudiado en las secciones anteriores, los principales usos de
+los marcadores son:
+\begin{enumerate}
+ \item Conseguir que las acciones semánticas intermedias que sea necesario
+  ejecutar (llamadas a funciones que modifican variables globales, etc) 
+  se ejecuten siempre al reducir por una regla.
+ \item Almacenar valores locales al análisis de una regla.
+ \item Ocupar huecos en la pila de atributos para conseguir que todos los
+  atributos asociados a un atributo heredado queden situados a la misma
+  distancia de la regla en la que se utiliza.
+ \item Almacenar el valor de algún atributo heredado que no se encuentra
+  disponible en una posición conocida y fija de la pila, o bien cuando el
+  atributo heredado se obtiene haciendo algún cálculo o llamando a alguna
+  función externa.
+\end{enumerate}
+
+ También existen algunos casos en los que no es necesario utilizar marcadores:
+\begin{itemize}
+ \item Cuando la acción semántica simplemente asocia un atributo heredado con otro
+sintetizado que está disponible en la pila, y
+ \item Cuando la acción semántica transmite un atributo heredado que no es
+ imprescindible transmitir porque sigue estando disponible en la pila.
+\end{itemize}
+
+ Todas las técnicas estudiadas en este tema pueden combinarse y adaptarse 
+adecuadamente a cada caso concreto, pero en general siempre es posible 
+implementar un ETDS con un analizador LR aplicando una o más de estas
+técnicas.
+
+\Refbib
+
+\begin{rbib}
+\refb{\cite{Lou97}}{6.2.3 y 6.2.5}
+\refb{\cite{ASU90}}{5.5, 5.3 y 5.6}
+\refb{\cite{FL91}}{6.6, 6.7.2, 7.2.5 y 14.1.3}
+\end{rbib}
+
+\clearpage
+%\section{Ejercicios}
+\Ejercicios
+
+\begin{ejercicio}
+A partir del siguiente ETDS, aplíquense las técnicas para eliminar la
+recursividad por la izquierda que se estudian en el epígrafe~\ref{ssec:recizq}
+e impleméntese el ETDS resultante como un traductor descendente recursivo.
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{L} \ter{pyc} 
+     \;\{\; S.a := $``\verb!var !''$ \sep L.a \sep $``\verb!:!''$ \sep L.b \sep $``\verb!;!''$ \;\} \\
+\nter{L} \der \nter{$L_1$} \ter{coma} \ter{id} \;\{\; L.a := L_1.a \sep $``\verb!,!''$ \sep \textbf{id}.lexema; L.b := L_1.b \;\} \\
+\nter{L} \der \nter{T} \ter{id} \;\{\; L.a := \textbf{id}.lexema \;;\; L.b := T.t \;\} \\ 
+\nter{T} \der \ter{int} \;\{\; T.t := $``\verb!integer!''$ \;\} \\
+\nter{T} \der \ter{float} \;\{\; T.t := $``\verb!real!''$ \;\} \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+Conviértase este ETDS a la notaci\'{o}n de YACC.
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{T} \ter{var}~~\{ A.h := T.s \}~~\nter{A}~~\{ S.s:=A.s \} \\
+\nter{A} \der \nter{B}~~\{ C.h := A.h \parallel B.s \}~~\nter{C}~~\{ A.s:=C.s \} \\
+\nter{B} \der \ter{id}~~~~~\{ B.s := {\bf id}.valex \} \\
+\nter{C} \der \epsilon~~~~~~~\{ C.s := C.h \} \\
+\nter{C} \der \ter{coma} \nter{B}~~\{ C_1.h := C.h \parallel ``,'' \parallel B.s \}~~\nter{$C_1$}~~\{ C.s := C_1.s \} \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+Transfórmese este ETDS a la notaci\'{o}n de YACC.
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{T} \ter{id}~~\{ \mbox{InsertaVar}({\bf id}.valex,T.t); L.th := T.t ; \} \\
+ & & \nter{L} \\
+\nter{T} \der \ter{int}~~~~\{ T.t := \mbox{ENTERO}; \} \\
+\nter{T} \der \ter{float}~\{ T.t := \mbox{FLOTANTE}; \} \\
+\nter{L} \der \ter{,} \ter{id}~~~\{ \mbox{InsertaVar}({\bf id}.valex,L.th); L_1.th := L.th ; \} \\ 
+ & & \nter{$L_1$} \\
+\nter{L} \der \ter{;} \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+Conviértase este ETDS a la notaci\'on de YACC. Todos los
+atributos son cadenas de caracteres.
+$$
+\begin{array}{lcll}
+\nter{S} \der \nter{N} \nter{A} & \{ C.prim := A.s  \} \\
+ & & \ter{coma} \nter{B} & \{ C.sec := B.s  \} \\
+ & & \nter{C} & \{ S.s := N.s || C.s  \} \\
+\nter{N} \der \epsilon & \{ N.s := $\verb!""!$ \} \\
+\nter{N} \der \nter{D} & \{ C.prim := D.s  \} \\
+ & & \nter{B} & \{ C.sec := B.s \} \\
+ & & \nter{C} & \{ N.s := C.s\} \\
+\nter{B} \der \ter{id} & \{ B.s := {\bf id}.lexema \} \\
+\nter{A} \der \ter{var} \ter{id} & \{ A.s := {\bf id}.lexema \} \\
+\nter{D} \der \ter{func} \ter{id} & \{ D.s := {\bf id}.lexema \} \\
+\nter{C} \der \ter{integer} & \{ C.s := \verb+"int "+ || C.prim || C.sec  \} \\
+\nter{C} \der \ter{real} & \{ C.s := \verb+"float "+ || C.prim || C.sec  \} \\
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+Dado el siguiente ETDS, tradúzcase a la notación de YACC. 
+$$
+\begin{array}{lcll}
+\nter{S} \der \ter{decl} \nter{A}       & \{ C.t := A.s  \} \\
+ & &          \ter{variables} \nter{C}  & \{ S.s := C.s  \} \\
+\nter{A} \der \ter{id}                  & \{ pos := Busca({\bf id}.lexema);  \} \\
+ & &          \nter{D}                  & \{ C.t := D.s \} \\
+ & &          \nter{C}                  & \{ Guarda(pos,C.s); A.s := C.s \} \\
+\nter{B} \der \ter{real}                & \{ B.s := REAL \} \\
+\nter{B} \der \ter{integer}             & \{ B.s := ENTERO \} \\
+\nter{C} \der                           & \{ C_1.t := C.t \} \\
+ & &          \nter{$C_1$} \ter{id}     & \{ Guarda(Busca({\bf id}.lexema),C_1.s); \\
+ & &                                    & ~~C.s := C_1.s \} \\
+\nter{C} \der \epsilon                  & \{ C.s := C.t \} \\
+\nter{D} \der \ter{var} \nter{B} \ter{dospto} & \{ C.t := B.s \} \\
+ & &          \nter{C} \ter{fvar}       & \{ D.s := C.s \} 
+\end{array}
+$$
+\end{ejercicio}
+
+\begin{ejercicio}
+Dado el siguiente ETDS, tradúzcase a la notación de YACC. 
+$$
+\begin{array}{lcll}
+\nter{S} \der \ter{main} \nter{A}       & \{ B.k~:=~A.a  \} \\
+ & &          \nter{B}                  & \{ C.p~:=~A.a~;~C.q~:=~B.b \} \\
+ & &          \nter{C}                  & \{ S.s~:=~$``\verb!principal!''$ ~||~C.c \} \\
+\nter{C} \der \ter{code}                & \{ C.c~:=~C.p~||~$``\verb!codigo!''$~||~C.q \} \\
+\nter{A} \der \nter{D} \nter{E}         & \{ C.p~:=~D.d~;~C.q~:=~E.e \} \\
+ & &          \nter{C}                  & \{ A.a~:=~C.c \} \\
+\nter{B} \der \ter{declaration}         & \{ B.b~:=~B.k~||~$``\verb!declaracion!''$ \} \\
+\nter{D} \der \ter{var}                 & \{ D.d~:=~$``\verb!var!''$ \} \\
+\nter{E} \der \ter{type}                & \{ E.e~:=~$``\verb!tipo!''$ \} 
+\end{array}
+$$
+\end{ejercicio}
+

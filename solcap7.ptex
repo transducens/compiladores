@@ -1,0 +1,358 @@
+
+\section{Soluciones a los ejercicios del capítulo 7}
+
+\stepcounter{contcapitulo}
+\setcounter{contsoleje}{0}
+
+
+\begin{soleje}
+A partir del siguiente ETDS, aplíquense las técnicas para eliminar la
+recursividad por la izquierda que se estudian en el epígrafe~\ref{ssec:recizq}
+e impleméntese el ETDS resultante como un traductor descendente recursivo.
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{L} \ter{pyc} 
+     \;\{\; S.a := $``\verb!var !''$ \sep L.a \sep $``\verb!:!''$ \sep L.b \sep $``\verb!;!''$ \;\} \\
+\nter{L} \der \nter{$L_1$} \ter{coma} \ter{id} \;\{\; L.a := L_1.a \sep $``\verb!,!''$ \sep \textbf{id}.lexema; L.b := L_1.b \;\} \\
+\nter{L} \der \nter{T} \ter{id} \;\{\; L.a := \textbf{id}.lexema \;;\; L.b := T.t \;\} \\ 
+\nter{T} \der \ter{int} \;\{\; T.t := $``\verb!integer!''$ \;\} \\
+\nter{T} \der \ter{float} \;\{\; T.t := $``\verb!real!''$ \;\} \\
+\end{array}
+$$
+
+\solucion
+$$
+\begin{array}{lcl}
+\nter{S} \der \nter{L} \ter{pyc} 
+     \obr S.a := $``\verb!var !''$ \sep L.a \sep $``\verb!:!''$ 
+                 \sep L.b \sep $``\verb!;!''$ \tanc \\
+\nter{L} \der \nter{T} \ter{id} 
+       \obr L'.ha := {\bf id}.lexema;\; L'.hb:=T.t \tanc \nter{$L'$}
+       \obr L.a := L'.sa;\; \\
+& &    L.b:=L'.sb \tanc \\
+\nter{$L'$} \der \ter{coma} \ter{id} 
+       \obr L'_1.ha := L'.ha \sep $``\verb!,!''$ \sep \textbf{id}.lexema;\;
+            L'_1.hb := L'.hb \tanc \\
+& &    \nter{$L'_1$} 
+       \obr L'.sa:=L'_1.sa;\; L'.sb:=L'_1.sb \tanc \\
+\nter{$L'$} \der \epsilon \obr L'.sa:=L'.ha;\; L'.sb:=L'.hb \tanc \\ 
+\nter{T} \der \ter{int} \obr T.t := $``\verb!integer!''$ \tanc \\
+\nter{T} \der \ter{float} \obr T.t := $``\verb!real!''$ \tanc \\
+\end{array}
+$$
+
+En primer lugar se definen registros de atributos para los símbolos
+$\nter{L}$ y $\nter{$L'$}$:
+\begin{small}
+\begin{verbatim}
+typedef struct{
+        char *a,*b;
+        }AtrL;
+
+typedef struct{
+        char *ha,*hb;
+        char *sa,*sb;
+        }AtrLp;
+\end{verbatim}
+\end{small}
+
+A continuación se escriben las funciones correspondientes a cada no terminal:
+\begin{small}
+\begin{verbatim}
+char *S(void)
+{
+  char *S_a;
+  AtrL atl;
+
+  L(&atl);
+  emparejar(PYC);
+  S_a=concat("var ",atl.a,":",atl.b,";");
+  return(S_a);
+}
+
+void L(AtrL *atl)
+{
+  char *T_t,*Id_lexema;
+  AtrLp atlp;
+
+  T_t=T();
+  Id_lexema=strdup(lexema);
+  emparejar(ID);
+  atlp.ha=Id_lexema;
+  atlp.hb=T_t;
+  Lp(&atlp);
+  atl->a=atlp.sa;
+  atl->b=atlp.sb;
+}
+
+void Lp(AtrLp *atlp)
+{
+  char *Id_lexema;
+  AtrLp atlp1;
+
+  if (preanalisis==COMA)
+   {
+     emparejar(COMA);
+     Id_lexema=strdup(lexema);
+     emparejar(ID);
+     atlp1.ha=concat(atlp->ha,",",Id_lexema);
+     atlp1.hb=atlp->hb;
+     Lp(&atlp1);
+     atlp->sa=atlp1.sa;
+     atlp->sb=atlp1.sb;
+   }
+  else
+   {
+     if (preanalisis==PYC)
+      {
+        atlp->sa=atlp->ha;
+        atlp->sb=atlp->hb;
+      }
+     else ErrorSintactico(lexema,COMA,PYC);
+   }
+}
+
+char *T(void)
+{
+  char *T_t;
+
+  if (preanalisis==INT)
+     T_t=strdup("integer");
+  else
+    if (preanalisis==FLOAT)
+      T_t=strdup("real");
+    else ErrorSintactico(lexema,INT,FLOAT);
+  return(T_t);
+}
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+\begin{soleje}
+Conviértase este ETDS a la notaci\'{o}n de YACC.
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{T} \ter{var}~~\{ A.h := T.s \}~~\nter{A}~~\{ S.s:=A.s \} \\
+\nter{T} \der \ter{integer}~~~~~\{ T.s := \mbox{``int~''} \} \\
+\nter{T} \der \ter{real}~~~~~~~~~~\{ T.s := \mbox{``float~''} \} \\
+\nter{A} \der \nter{B}~~\{ C.h := A.h \parallel B.s \}~~\nter{C}~~\{ A.s:=C.s \} \\
+\nter{B} \der \ter{id}~~~~~\{ B.s := {\bf id}.lexema \} \\
+\nter{C} \der \epsilon~~~~~~~\{ C.s := C.h \} \\
+\nter{C} \der \ter{coma} \nter{B}~~\{ C_1.h := C.h \parallel $``\verb!,!''$ \parallel B.s \}~~\nter{$C_1$}~~\{ C.s := C_1.s \} \\
+\end{array}
+$$
+\solucion
+
+\begin{small}
+\begin{verbatim}
+s : t VAR a {$$.s = $3.s;}  
+  ;
+t : INTEGER {$$.s = strdup("int ");}
+  | REAL    {$$.s = strdup("float ");}
+  ;
+a : b  {$$.s = concat($-1.s,$1.s);}  c  {$$.s = $3.s;}  
+  ;
+b : ID {$$.s = strdup($1.lexema); }  
+  ;
+c : COMA b  {$$.s = concat($0.s,",",$2.s);}  c  {$$.s = $4.s;}
+  | {$$.s = $0.s;}
+  ;
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+\begin{soleje}
+Transfórmese este ETDS a la notaci\'{o}n de YACC.
+$$
+\begin{array}{rcl}
+\nter{S} \der \nter{T} \ter{id}~~\{ \mbox{InsertaVar}({\bf id}.lexema,T.t); L.th = T.t ; \} \\
+ & & \nter{L} \\
+\nter{T} \der \ter{int}~~~~\{ T.t := \mbox{ENTERO}; \} \\
+\nter{T} \der \ter{float}~\{ T.t := \mbox{FLOTANTE}; \} \\
+\nter{L} \der \ter{,} \ter{id}~~~\{ \mbox{InsertaVar}({\bf id}.lexema,L.th); L_1.th = L.th ; \} \\ 
+ & & \nter{$L_1$} \\
+\nter{L} \der \ter{;} \\
+\end{array}
+$$
+\solucion
+
+\begin{small}
+\begin{verbatim}
+s : t ID  {InsertaVar($2.lexema,$1.t); $$.t = $1.t;}  l   
+  ;
+t : INT   {$$.t = ENTERO;}
+  | FLOAT {$$.t = FLOTANTE;}
+  ;
+l : COMA ID  {InsertaVar($2.lexema,$0.t); $$.t = $0.t;} l
+  | PUNTCO 
+  ;
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+\begin{soleje}
+Conviértase este ETDS a la notaci\'on de YACC. Todos los
+atributos son cadenas de caracteres.
+$$
+\begin{array}{lcll}
+\nter{S} \der \nter{N} \nter{A} & \{ C.prim := A.s  \} \\
+ & & \ter{coma} \nter{B} & \{ C.sec := B.s  \} \\
+ & & \nter{C} & \{ S.s := N.s || C.s  \} \\
+\nter{N} \der \epsilon & \{ N.s := $\verb!""!$ \} \\
+\nter{N} \der \nter{D} & \{ C.prim := D.s  \} \\
+ & & \nter{B} & \{ C.sec := B.s \} \\
+ & & \nter{C} & \{ N.s := C.s\} \\
+\nter{B} \der \ter{id} & \{ B.s := {\bf id}.lexema \} \\
+\nter{A} \der \ter{var} \ter{id} & \{ A.s := {\bf id}.lexema \} \\
+\nter{D} \der \ter{func} \ter{id} & \{ D.s := {\bf id}.lexema \} \\
+\nter{C} \der \ter{integer} & \{ C.s := \verb+"int "+ || C.prim || C.sec  \} \\
+\nter{C} \der \ter{real} & \{ C.s := \verb+"float "+ || C.prim || C.sec  \} \\
+\end{array}
+$$
+\solucion
+
+Una posible solución sería:
+
+\begin{small}
+\begin{verbatim}
+s : n a COMA  {$$.prim = $2.s;}  b c  {$$.s = concat($1.s,$6.s);}
+  ;
+n : d  {$$.prim = $1.s;}  b c  {$$.s = $4.s;}
+  | {$$.s = strdup("");}
+  ;
+b : ID  {$$.s = strdup($1.lexema);}
+  ;
+a : VAR ID  {$$.s = strdup($2.lexema);}
+  ;
+c : INTEGER  {$$.s = concat("int ",$-1.prim,$0.s);}
+  | REAL     {$$.s = concat("float ",$-1.prim,$0.s);}
+  ;
+d : FUNC ID  {$$.s = strdup($2.lexema);}
+  ;
+\end{verbatim}
+\end{small}
+
+Otra posible solución es:
+
+\begin{small}
+\begin{verbatim}
+s : n a COMA b c  {$$.s = concat($1.s,$5.s);}
+  ;
+n :   d { }  b c  {$$.s = $4.s;}
+  | {$$.s = strdup("");}
+  ;
+b : ID  {$$.s = strdup($1.lexema);}
+  ;
+a : VAR ID  {$$.s = strdup($2.lexema);}
+  ;
+c : INTEGER  {$$.s = concat("int ",$-2.s,$0.s);}
+  | REAL     {$$.s = concat("float ",$-2.s,$0.s);}
+  ;
+d : FUNC ID  {$$.s = strdup($2.lexema);}
+  ;
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+\begin{soleje}
+Dado el siguiente ETDS, tradúzcase a la notación de YACC. 
+$$
+\begin{array}{lcll}
+\nter{S} \der \ter{decl} \nter{A}       & \{ C.t := A.s  \} \\
+ & &          \ter{variables} \nter{C}  & \{ S.s := C.s  \} \\
+\nter{A} \der \ter{id}                  & \{ pos := Busca({\bf id}.lexema);  \} \\
+ & &          \nter{D}                  & \{ C.t := D.s \} \\
+ & &          \nter{C}                  & \{ Guarda(pos,C.s); A.s := C.s \} \\
+\nter{B} \der \ter{real}                & \{ B.s := REAL \} \\
+\nter{B} \der \ter{integer}             & \{ B.s := ENTERO \} \\
+\nter{C} \der                           & \{ C_1.t := C.t \} \\
+ & &          \nter{$C_1$} \ter{id}     & \{ Guarda(Busca({\bf id}.lexema),C_1.s); \\
+ & &                                    & ~~C.s := C_1.s \} \\
+\nter{C} \der \epsilon                  & \{ C.s := C.t \} \\
+\nter{D} \der \ter{var} \nter{B} \ter{dospto} & \{ C.t := B.s \} \\
+ & &          \nter{C} \ter{fvar}       & \{ D.s := C.s \} 
+\end{array}
+$$
+\solucion
+
+Este ejercicio, como el anterior, tiene varias soluciones. Una 
+de ellas es la siguiente:
+
+\begin{small}
+\begin{verbatim}
+s : DECL a VARIABLES  {$$.t = $2.s;}  c  {$$.s = $5.s;}
+  ;
+a : ID  {$$.pos = Busca($1.lexema);}  d  {$$.t = $3.s;}  c  
+                                {Guarda($2.pos,$5.s); 
+                                 $$.s = $5.s;}
+  ;
+b : REAL     {$$.s = REAL;}
+  | INTEGER  {$$.s = ENTERO;}
+  ;
+c : c ID  {Guarda(Busca($2.lexema),$1.s);}
+  | {$$.s = $0.t;}
+  ;
+d : VAR d DOSPTO  {$$.t = $2.s;}  c  FVAR  {$$.s = $5.s;}
+  ;
+\end{verbatim}
+\end{small}
+
+Otra posible solución es:
+
+\begin{small}
+\begin{verbatim}
+s : DECL a VARIABLES c  {$$.s = $4.s;}
+  ;
+a : ID  {$$.pos = Busca($1.lexema);}  d  { }  c  
+                                {Guarda($2.pos,$5.s); 
+                                 $$.s = $5.s;}
+  ;
+b : REAL     {$$.s = REAL;}
+  | INTEGER  {$$.s = ENTERO;}
+  ;
+c : c ID  {Guarda(Busca($2.lexema),$1.s);}
+  | {$$.s = $-1.s;}
+  ;
+d : VAR d DOSPTO c FVAR  {$$.s = $4.s;}
+  ;
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+\begin{soleje}
+Dado el siguiente ETDS, tradúzcase a la notación de YACC. 
+$$
+\begin{array}{lcll}
+\nter{S} \der \ter{main} \nter{A}       & \{ B.k~:=~A.a  \} \\
+ & &          \nter{B}                  & \{ C.p~:=~A.a~;~C.q~:=~B.b \} \\
+ & &          \nter{C}                  & \{ S.s~:=~$``\verb!principal!''$ ~||~C.c \} \\
+\nter{C} \der \ter{code}                & \{ C.c~:=~C.p~||~$``\verb!codigo!''$~||~C.q \} \\
+\nter{A} \der \nter{D} \nter{E}         & \{ C.p~:=~D.d~;~C.q~:=~E.e \} \\
+ & &          \nter{C}                  & \{ A.a~:=~C.c \} \\
+\nter{B} \der \ter{declaration}         & \{ B.b~:=~B.k~||~$``\verb!declaracion!''$ \} \\
+\nter{D} \der \ter{var}                 & \{ D.d~:=~$``\verb!var!''$ \} \\
+\nter{E} \der \ter{type}                & \{ E.e~:=~$``\verb!tipo!''$ \} 
+\end{array}
+$$
+\solucion
+
+\begin{small}
+\begin{verbatim}
+s : MAIN a b  {$$.p = $2.a; $$.q = $3.b;}  c  
+                   {$$.s = concat("principal ",$5.c);}
+  ;
+c : CODE  {$$.c = concat($0.p," codigo ",$0.q);}
+  ;
+a : d e {$$.p = $1.d; $$.q = $2.e;}  c  {$$.a = $4.c;}
+  ;
+b : DECLARATION  {$$.b = concat($0.a,"declaracion ");}
+  ;
+d : VAR  {$$.d = strdup("var");}
+  ;
+e : TYPE  {$$.e = strdup("tipo");}
+  ;
+\end{verbatim}
+\end{small}
+\end{soleje}
+
+
