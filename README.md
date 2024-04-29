@@ -1,6 +1,6 @@
 # Diseño de compiladores
 
-![](portada.jpg){width=50%}
+![](cubierta.jpg){width=50%}
 
 Código fuente en LaTeX del libro "Diseño de compiladores" publicado en 2002 por Publicaciones de la Universitat d'Alacant.
 
@@ -10,7 +10,7 @@ No obstante, si deseas compilar el código fuente y obtener el PDF, puedes hacer
 
 `pdflatex compiladores-2002.tex`
 
-Las figuras con extensión `obj` está en formato [Tgif](https://bourbon.usc.edu/tgif/). Se incluye la versión en PDF para no tener que convertirlas.
+Las figuras con extensión `obj` están en formato [Tgif](https://bourbon.usc.edu/tgif/). Se incluye la versión en PDF para no tener que convertirlas.
 
 ## Cómo citar el libro
 
