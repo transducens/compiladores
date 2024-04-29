@@ -1,6 +1,6 @@
 # Diseño de compiladores
 
-![](cubierta.jpg){width=50%}
+<img src="cubierta.jpg" width="150px">
 
 Código fuente en LaTeX del libro "Diseño de compiladores" publicado en 2002 por Publicaciones de la Universitat d'Alacant.
 
